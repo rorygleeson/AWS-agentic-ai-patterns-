@@ -1,60 +1,75 @@
-# Two-Gateway Architecture — Design
+# Two Runtimes and Two Gateways — Technical Architecture
 
-**Status:** Approved design, not yet deployed. For the reasons for selecting two Gateways, alternatives and trade-offs, see [ADR-001](architecture-decisions.md#adr-001--use-two-agentcore-gateways-for-separate-security-boundaries).
+**Status:** Restored design baseline, awaiting technical validation. For **why** the lanes are separate, see [ADR-001](architecture-decisions.md#adr-001--separate-human-jwt-and-automation-iam-gateways).
 
-## Side-by-side design
-
-| | Gateway 1 — AWS-native REST | Gateway 2 — OpenAPI + OAuth |
-|---|---|---|
-| Target type | Amazon API Gateway REST API **stage target** | **OpenAPI specification target** |
-| Target configuration | Reference REST API ID/stage, resource selection | OpenAPI contract with `operationId` per operation |
-| Downstream authentication | IAM/SigV4 (selected) | OAuth 2.0 (selected for investigation) |
-| Identity focus | AWS application/service identity | Delegated user / OBO experiment |
-| APIs exposed | Fictional Network API: read status and request diagnostic | Same two logical Network API operations |
-| Tools expected | `get_service_status`, `request_diagnostic` | Same operation concepts; verify actual discovery/names |
-| Key learning outcome | Native API Gateway export, IAM boundary, tool mapping | Explicit schema, OAuth target credential behaviour, true user delegation if supported |
-
-## Intended call path
+## End-to-end flow
 
 ```mermaid
 flowchart TD
-  U["Test user or machine client"] --> W["Web app / API entry"]
-  W --> R["AgentCore Runtime — Strands agent"]
-  R --> G1["Gateway 1 — API Gateway REST target"]
-  R --> G2["Gateway 2 — OpenAPI target"]
-  G1 --> API["Fictional Network API"]
-  G2 --> API
+  H["Five human users"] --> W["Web chat + Entra OIDC"]
+  W --> E["API Gateway JWT validation"]
+  E --> L["Thin Lambda request adapter"]
+  L --> RU["Runtime U: JWT inbound"]
+  RU --> G1["Gateway G1: CUSTOM_JWT + Cedar"]
+  G1 --> N["Network + Ticket APIs / Entra OBO"]
+  G1 --> K["Knowledge Base / shared RAG"]
+  G1 --> V["NetworkMonitor / Cognito 3LO"]
+  G1 --> P["Platform Health / REST stage + IAM"]
+  N --> DB["RDS PostgreSQL + RLS"]
+  S["EventBridge Scheduler"] --> ML["M2M Lambda / IAM"]
+  ML --> RM["Runtime M: IAM inbound"]
+  RM --> G2["Gateway G2: AWS_IAM"]
+  G2 --> A["Network Health Summary / OpenAPI OAuth 2LO"]
 ```
 
-Logical diagram only. The exact API deployment, authentication boundary and routing to shared or separate testing endpoints remain an implementation choice. No direct assertion is made that a single deployed endpoint supports both inbound IAM and delegated OAuth without additional configuration.
+Diagram shows the **logical** intended path, not already verified token forwarding or an assertion of direct network reachability.
 
-## Architecture decision
+## Component responsibilities
 
-The implementation uses two Gateways with separately configured security boundaries. **[ADR-001](architecture-decisions.md#adr-001--use-two-agentcore-gateways-for-separate-security-boundaries)** is the single source of truth for the justification, alternatives and consequences.
+| Component | Technical responsibility |
+|---|---|
+| Web chat | Interactive user sign-in and prompt submission; access token for the entry API |
+| Microsoft Entra ID | Corporate JWT issuance; OBO exchange for internal Network/Ticket API audiences |
+| Entry API Gateway | Validate configured JWT issuer, audience, expiry and permissions before forwarding |
+| Thin Lambda adapter | Request shaping, correlation ID and secure Runtime invocation; must preserve verified user identity rather than synthesising it |
+| **Runtime U** | Strands/Bedrock human agent, JWT inbound, isolated sessions |
+| **G1** | CUSTOM_JWT inbound; Cedar tool/parameter policy; human tools with **different outbound auth per target** |
+| Knowledge Base | S3/Bedrock KB/S3 Vectors, approved shared procedure retrieval |
+| Internal Network/Ticket APIs | Validate delegated downstream tokens, enforce business scope and connect to RDS |
+| RDS PostgreSQL | Transaction-local trusted user/region context; RLS on assets, faults and tickets |
+| NetworkMonitor | Separate Cognito authorisation-code 3LO, per-user vendor consent |
+| Platform Health | Native API Gateway REST stage target with IAM/SigV4 |
+| EventBridge Scheduler / M2M Lambda | Trigger read-only reporter using controlled AWS IAM role |
+| **Runtime M** | Scheduled machine agent, IAM inbound, no human JWT |
+| **G2** | AWS_IAM inbound; narrow reporter permission to health summary only |
+| Health summary API | OpenAPI target using OAuth client credentials (2LO), aggregated read-only data |
 
-## Critical security distinction
+## Tool placement
 
-**Target format and identity pattern are orthogonal.**
+- **G1:** `search_knowledge`, `get_asset_status`, `get_diagnostics`, `get_ticket`, `create_ticket`, `search_vendor_alerts`, `get_platform_health`.
+- **G2:** `get_network_health_summary` only.
 
-- The REST API stage target defines *how* AgentCore Gateway discovers and calls API Gateway operations. Its documented outbound options include IAM and API key, not OAuth.
-- The OpenAPI target defines *how* REST operations become tools from a supplied contract. OAuth support at the target is **not itself proof** that the original interactive user is represented at the final API.
-- **True OBO** requires a supported and explicitly configured token exchange/delegation path, the correct audience for the downstream API, validated user claims, and enforcement at the resource API. Until end-to-end tests verify these, label Gateway 2 **OAuth/OBO experiment**, not “OBO implemented.”
-- Gateway 1's service identity cannot establish which interactive user initiated a call. Fine-grained User A/User B restrictions must be enforced by trusted controls before the service-identity invocation; direct API bypass must also be controlled.
-- Both integrations must still enforce the agreed permission matrix: User A read+diagnostic, User B read-only, machine client read-only.
+The Native REST API and OpenAPI approaches are **target types**, not separate inbound authentication types. G1 demonstrates both where relevant. [Full tool inventory](tool-and-api-inventory.md).
 
-## Validation gates
+## Identity and trust boundaries to verify
 
-- [ ] Confirm AWS documentation and deployed account/Region support for both target types.
-- [ ] Validate the REST stage target IAM/SigV4 call and operation-to-MCP tool mapping.
-- [ ] Validate OpenAPI target credentials and actual OAuth token used downstream.
-- [ ] Prove or explicitly rule out true user-delegated OBO for the selected downstream path.
-- [ ] Ensure end-user restrictions cannot be bypassed through the service identity.
-- [ ] Verify both Gateways' discovery and call traces with redacted evidence.
+1. The entry access token has the correct audience; the adapter and Runtime U must not discard/replace its verifiable user context.
+2. Runtime U must reject an IAM-only bypass or arbitrary user ID. JWT runtime invocation requirements must be confirmed before choosing an adapter implementation.
+3. G1 must validate corporate JWT and deny forbidden tools/parameters via Cedar. A model decision is not an authorisation control.
+4. Network/Ticket outbound delegated token must be exchanged **for those APIs' audiences**; APIs validate independently and map claims to RLS context.
+5. Vendor OAuth is **separate from Entra**; only David's approved Cognito grant is available to David.
+6. Runtime M and G2 accept authorised IAM workload access only; G2's caller identity is Runtime M, **not automatically the Scheduler Lambda**.
+7. G2's OAuth 2LO downstream token is an application token with only aggregate read scope.
+8. Correlation IDs connect traces; never record raw bearer tokens or secrets.
 
-## Source documentation
+## Implementation verification gates
 
-- [AWS: API Gateway REST API stages as AgentCore Gateway targets](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-target-api-gateway.html)
-- [AWS: OpenAPI schema targets](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-schema-openapi.html)
-- [AWS: VPC egress and supported outbound authentication](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-vpc-egress.html)
+- Confirm exact AWS supported target/auth combinations and Region support.
+- Define Entra app registrations, claims, group/role mapping, API scopes and audiences.
+- Prove an end-to-end JWT path through API Gateway, thin Lambda, Runtime U and G1; ensure no bypass.
+- Verify Cedar identity context, tool filters and deny-by-default results.
+- Verify independent OAuth OBO and vendor Cognito 3LO behaviour.
+- Verify reporter IAM ingress, OAuth 2LO and least-privilege health summary.
+- Verify PostgreSQL RLS, ticket confirmation/idempotency and KB citation behaviour.
 
-This document describes the selected technical design. See [ADR-001](architecture-decisions.md#adr-001--use-two-agentcore-gateways-for-separate-security-boundaries) for the decision record. Stages 5–6 will verify the behaviour.
+No resources deployed. This technical design should not duplicate the justification, alternatives or consequences held in [ADR-001](architecture-decisions.md#adr-001--separate-human-jwt-and-automation-iam-gateways).
