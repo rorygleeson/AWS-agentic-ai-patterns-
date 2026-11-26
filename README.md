@@ -8,8 +8,8 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 - **Shared knowledge (RAG):** Any human who successfully signs in to the AI chat app can search the same approved documents. **Why this approach?** The knowledge is intentionally shared; there are no user-specific documents to filter. We need app sign-in, not delegated access to each document.
 - **Network Operations API (OBO):** Sarah, James and Emma sign in to the AI app, but each has different rights. **Why OBO?** The final API must know **which person** is asking so it can enforce region and operation permissions—for example, James can see VIC diagnostics, not NSW.
-- **Network Health Reporter service account (2LO):** A scheduled application requests aggregate network health without a person present. **Why 2LO?** There is **no human user to represent**. The service authenticates as itself and receives aggregate-only permission.
-- **External NetworkMonitor service (3LO):** David signs in to our AI app and separately authorizes access to his vendor account. **Why 3LO?** The other company controls those accounts and must obtain **David's consent** before our agent can retrieve his permitted alerts. Our corporate sign-in is not enough.
+- **Network Health Reporter service account (OAuth Client Credentials):** A scheduled application requests aggregate network health without a person present. **Why this flow?** There is **no human user to represent**. The service authenticates as itself and receives aggregate-only permission.
+- **External NetworkMonitor service (OAuth Authorization Code):** David signs in to our AI app and separately authorizes access to his vendor account. **Why this flow?** The other company controls those accounts and must obtain **David's consent** before our agent can retrieve his permitted alerts. Our corporate sign-in is not enough.
 - **Platform Health API (IAM):** Oliver signs in to the AI app and is the only human authorized to use this tool. **Why IAM?** This downstream API trusts a **signed AWS role request**, not a person's OAuth token. We must authorize Oliver **before** Gateway calls it using its IAM role.
 
 Together, they show why enterprise AI agents need different authentication and authorization patterns.
@@ -60,7 +60,7 @@ The application has **five human users** and **one non-human service account**.
 
 ## 3. How these requirements lead to authentication patterns
 
-The access rules above lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** One system can use more than one pattern: the **Network Operations API** uses OBO for Sarah, James and Emma, but **2LO** for the Network Health Reporter service account.
+The access rules above lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** One system can use more than one pattern: the **Network Operations API** uses OBO for Sarah, James and Emma, but **OAuth Client Credentials** for the Network Health Reporter service account.
 
 The examples below show why **the identity reaching the end system matters**.
 
@@ -84,16 +84,16 @@ The same service account cannot replace every user. Some systems need to know **
 |---|---|---|
 | All signed-in humans use the same shared knowledge base. | **Shared RAG access:** corporate sign-in for the chat app; **AWS IAM** for knowledge retrieval. | The AWS service identity. No individual document permissions are needed. |
 | Sarah, James and Emma have different permissions for the same Network API, including its ticket endpoints. | **OAuth on-behalf-of (OBO)** with Microsoft Entra ID (corporate identity provider). | **Which human** called. The API then enforces that person's permissions; RLS restricts rows and the API restricts sensitive fields. |
-| The scheduled Network Health Reporter needs aggregate data without a human signing in. | **OAuth 2LO (client credentials)** with Microsoft Entra ID. | **Which application** called, with aggregate-only app permission. No human identity. |
-| David accesses data belonging to his account with an external vendor. | **OAuth 3LO** with the other company's separate OAuth provider (simulated using Cognito, not Entra). | **Which vendor user** authorized access and which alerts they may see. |
+| The scheduled Network Health Reporter needs aggregate data without a human signing in. | **OAuth Client Credentials** with Microsoft Entra ID. | **Which application** called, with aggregate-only app permission. No human identity. |
+| David accesses data belonging to his account with an external vendor. | **OAuth Authorization Code** with the other company's separate OAuth provider (simulated using Cognito, not Entra). | **Which vendor user** authorized access and which alerts they may see. |
 | Oliver alone can use Platform Health, whose final API call is AWS IAM-protected rather than user-OAuth-protected. | **IAM/SigV4 role-based access:** authorize Oliver to use the tool first; then AgentCore Gateway signs the downstream call with its role. | The **Gateway IAM role**, not Oliver's Entra token. The final API trusts that AWS role, so **tool access must be restricted before invocation**. |
 
-### Four terms in plain English
+### Authentication terms in plain English
 
-- **OBO:** The agent accesses an API **on behalf of the signed-in person**.
-- **2LO:** A **service application** accesses an API without a human.
-- **3LO:** A person separately **authorizes access to a third-party account**.
-- **IAM:** An **AWS role** is authenticated when calling an AWS-protected service.
+- **OAuth OBO (On-Behalf-Of):** The backend obtains a new API-specific token **representing the signed-in user**.
+- **OAuth Client Credentials:** An **application** gets a token for itself, without a human.
+- **OAuth Authorization Code:** A **person authorizes an application** to access an account, such as an external vendor account.
+- **AWS IAM:** An **AWS role** authenticates a request to an AWS-protected service.
 
 ### Why can't James use his first token for the Network API?
 
@@ -133,7 +133,7 @@ We also agreed on two separate AgentCore entry paths:
 
 **Why two Gateways?** AgentCore Gateway lets you configure **only one inbound authentication type per Gateway**. G1 needs JWT for humans; G2 needs AWS IAM for the service runtime. **A single Gateway cannot use both inbound methods at once**, so the two-Gateway split is required for this design.
 
-This is **not** because the end systems use different authentication. **One Gateway can have multiple targets, each with its own outbound authentication** (such as OBO, 3LO or IAM).
+This is **not** because the end systems use different authentication. **One Gateway can have multiple targets, each with its own outbound authentication** (such as OAuth OBO, OAuth Authorization Code or IAM).
 
 ### Two ways to register REST APIs as MCP (agent) tools
 
@@ -143,7 +143,7 @@ Both systems expose ordinary **REST APIs**. We deliberately register them with A
 |---|---|---|
 | **Our example** | Platform Health API | Network Operations API |
 | **How AgentCore connects** | Import the existing AWS API Gateway REST stage | Supply an OpenAPI description of the REST endpoints |
-| **Outbound authentication** | IAM/SigV4 (or API key) | OAuth OBO for humans; OAuth 2LO for the service |
+| **Outbound authentication** | IAM/SigV4 (or API key) | OAuth OBO for humans; OAuth Client Credentials for the service |
 | **Downstream identity** | Gateway's IAM role | Delegated human or application identity |
 
 **Why does Platform Health get its own pattern?** We intentionally chose a downstream API protected by **AWS IAM instead of OAuth**. The Network API needs the caller's identity to decide which records they may see. Platform Health needs only a trusted AWS role to read synthetic health data—provided the agent first verifies that **Oliver is allowed to use the tool**. It demonstrates the important distinction between **authorizing a human to invoke a tool** and **authenticating the tool's service identity at the final API**.
@@ -157,6 +157,8 @@ These are our **core integration/authentication patterns**. Detailed session han
 This diagram shows how the chat app, AWS services and two AgentCore Gateways connect to the end systems. **G1 handles signed-in users; G2 handles the service account.** The earlier tables explain who may use each connection.
 
 ![AWS AgentCore architecture with AWS service icons](docs/diagrams/aws-agentcore-architecture.svg)
+
+**Terminology note:** You may see *two-legged OAuth (2LO)* used informally for application-only access, and *three-legged OAuth (3LO)* for user-authorized access. This guide uses the actual OAuth flow names—**Client Credentials** and **Authorization Code**—because they're clearer. OBO is a separate token-exchange flow used when a backend calls another API for a signed-in user.
 
 ## More detail (optional)
 
