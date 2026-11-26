@@ -17,47 +17,36 @@ Everything is fictional and uses synthetic data. This is our **architecture desi
 | **Platform Health API** | AWS API Gateway **REST API** secured with IAM. | Returns synthetic platform-health status. |
 | **Supporting database: RDS PostgreSQL** | Private database behind the Network and Ticket APIs. | Stores assets, diagnostics, tickets and permissions. The agent **never accesses RDS directly**. |
 
-## 2. Users — who can access what?
+## 2. Who can access each system?
 
-We have **five people** using the same AI chat app and **one scheduled service account**. Logging in lets a person chat; it does **not** give them access to every system.
+Five people share the same AI chat app. One separate service account runs a scheduled report.
 
-### Internal systems
-
-| Caller | Knowledge Base (RAG) | Network API | Ticket API |
-|---|---|---|---|
-| **Sarah** — National Admin | ✅ Shared guides | ✅ **All regions:** status + diagnostics | ✅ **All regions:** read + create |
-| **James** — VIC Engineer | ✅ Shared guides | ✅ **VIC only:** status + diagnostics | ✅ **VIC only:** read + create |
-| **Emma** — Service Desk | ✅ Shared guides | ✅ **All regions:** basic status **only** | ❌ No access |
-| **David** — External Analyst | ✅ Shared guides | ❌ No access | ❌ No access |
-| **Oliver** — Platform Analyst | ✅ Shared guides | ❌ No access | ❌ No access |
-| **Reporter** — service account | ❌ No access | ✅ **Aggregate health summary only** | ❌ No access |
-
-**Important differences:** James cannot get NSW records. Emma can see that an asset is up or down, but **not** restricted diagnostic fields. The service account cannot request individual assets—it gets only a pre-defined aggregate report. Ticket creation also requires confirmation.
-
-### Other systems
-
-| Caller | NetworkMonitor (third-party alerts) | Platform Health API |
+| End system | Who can access it? | What are they allowed to do? |
 |---|---|---|
-| **Sarah** | ❌ | ❌ |
-| **James** | ❌ | ❌ |
-| **Emma** | ❌ | ❌ |
-| **David** | ✅ **His own alerts**, after vendor OAuth consent | ❌ |
-| **Oliver** | ❌ | ✅ **Read-only health** |
-| **Reporter** | ❌ | ❌ |
+| **Knowledge Base (RAG)** | **Sarah, James, Emma, David, Oliver** | Everyone sees the same approved troubleshooting guides. |
+| **Network API** | **Sarah** | Asset status and diagnostics in **all regions**. |
+| ↳ Network API | **James** | Asset status and diagnostics in **VIC only**. **NSW denied.** |
+| ↳ Network API | **Emma** | **Basic asset status** in all regions. **No diagnostics or sensitive fields.** |
+| ↳ Network API | **Reporter service account** | **Aggregate network-health summary only.** No individual asset data. |
+| **Ticket API** | **Sarah** | Read/create tickets in **all regions**, with confirmation for writes. |
+| ↳ Ticket API | **James** | Read/create tickets for **VIC only**, with confirmation for writes. |
+| **NetworkMonitor (third party)** | **David only** | His own vendor alerts, after separate OAuth consent. |
+| **Platform Health API** | **Oliver only** | Read-only synthetic platform health. |
+| **RDS PostgreSQL** | **Network/Ticket API backends only** | Database access via application permissions and row-level security. No direct agent tool. |
 
-✅ = access permitted within the stated limits. ❌ = access denied. Any system not listed as permitted is denied by default.
+**Rule:** If someone is **not listed for a system, access is denied**. A successful login to the chat application does not grant access to every tool.
 
-### What they actually ask the agent
+### What the users ask
 
-| Caller | Example use case |
+| User | Example request |
 |---|---|
-| **Anyone human** | “Find the approved troubleshooting procedure.” → **RAG** |
-| **Sarah** | “Investigate VIC and NSW faults, then raise a ticket.” |
-| **James** | “Diagnose a VIC fault.” A follow-up asking for **NSW is denied**. |
-| **Emma** | “Is this asset working?” → Basic status, no diagnostics. |
-| **David** | “Show my NetworkMonitor alerts.” → Separate vendor consent. |
-| **Oliver** | “Is the AI platform healthy?” → Platform Health API. |
-| **Reporter** | Scheduled job → Aggregate network-health report. |
+| **Sarah — National Admin** | “Investigate VIC and NSW faults and create a ticket.” |
+| **James — VIC Engineer** | “Diagnose this VIC asset.” An NSW request must fail. |
+| **Emma — Service Desk** | “Is this asset up?” She gets basic status only. |
+| **David — External Analyst** | “Show my vendor alerts.” |
+| **Oliver — Platform Analyst** | “Is the AI platform healthy?” |
+| **Reporter — service account** | A scheduled health-summary request, without a human user. |
+| **Any of the five humans** | “Find the approved troubleshooting procedure.” (Shared RAG.) |
 
 ## 3. AWS architecture
 
