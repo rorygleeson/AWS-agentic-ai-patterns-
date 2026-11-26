@@ -16,7 +16,7 @@
 ## Current focus
 
 - **Active stage:** Stage 1 — Scope & inventory
-- **Immediate next task:** `S1-04` Define and verify the distinct roles and target assignment of the two AgentCore Gateways.
+- **Immediate next task:** `S1-05` Define the complete interactive 3LO, 2LO, service-account and OBO scenario matrix with expected identity at each hop.
 - **Implementation status:** No PoC infrastructure deployed.
 - **Last board update:** 2026-11-26
 
@@ -48,7 +48,7 @@
 - [x] **S1-01** Review and confirm all agreed PoC objectives, boundaries and acceptance criteria. Evidence: Rory approved fictional Network API scenario and vendor-neutral scope; [docs/scope.md](docs/scope.md).
 - [x] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges. Evidence: Rory approved machine-client read-only; [docs/identities-and-permissions.md](docs/identities-and-permissions.md).
 - [x] **S1-03** Inventory intended MCP tools, endpoints, sample downstream APIs and allowed operations; distinguish tool from HTTP endpoint. Evidence: [docs/tool-and-api-inventory.md](docs/tool-and-api-inventory.md); operational capabilities will be tested in Stage 5.
-- [ ] **S1-04** Specify the two AgentCore Gateways' purposes, boundaries, target placements and comparative learning goals.
+- [x] **S1-04** Specify the two AgentCore Gateways' purposes, boundaries, target placements and comparative learning goals. Evidence: Rory approved Gateway 1 native REST/IAM and Gateway 2 OpenAPI/OAuth; [docs/two-gateway-design.md](docs/two-gateway-design.md). Operational verification remains in Stages 5–6.
 - [ ] **S1-05** Define the scenario matrix for interactive 3LO, client-credentials 2LO, service-account downstream access and OBO.
 - [ ] **S1-06** Define REST API target and OpenAPI target scenarios; distinguish integration method from caller/downstream authentication.
 - [ ] **S1-07** Establish realistic mock/sample API data and permitted writes so tests are safe and deterministic.
@@ -161,6 +161,7 @@
 | D-09 | Fictional Network API with read and diagnostic operations; no real provider names or interview framing anywhere in project | Approved 2026-11-26 |
 | D-10 | Machine client (2LO) is read-only | Approved 2026-11-26 |
 | D-11 | Native API Gateway REST stage target currently uses IAM or API key, not OAuth outbound; compare with OpenAPI target for OAuth | AWS documentation reviewed; verify in Stage 5 |
+| D-12 | Two Gateways: G1 native API Gateway REST target with IAM; G2 OpenAPI target with OAuth / OBO experiment | Approved 2026-11-26; [design](docs/two-gateway-design.md); OBO is not yet proven |
 
 ## Future discoveries / new stages
 
