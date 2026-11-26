@@ -16,7 +16,7 @@
 ## Current focus
 
 - **Active stage:** Stage 1 — Scope & inventory
-- **Immediate next task:** `S1-01` Review and confirm the draft [PoC scope and acceptance criteria](docs/scope.md) with Rory.
+- **Immediate next task:** `S1-02` Define named test actors/identities and confirm the permission matrix, using the agreed [scope](docs/scope.md).
 - **Implementation status:** No PoC infrastructure deployed.
 - **Last board update:** 2026-11-26
 
@@ -45,7 +45,7 @@
 
 ## Stage 1 — Scope & inventory
 
-- [ ] **S1-01** Review and confirm all agreed PoC objectives, boundaries and acceptance criteria. Draft: [docs/scope.md](docs/scope.md); pending Rory's confirmation.
+- [x] **S1-01** Review and confirm all agreed PoC objectives, boundaries and acceptance criteria. Evidence: Rory approved fictional Network API scenario and vendor-neutral scope; [docs/scope.md](docs/scope.md).
 - [ ] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges.
 - [ ] **S1-03** Inventory intended MCP tools, endpoints, sample downstream APIs and allowed operations; distinguish tool from HTTP endpoint.
 - [ ] **S1-04** Specify the two AgentCore Gateways' purposes, boundaries, target placements and comparative learning goals.
@@ -158,6 +158,7 @@
 | D-06 | Cedar is an authorisation-learning exercise, not assumed mandatory for every tool | Confirm policy enforcement design |
 | D-07 | Free Entra ID tenant is intended for the PoC | Verify eligibility and app registration requirements |
 | D-08 | Document architecture, patterns, standalone ADR and Q&A separately | Stage 2 |
+| D-09 | Fictional Network API with read and diagnostic operations; no real provider names or interview framing anywhere in project | Approved 2026-11-26 |
 
 ## Future discoveries / new stages
 
