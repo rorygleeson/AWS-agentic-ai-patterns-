@@ -52,11 +52,9 @@ The application has **five human users** and **one non-human service account**.
 
 ## 3. How these requirements lead to authentication patterns
 
-**Why these use cases?** We selected them to demonstrate **different access and identity patterns**, not simply different business features. Shared RAG shows a resource available to everyone who signs in. Sarah, James and Emma call the **same Network API** using user-delegated OAuth (OBO), but receive different data because their permissions differ. The service account calls that API without a human, using app-only OAuth (2LO).
+The access rules above lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** One system can use more than one pattern: the **Network Operations API** uses OBO for Sarah, James and Emma, but **2LO** for the Network Health Reporter service account.
 
-**Third-party example — David:** NetworkMonitor is a **different company's system**: signing into our app with Entra does **not** grant him access to NetworkMonitor. He must separately sign in and authorize our app through the vendor's own OAuth server (simulated with Cognito), after which it returns only his permitted alerts (3LO).
-
-**Service-identity example — Oliver:** His request demonstrates a different final hop: he is authorized to use the tool, but the Platform Health API receives the **Gateway's IAM identity**. Together, these examples show **when an agent must preserve the user, use an application identity or obtain independent authorization**.
+The examples below show why **the identity reaching the end system matters**.
 
 ### One API, different permissions
 
@@ -72,7 +70,7 @@ The **Network API** is the clearest example of why identity matters:
 
 **Same API, different results:** the system uses each caller's identity and permissions to decide what can be returned.
 
-We cannot use one shared service account for everything: some systems must know **which person** is making the request, some need only **which application**, and a third-party system must obtain **its own user's consent**.
+The same service account cannot replace every user. Some systems need to know **which person** made the request, some only **which application**, and the external vendor needs **separate user consent**.
 
 | Access requirement from Sections 1–2 | Pattern we need | What the downstream system knows |
 |---|---|---|
@@ -143,6 +141,12 @@ Both systems expose ordinary **REST APIs**. We deliberately register them with A
 **Why the difference?** It's a limitation of the **AgentCore target type**, not REST itself. The native AWS API Gateway stage target supports IAM and API-key outbound authentication **but not OAuth**. An **OpenAPI target supports OAuth** through AgentCore's separately configured outbound credential provider—even if the actual REST API is hosted on AWS API Gateway. **The OpenAPI file describes the API; it doesn't provide OAuth or run another service.**
 
 These are our **core integration/authentication patterns**. Detailed session handling, Cedar policies, database controls, logging and implementation decisions belong in the supporting architecture documents—not in the introductory access tables.
+
+## Architecture at a glance
+
+This diagram shows how the chat app, AWS services and two AgentCore Gateways connect to the end systems. **G1 handles signed-in users; G2 handles the service account.** The earlier tables explain who may use each connection.
+
+![AWS AgentCore architecture with AWS service icons](docs/diagrams/aws-agentcore-architecture.svg)
 
 ## More detail (optional)
 
