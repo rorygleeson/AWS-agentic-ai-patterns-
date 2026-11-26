@@ -120,7 +120,7 @@ An API with two OpenAPI operations yields two MCP tools. Native API Gateway targ
 
 ## 9. Deliberate exclusions
 
-No document-specific RAG ACL exercise; no citizen-development programme; no production subscriber data; no actual Splunk or Glean deployment; no IaC requirement; no claim that synthetic platform health reflects live AWS status. The vendor is a **simulated** service backed by real off-the-shelf Cognito OAuth capabilities, not a homegrown OAuth server.
+No document-specific RAG ACL exercise, real customer data or production-readiness claims. The vendor is a **simulated** service using off-the-shelf Cognito OAuth capabilities, not a homegrown OAuth server. Implementation details are maintained separately.
 
 ## 10. Reference architecture requirements
 
