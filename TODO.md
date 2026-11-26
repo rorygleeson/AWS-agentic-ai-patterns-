@@ -16,7 +16,7 @@
 ## Current focus
 
 - **Active stage:** Stage 1 — Scope & inventory
-- **Immediate next task:** `S1-02` Define named test actors/identities and confirm the permission matrix, using the agreed [scope](docs/scope.md).
+- **Immediate next task:** `S1-02` Confirm Machine Client permissions in the drafted [identity matrix](docs/identities-and-permissions.md) with Rory.
 - **Implementation status:** No PoC infrastructure deployed.
 - **Last board update:** 2026-11-26
 
@@ -46,7 +46,7 @@
 ## Stage 1 — Scope & inventory
 
 - [x] **S1-01** Review and confirm all agreed PoC objectives, boundaries and acceptance criteria. Evidence: Rory approved fictional Network API scenario and vendor-neutral scope; [docs/scope.md](docs/scope.md).
-- [ ] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges.
+- [ ] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges. Draft: [docs/identities-and-permissions.md](docs/identities-and-permissions.md); awaiting M-1 permission decision.
 - [ ] **S1-03** Inventory intended MCP tools, endpoints, sample downstream APIs and allowed operations; distinguish tool from HTTP endpoint.
 - [ ] **S1-04** Specify the two AgentCore Gateways' purposes, boundaries, target placements and comparative learning goals.
 - [ ] **S1-05** Define the scenario matrix for interactive 3LO, client-credentials 2LO, service-account downstream access and OBO.
