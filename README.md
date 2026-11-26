@@ -43,3 +43,38 @@ The application has **five human users** and **one non-human service account**.
 | **Network Health Reporter** | RAG, individual asset records, diagnostics, tickets, NetworkMonitor, Platform Health and human impersonation. |
 
 **Default rule:** A successful sign-in allows a human to use the AI chat app and shared RAG. Every other system requires its own authorization. If access is not explicitly listed above, it is denied. Ticket creation additionally requires explicit confirmation.
+
+
+## 3. How these requirements lead to authentication patterns
+
+The tables above describe **what access the business needs**. They also explain **why we need several different authentication patterns**.
+
+We cannot use one shared service account for everything: some systems must know **which person** is making the request, some need only **which application**, and a third-party system must obtain **its own user's consent**.
+
+| Access requirement from Sections 1–2 | Pattern we need | What the downstream system knows |
+|---|---|---|
+| All signed-in humans use the same shared knowledge base. | **Shared RAG access:** corporate sign-in for the chat app; **AWS IAM** for knowledge retrieval. | The AWS service identity. No individual document permissions are needed. |
+| Sarah, James and Emma get different Network API data; Sarah and James have different Ticket API permissions. | **OAuth on-behalf-of (OBO)** with Microsoft Entra ID. | **Which human** called. The API then enforces that person's permissions; RLS restricts rows and the API restricts sensitive fields. |
+| The scheduled Network Health Reporter needs aggregate data without a human signing in. | **OAuth 2LO (client credentials)** with Microsoft Entra ID. | **Which application** called, with aggregate-only app permission. No human identity. |
+| David accesses data belonging to his account with an external vendor. | **OAuth 3LO (user authorization/consent)** with the vendor's separate OAuth provider. | **Which vendor user** authorized access and which alerts they may see. |
+| Oliver alone can call Platform Health, but the final REST API uses an AWS service identity. | **AWS IAM/SigV4** for the downstream call. | The **AgentCore Gateway execution role**, not Oliver. Tool authorization must check Oliver *before* that call. |
+
+### Authentication is not the same as authorization
+
+- **Authentication** establishes the identity of the user, application or AWS role.
+- **Authorization** decides which tool, operation, region, record or field that identity may access.
+- **OBO preserves user identity; it does not automatically grant all data.** The downstream Network/Ticket APIs still enforce their rules.
+- **Cedar** is used for restricted AgentCore tool access. **PostgreSQL RLS** enforces appropriate row restrictions behind the enterprise APIs. Shared RAG does not require a special per-user Cedar restriction.
+
+### Two Gateway authentication boundaries
+
+We also agreed on two separate AgentCore entry paths:
+
+- **G1 — human Gateway:** inbound Microsoft Entra JWT for Sarah, James, Emma, David and Oliver.
+- **G2 — machine Gateway:** inbound AWS IAM for the Network Health Reporter runtime.
+
+Each Gateway has one inbound authentication method, while **each downstream target can use its own outbound method** from the table above.
+
+Finally, the two REST integration approaches are intentional: the **Network/Ticket APIs use OpenAPI-defined targets** for OAuth, while **Platform Health uses a native AWS API Gateway REST-stage target** with IAM. Both ultimately call ordinary REST APIs.
+
+These are our **core integration/authentication patterns**. Detailed session handling, Cedar policies, database controls, logging and implementation decisions belong in the supporting architecture documents—not in the introductory access tables.
