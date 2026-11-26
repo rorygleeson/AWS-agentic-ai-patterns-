@@ -48,7 +48,7 @@ The application has **five human users** and **one non-human service account**.
 
 ## 3. How these requirements lead to authentication patterns
 
-The tables above describe **what access the business needs**. They also explain **why we need several different authentication patterns**.
+**Why these use cases?** We selected them to demonstrate **different access and identity patterns**, not simply different business features. Shared RAG shows a resource available to everyone who signs in. Sarah, James and Emma call the **same Network API** using user-delegated OAuth (OBO), but receive different data because their permissions differ. The service account calls that API without a human, using app-only OAuth (2LO). David demonstrates separate consent at a third-party provider (3LO). Oliver demonstrates a different final hop: he is authorized to use the tool, but the Platform Health API receives the **Gateway's IAM identity**. Together, these examples show **when an agent must preserve the user, use an application identity or obtain independent authorization**.
 
 ### One API, different permissions
 
