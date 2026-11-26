@@ -15,8 +15,8 @@
 
 ## Current focus
 
-- **Active stage:** Stage 0 — Foundation
-- **Immediate next task:** `S0-03` Review board completeness with Rory and amend missing tasks or decisions. Stage 1 begins after sign-off.
+- **Active stage:** Stage 1 — Scope & inventory
+- **Immediate next task:** `S1-01` Review and confirm the draft [PoC scope and acceptance criteria](docs/scope.md) with Rory.
 - **Implementation status:** No PoC infrastructure deployed.
 - **Last board update:** 2026-11-26
 
@@ -24,8 +24,8 @@
 
 | Stage | Outcome | Status |
 |---|---|---|
-| 0. Foundation | Short README and master task board | ⏳ In progress |
-| 1. Scope & inventory | Frozen learning goals, actors, tools and scenarios | Planned |
+| 0. Foundation | Short README and master task board | ✅ Complete |
+| 1. Scope & inventory | Frozen learning goals, actors, tools and scenarios | ⏳ In progress |
 | 2. Architecture & decisions | Diagrams, patterns, ADR, security model and Q&A | Planned |
 | 3. Accounts & deployment foundations | AWS/Entra prerequisites, IaC, budget controls | Planned |
 | 4. Identity & application entry | Web chat, sign-in, API Gateway, Runtime agent | Planned |
@@ -39,13 +39,13 @@
 
 - [x] **S0-01** Create concise `README.md` describing the purpose and reference flow. Evidence: [README.md](README.md).
 - [x] **S0-02** Create this single master `TODO.md` with stages, granular tasks and board rules. Evidence: this file.
-- [ ] **S0-03** Review board completeness with Rory and amend missing tasks or decisions.
+- [x] **S0-03** Review board completeness with Rory and amend missing tasks or decisions. Evidence: Rory's go-ahead on 2026-11-26; new scope questions tracked in [docs/scope.md](docs/scope.md).
 
 **Exit:** README and board exist; Rory approves the baseline.
 
 ## Stage 1 — Scope & inventory
 
-- [ ] **S1-01** Review and confirm all agreed PoC objectives, boundaries and acceptance criteria.
+- [ ] **S1-01** Review and confirm all agreed PoC objectives, boundaries and acceptance criteria. Draft: [docs/scope.md](docs/scope.md); pending Rory's confirmation.
 - [ ] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges.
 - [ ] **S1-03** Inventory intended MCP tools, endpoints, sample downstream APIs and allowed operations; distinguish tool from HTTP endpoint.
 - [ ] **S1-04** Specify the two AgentCore Gateways' purposes, boundaries, target placements and comparative learning goals.
