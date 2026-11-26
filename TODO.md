@@ -15,8 +15,8 @@
 
 ## Current focus
 
-- **Active stage:** Stage 1 — Scope & inventory
-- **Immediate next task:** `S1-09` Confirm AWS account, Sydney Region, model, Entra tenant, budget and cleanup controls with Rory; then close Stage 1.
+- **Active stage:** Stage 2 — Architecture & decisions
+- **Immediate next task:** `S2-01` Create the main architecture document with components, trust boundaries and flows. Cross-reference ADR-001; keep decision rationale only in the ADR.
 - **Implementation status:** No PoC infrastructure deployed.
 - **Last board update:** 2026-11-26
 
@@ -25,8 +25,8 @@
 | Stage | Outcome | Status |
 |---|---|---|
 | 0. Foundation | Short README and master task board | ✅ Complete |
-| 1. Scope & inventory | Frozen learning goals, actors, tools and scenarios | ⏳ In progress |
-| 2. Architecture & decisions | Diagrams, patterns, ADR, security model and Q&A | Planned |
+| 1. Scope & inventory | Frozen learning goals, actors, tools and scenarios | ✅ Complete |
+| 2. Architecture & decisions | Diagrams, patterns, ADR, security model and Q&A | ⏳ In progress |
 | 3. Accounts & deployment foundations | AWS/Entra prerequisites, IaC, budget controls | Planned |
 | 4. Identity & application entry | Web chat, sign-in, API Gateway, Runtime agent | Planned |
 | 5. Gateway, MCP & API integration | Two Gateways, discovery, REST/OpenAPI targets | Planned |
@@ -53,7 +53,7 @@
 - [x] **S1-06** Define REST API target and OpenAPI target scenarios; distinguish integration method from caller/downstream authentication. Evidence: comparison in [scope](docs/scope.md) and [inventory](docs/tool-and-api-inventory.md).
 - [x] **S1-07** Establish realistic mock/sample API data and permitted writes so tests are safe and deterministic. Evidence: fixtures, example responses and constraints in [tool inventory](docs/tool-and-api-inventory.md).
 - [x] **S1-08** Define non-goals and success criteria, including a demonstrable unauthorised-tool denial and token-validation failure. Evidence: [scope and acceptance criteria](docs/scope.md); runtime test results remain pending.
-- [ ] **S1-09** Confirm implementation region, model, AWS/Entra account ownership, budget and operational constraints.
+- [x] **S1-09** Confirm implementation environment/budget baseline. Evidence: Rory approved Sydney (`ap-southeast-2`), existing AWS account, free Entra test tenant, low-cost model selection at setup, AUD $30 equivalent alert threshold, and teardown after testing; [docs/scope.md](docs/scope.md). Exact account ID, model and billing alerts remain Stage 3 verification.
 - [x] **S1-10** Reconcile Stage 1 documentation boundaries: public README summarises design, technical documents explain behaviour, and one consolidated ADR owns the decision rationale. Evidence: [README](README.md), [design](docs/two-gateway-design.md) and [ADR](docs/architecture-decisions.md).
 
 ## Stage 2 — Architecture & decisions
