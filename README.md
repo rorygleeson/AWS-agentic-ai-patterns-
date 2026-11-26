@@ -23,7 +23,7 @@ Five people share the same AI chat app. One separate service account runs a sche
 
 | End system | Who? | Allowed access | How enforced |
 |---|---|---|---|
-| **Knowledge Base (RAG)** | Sarah, James, Emma, David, Oliver | Shared approved guides | **JWT + Cedar**; KB accessed using IAM |
+| **Knowledge Base (RAG)** | Sarah, James, Emma, David, Oliver | Shared approved guides | **Entra sign-in** + AWS IAM knowledge retrieval |
 | **Network API** | **Sarah** | All regions: status + diagnostics | **Entra OBO** + API rules + **RLS** |
 | ↳ Network API | **James** | **VIC only**: status + diagnostics | **Entra OBO** + API rules + **RLS** |
 | ↳ Network API | **Emma** | All regions: **basic status only** | **Entra OBO** + API field restrictions |
