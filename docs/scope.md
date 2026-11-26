@@ -1,100 +1,76 @@
 # PoC Scope and Acceptance Criteria
 
-**Status:** Stage 1 scope and environment baseline approved 2026-11-26. Technical implementation details requiring verification remain **TBD**.
+**Status:** Stage 1 reconciliation in progress, based on the agreed enterprise scenario and later addition of Oliver. This is a synthetic demonstration, not a real provider environment.
 
 ## Purpose
 
-Build a small, working AWS AI-agent application to learn — and demonstrate — the full authentication, authorisation and API-tool integration journey.
+Demonstrate end-to-end agent architecture across **human interactive** and **scheduled machine** lanes, including token validation and propagation, MCP discovery/invocation, target-specific outbound authentication, Cedar, downstream API authorisation, PostgreSQL RLS, safe ticket mutations, retrieval and observability.
 
-**Reference path:** Browser chat → API Gateway → Amazon Bedrock AgentCore Runtime (Python Strands + Bedrock) → AgentCore Gateway → MCP tool discovery/invocation → downstream REST APIs.
+## Agreed actors and journeys
 
-The emphasis is **identity and access decisions at each hop**, not a sophisticated chatbot or production UI.
-
-## Agreed learning outcomes
-
-1. **Interactive identity:** Sign in via Microsoft Entra ID with OIDC/OAuth 2.0; distinguish authentication from OAuth resource authorisation.
-2. **Machine identity:** Demonstrate a client-credentials (2LO) flow independently from the interactive user flow (3LO).
-3. **Token trust:** Understand JWT signature, issuer, audience, expiry, scopes/roles and the validation performed by each receiving component.
-4. **OBO:** Show a delegated/token-exchange path preserving the real user's authorisation context into a downstream API *where the products and token configuration actually support it*.
-5. **Service account:** Compare an application/service identity used for downstream API calls and explicitly show where end-user identity is lost.
-6. **Two gateways:** Use two AgentCore Gateways to compare responsibilities/configuration; do not claim they are inherently required for production.
-7. **MCP:** Observe tool discovery, schemas, JSON-RPC `tools/list` and `tools/call`, selection and execution.
-8. **Integration targets:** Compare a REST API target and an OpenAPI-defined target. Tool/operation mapping is separate from OBO/service-account authorisation.
-9. **Fine-grained access:** Interactive User A can use both designated operations; User B can use only the allowed operation; unauthorised attempts fail.
-10. **Cedar:** Explore a concrete policy-based access decision and compare it with simpler role/scope restrictions; avoid assuming Cedar is mandatory.
-11. **Explainability:** Provide diagrams, recorded decisions, a pattern catalogue and an end-user Q&A.
-
-## Agreed demonstration scenario
-
-Use one harmless fictional **Network API** for realistic, repeatable technical demonstrations without depending on a real provider or external paid API.
-
-| Candidate operation | HTTP example | Proposed MCP tool | User A | User B |
-|---|---|---|---|---|
-| Read network service status | `GET /network/services/{id}` | `get_service_status` | Allow | Allow |
-| Request a simulated diagnostic | `POST /network/services/{id}/diagnostics` | `request_diagnostic` | Allow | Deny |
-
-These are **agreed example operations**, not implemented endpoints. We should validate whether the two API operations are represented as two tools for each target configuration. A single REST API may expose multiple endpoints while an MCP tool has its own declared name and input schema.
-
-**Agreed actors:** Entra User A (both operations), Entra User B (read only), a read-only machine client (2LO), and a separate logical downstream service identity. All identities are synthetic/test-only.
-
-## Authentication and authorisation scenario matrix (S1-05)
-
-Each row is an intended **test**, not a claim that the underlying AWS/Entra integration already works.
-
-| Scenario | Caller / entry token | Gateway path | Downstream identity and validation | Expected result |
-|---|---|---|---|---|
-| A — interactive read (3LO) | U-A, Entra user access token for entry API | G1 REST/IAM | AWS service principal; trusted upstream policy checks user A | Read allowed |
-| B — restricted interactive call | U-B, Entra user access token for entry API | G1 REST/IAM | Same service identity; trusted authorisation **must deny before calling** | Diagnostic denied |
-| C — interactive diagnostic | U-A, Entra user access token for entry API | G1 REST/IAM | Service identity; trusted policy allows U-A | Diagnostic allowed |
-| D — app-only (2LO) | M-1 client-credentials token for entry API | G1 REST/IAM | App/workload, no human subject; read-only permission | Read allowed; diagnostic denied |
-| E — OBO read | U-A or U-B token for entry API | G2 OpenAPI/OAuth | New token **for Network API** with validated delegated user context, if exchange succeeds | Read allowed |
-| F — OBO diagnostic | U-A and U-B tested separately | G2 OpenAPI/OAuth | Network API validates downstream token audience and delegated permissions | U-A allowed; U-B denied |
-| G — OAuth without actual OBO | Test caller | G2 OpenAPI/OAuth | Inspect whether target uses app-only or user-delegated token | **Record actual behaviour; never claim OBO without evidence** |
-| H — bad token / bypass | Forged, expired or wrong-audience token; direct API attempt | Both paths | Reject at validating entry, policy or downstream API | Access denied |
-| I — policy | User/tool claims | Both paths / Cedar exercise | Trusted policy decision inputs, not prompt text | Predictable allow/deny and auditable reason |
-
-**Identity handoff checkpoints:** Browser/M-1 → entry API (validate token) → Runtime (verified user/app context; secure invocation) → Gateway (authorised caller and tool policy) → Network API (validate SigV4 service identity *or* exchanged OAuth token). Precise hop-by-hop token forwarding is a Stage 2 design/Stage 6 verification task.
-
-### REST target versus OpenAPI target (S1-06)
-
-| Question | G1: API Gateway REST stage | G2: OpenAPI target |
+| Actor | Business journey | Expected authorisation |
 |---|---|---|
-| How are tools defined? | Derived from the selected AWS API Gateway REST stage/resources | From explicit OpenAPI operations and `operationId` |
-| Downstream auth in this PoC | Gateway IAM role/SigV4 | OAuth credential provider; test token-exchange/OBO |
-| Does the target format itself select 2LO/3LO/OBO? | **No** | **No** |
-| How many operations? | Two logical API operations; validate exposed tools | Same two operations; validate exposed tools |
-| Who enforces user-level permissions? | Trusted gateway/policy entry because API sees service identity | Network API after properly delegated exchange, plus trusted gateway/policy |
-| Key proof | IAM-principal identity, tool mapping, policy denial | Token audience/delegated claims, tool mapping, policy denial |
+| **Emma — Service Desk** | Check basic status and ask standard outage procedures | Nationwide **basic** asset status + shared knowledge; no diagnostics/ticket actions |
+| **James — VIC Engineer** | Investigate a VIC fault and create a follow-up ticket if authorised | VIC assets/diagnostics and VIC ticket operations after explicit confirmation; NSW denied |
+| **Sarah — National Admin** | Review national faults and create authorised tickets | National diagnostics/tickets; no automatic access to David's vendor account |
+| **David — External Analyst** | Link a separate NetworkMonitor account and inspect alerts | Vendor alerts only after independent Cognito 3LO consent; no privileged internal network access |
+| **Oliver — Platform Operations Analyst** | View platform-health information | `get_platform_health` only; no broader Network/Ticket privileges |
+| **Network Health Reporter — machine** | Produce scheduled daily aggregate summary | IAM workload into Runtime M/G2; read-only OAuth 2LO to summary API; no user impersonation or write tools |
 
-AWS supports both target types, but outbound auth support differs by target. A single Gateway could host both; separate Gateways are our accepted trust-isolation choice ([ADR-001](architecture-decisions.md#adr-001--use-two-agentcore-gateways-for-separate-security-boundaries)).
+## Two lanes, not two generic user permissions
 
-## Acceptance criteria (S1-08) — implementation tests, not yet passed
+1. **Human:** Web Chat → Entra OIDC/OAuth → API Gateway JWT validation → thin Lambda adapter for request validation/correlation → **Runtime U (JWT inbound)** → **G1 (CUSTOM_JWT inbound + Cedar)** → targets with independent outbound auth.
+2. **Machine:** EventBridge Scheduler → Lambda using IAM role → **Runtime M (IAM inbound)** → **G2 (AWS_IAM inbound)** → `get_network_health_summary` → restricted OAuth **2LO** Network API endpoint.
+3. **Vendor subflow:** David is already signed into our web app through Entra; linking NetworkMonitor requires **separate Cognito 3LO** and a vendor token that Sarah cannot reuse.
 
-- [ ] Two interactive test users can authenticate; their effective permissions differ.
-- [ ] One machine client can obtain a correctly scoped token and invoke only its intended flow.
-- [ ] API Gateway and downstream APIs reject invalid issuer, audience, signature, expiry or insufficient authority as appropriate.
-- [ ] AgentCore Runtime responds and makes an actual tool invocation through the configured Gateway(s).
-- [ ] Both Gateways are present and their separate purpose is visible in the configuration and logs.
-- [ ] REST API and OpenAPI target experiences are verified against current AgentCore product capabilities.
-- [ ] Raw MCP discovery and invocation examples are captured with credentials redacted.
-- [ ] OBO and service-account runs show the actual token subject/claims trusted at each hop; limitations are documented.
-- [ ] User B cannot invoke the protected operation, including attempted direct API access.
-- [ ] Cedar example demonstrates an auditable allow/deny case.
-- [ ] Deploy, test, observe, and clean up are reproducible with documented cost boundaries.
-- [ ] Architecture, pattern catalogue, standalone ADR and Q&A accurately reflect the running solution.
+The adapter must not terminate or fabricate user identity. Its token-propagation design, Runtime ingress protection and exact Entra token audiences must be validated before deployment.
 
-**Additional explicit negative checks:** U-B and M-1 cannot request diagnostics through either Gateway; a forged/wrong-audience/expired token is rejected; service-account privileges cannot be used to bypass per-user policy; no raw bearer token is recorded in logs. Tests must capture redacted traces and distinguish an unsuccessful OBO experiment from working delegation.
+## Agreed downstream systems
 
-## Out of scope
+- Shared Knowledge repository — synthetic S3 documents → Bedrock Knowledge Bases / S3 Vectors.
+- Network Operations REST API — synthetic asset/fault data stored in protected PostgreSQL.
+- Ticket Management REST API — synthetic tickets in PostgreSQL, with explicit confirmation and idempotent creation.
+- NetworkMonitor SaaS mock REST API — **separate Cognito identity provider** and personal vendor alerts.
+- Platform Health REST API — native API Gateway stage target, IAM outbound.
+- Network Health Summary endpoint — OpenAPI target, read-only OAuth client credentials.
+- RDS PostgreSQL is **not an MCP target**: only Network/Ticket APIs access it, with validated claims mapped to transaction-scoped RLS context.
 
-Production telecom integrations; customer data; paid telecom APIs; elaborate UI; production tenancy; customer onboarding; a broad benchmark across AI frameworks; unrelated new auth patterns; and any assertion that this is a production security reference architecture without separate hardening.
+[Detailed tool mapping](tool-and-api-inventory.md) and [identity matrix](identities-and-permissions.md) are authoritative for tool membership/permissions. [ADR-001](architecture-decisions.md#adr-001--separate-human-jwt-and-automation-iam-gateways) explains the Gateway separation.
 
-## Decisions still needed
+## Reusable patterns — existing agreed scope only
 
-1. The fictional Network API and read/diagnostic permission split are **approved**. Keep the entire project vendor-neutral; do not mention any real telecommunications company by name.
-2. Agree each Gateway's distinct use case after validating current product constraints.
-3. Confirm concrete REST API vs OpenAPI target support, credentials and tool mapping from up-to-date AWS documentation.
-4. Decide the specific Entra tenant/application layout and AWS Region.
-5. Set budget and cleanup parameters before provisioning anything.
+| ID | Pattern | Demonstration |
+|---|---|---|
+| P01 | Corporate Entra OIDC and JWT entry | Valid/invalid user access token at API Gateway and Runtime U |
+| P02 | Entra OAuth OBO | User-delegated API token for Network/Ticket calls |
+| P03 | IAM service + OAuth 2LO | Scheduled report through Runtime M/G2 to aggregate API |
+| P04 | External OAuth 3LO | David independently connects Cognito vendor account |
+| P05 | MCP and Cedar tool governance | Tool/parameter authorisation at G1; narrow IAM policy at G2 |
+| P06 | API and PostgreSQL RLS | James VIC-only data, Sarah national data, no prompt-based privilege |
+| P07 | Shared RAG retrieval | Approved corpus and citations, no unsupported per-document ACL claims |
 
-See [master TODO](../TODO.md). No cloud resources have been deployed.
+Logging, tracing, guardrails, throttling, secrets and cost controls are cross-cutting, **not additional patterns**.
+
+## Acceptance criteria — tests not yet executed
+
+- [ ] Five humans and reporter exercise their designated flows; all forbidden cases deny.
+- [ ] Absent, expired, invalid and wrong-audience JWTs fail at the appropriate ingress.
+- [ ] Runtime U cannot be bypassed using only a Lambda IAM role; Runtime M admits only authorised IAM workloads.
+- [ ] G1 JWT user identity and G2 IAM workload identity are separately authenticated and authorised.
+- [ ] James receives VIC-only rows through API and RLS; NSW canaries remain inaccessible; Sarah gets authorised national rows.
+- [ ] `create_ticket` requires explicit confirmation, enforced authorisation and idempotency; denial creates no ticket.
+- [ ] David completes separate vendor consent; Sarah cannot inherit his vendor token; revocation blocks access.
+- [ ] Reporter produces a read-only aggregate; its 2LO identity cannot call diagnostics or ticket mutations.
+- [ ] Shared KB answers cite approved documents; no claim of document-level ACL enforcement.
+- [ ] Native REST target, OpenAPI OAuth OBO, Cognito 3LO, OpenAPI OAuth 2LO, MCP JSON-RPC, Cedar and backend validation are evidenced by redacted traces.
+- [ ] Every successful and denied path has a correlation ID; no bearer token or secret is logged.
+
+## Test data and boundaries
+
+Synthetic fixtures: **20–40 assets** across VIC/NSW, **30 faults**, **10 tickets**, **12 short knowledge articles**, **15 vendor alerts**, plus deterministic forbidden canaries. No real operational data, real provider integration or production personal identities.
+
+**Environment baseline:** Existing user-owned AWS account, Sydney `ap-southeast-2`, free Entra test tenant, low-cost model to select at setup, AUD $30 equivalent *budget alert* (not hard cap), and post-test cleanup. No cloud resource creation authorised yet.
+
+**Still to validate before Stage 2 is signed off:** Entra claims/groups, distinct API audiences/scopes, full Runtime JWT handoff, both ingress perimeters, RLS schema/context, exact target-specific OAuth support and vendor callback/refresh/revocation.
+
+See [master TODO](../TODO.md) for internal project status.
