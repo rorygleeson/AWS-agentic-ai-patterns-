@@ -21,20 +21,22 @@ Everything is fictional and uses synthetic data. This is our **architecture desi
 
 Five people share the same AI chat app. One separate service account runs a scheduled report.
 
-| End system | Who can access it? | What are they allowed to do? |
-|---|---|---|
-| **Knowledge Base (RAG)** | **Sarah, James, Emma, David, Oliver** | Everyone sees the same approved troubleshooting guides. |
-| **Network API** | **Sarah** | Asset status and diagnostics in **all regions**. |
-| ↳ Network API | **James** | Asset status and diagnostics in **VIC only**. **NSW denied.** |
-| ↳ Network API | **Emma** | **Basic asset status** in all regions. **No diagnostics or sensitive fields.** |
-| ↳ Network API | **Reporter service account** | **Aggregate network-health summary only.** No individual asset data. |
-| **Ticket API** | **Sarah** | Read/create tickets in **all regions**, with confirmation for writes. |
-| ↳ Ticket API | **James** | Read/create tickets for **VIC only**, with confirmation for writes. |
-| **NetworkMonitor (third party)** | **David only** | His own vendor alerts, after separate OAuth consent. |
-| **Platform Health API** | **Oliver only** | Read-only synthetic platform health. |
-| **RDS PostgreSQL** | **Network/Ticket API backends only** | Database access via application permissions and row-level security. No direct agent tool. |
+| End system | Who? | Allowed access | How enforced |
+|---|---|---|---|
+| **Knowledge Base (RAG)** | Sarah, James, Emma, David, Oliver | Shared approved guides | **JWT + Cedar**; KB accessed using IAM |
+| **Network API** | **Sarah** | All regions: status + diagnostics | **Entra OBO** + API rules + **RLS** |
+| ↳ Network API | **James** | **VIC only**: status + diagnostics | **Entra OBO** + API rules + **RLS** |
+| ↳ Network API | **Emma** | All regions: **basic status only** | **Entra OBO** + API field restrictions |
+| ↳ Network API | **M2M Reporter service account** | **Aggregate summary only** | **G2 IAM + OAuth 2LO** + app permission |
+| **Ticket API** | **Sarah** | All regions: read/create | **Entra OBO** + API rules + **RLS** |
+| ↳ Ticket API | **James** | **VIC only**: read/create | **Entra OBO** + API rules + **RLS** |
+| **NetworkMonitor** | **David only** | His own vendor alerts | **OAuth 3LO** + vendor permissions |
+| **Platform Health API** | **Oliver only** | Read-only platform status | **Cedar + IAM/SigV4** |
+| **RDS PostgreSQL** | API backends only | Private data, never a direct agent tool | DB service role + **RLS** |
 
-**Rule:** If someone is **not listed for a system, access is denied**. A successful login to the chat application does not grant access to every tool.
+**Default: denied.** If a user isn't listed for a system, they cannot use it. Ticket creation additionally requires confirmation.
+
+**How to read the last column:** JWT/IAM authenticates the caller; Cedar authorizes MCP tool use; OAuth access tokens carry delegated or application permissions to the downstream API; the API's own rules and RLS enforce which records and fields are returned. **OAuth by itself does not restrict James to VIC.**
 
 ### What the users ask
 
