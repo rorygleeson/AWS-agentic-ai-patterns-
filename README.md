@@ -4,7 +4,15 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and six callers to show when each pattern applies—and how to prevent unauthorized access.
 
-**Why these particular examples?** We deliberately chose systems that require **different ways of granting access**. Shared knowledge is available to any human user who successfully signs in to the AI chat application; the Network API must respect each person's permissions; the **Network Health Reporter service account** calls the Network API without a human, using its own application identity; an external vendor requires separate user consent; and an AWS-protected API uses an IAM role. Together, they demonstrate the main authentication and authorization patterns an enterprise AI agent must handle.
+**Why these particular examples?** We chose them because each demonstrates a different access requirement:
+
+- **Shared knowledge (RAG):** Any human user who successfully signs in to the **AI chat application** can search the same approved documents.
+- **Network Operations API:** Sarah, James and Emma must sign in to the AI app, but **each can see or do only what their own permissions allow**. For example, James can retrieve VIC diagnostics, not NSW diagnostics.
+- **Network Health Reporter service account:** This scheduled application **does not sign in as a person**. It authenticates using its own application identity and can request **aggregate network health only**.
+- **External NetworkMonitor service:** David signs in to the AI app **and separately authorizes access to his account with the other company**. He receives only the vendor alerts he is permitted to see.
+- **Platform Health API:** Oliver signs in to the AI app and is **the only human allowed to use this tool**. The final API call is authenticated using an **AWS IAM role**, not Oliver's own token.
+
+Together, they show why enterprise AI agents need different authentication and authorization patterns.
 
 **The key idea:** Signing in to the chat app is only the start. **Every connected system must still enforce its own access rules.**
 
