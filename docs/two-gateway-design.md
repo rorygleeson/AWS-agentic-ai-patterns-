@@ -34,9 +34,10 @@ Logical diagram only. The exact API deployment, authentication boundary and rout
 ## Why two Gateways?
 
 1. Compare **two different target integration approaches** independently, while holding the logical API operations constant.
-2. Make the **downstream credential model** visible: Gateway 1's IAM-backed application identity versus Gateway 2's OAuth delegated-identity goal.
-3. Trace `tools/list`, `tools/call`, tool schema generation and access outcomes on each.
-4. Show that two Gateways are a **deliberate learning choice**, not a general production requirement.
+2. Independently configure and inspect **inbound authorisation**, Gateway execution roles, policy attachment and security boundaries. One Gateway can hold multiple targets with their own outbound credential providers; using two is **not a product requirement for mixing IAM and OAuth**.
+3. Make the **downstream credential model** visible: Gateway 1's IAM-backed application identity versus Gateway 2's OAuth delegated-identity goal.
+4. Trace `tools/list`, `tools/call`, tool schema generation and access outcomes on each.
+5. Show that two Gateways are a **deliberate learning choice**, not a general production requirement.
 
 ## Critical security distinction
 
