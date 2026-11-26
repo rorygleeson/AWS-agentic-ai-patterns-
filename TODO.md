@@ -28,9 +28,9 @@
 | 1. Scope & inventory | Reconcile original business stories, users, systems and patterns | ⏳ Reopened for verification |
 | 2. Architecture & decisions | Diagrams, patterns, ADR, security model and Q&A | Paused until Stage 1 verified |
 | 3. Accounts & deployment foundations | AWS/Entra prerequisites, IaC, budget controls | Planned |
-| 4. Identity & application entry | Web chat, sign-in, API Gateway, Runtime agent | Planned |
-| 5. Gateway, MCP & API integration | Two Gateways, discovery, REST/OpenAPI targets | Planned |
-| 6. Identity propagation & authorisation | OBO, M2M, service account, restrictions, Cedar | Planned |
+| 4. Identity & application entry | Web chat, Entra, JWT Runtime U and IAM Runtime M | Planned |
+| 5. Gateway, MCP & API integration | G1 human targets, G2 reporter, Knowledge Base, Network/Ticket/vendor/platform | Planned |
+| 6. Identity propagation & authorisation | OBO, 3LO, 2LO, Cedar, RLS and ticket integrity | Planned |
 | 7. Verification & observability | End-to-end matrices, traces, failure testing | Planned |
 | 8. Publication & handover | Reproducible walkthrough, documentation, demos | Planned |
 | 9. Cleanup & cost review | Teardown checks and actual cost analysis | Planned |
@@ -88,40 +88,41 @@
 
 ## Stage 4 — Identity & application entry
 
-- [ ] **S4-01** Build simple HTML/JavaScript chat UI with states for login, prompt, reply and errors.
-- [ ] **S4-02** Integrate Entra OIDC interactive sign-in using appropriate authorisation-code/PKCE flow.
-- [ ] **S4-03** Define and secure the API Gateway entry endpoint and browser CORS settings.
-- [ ] **S4-04** Implement JWT validation, issuer/audience/scope checks and meaningful rejection responses at entry.
-- [ ] **S4-05** Deploy a minimal Python Strands agent on AgentCore Runtime with Amazon Bedrock model access.
-- [ ] **S4-06** Connect API Gateway to Runtime through an appropriate secured invocation integration; document credentials and identity handoff.
-- [ ] **S4-07** Prove User A can sign in, submit a prompt and receive a basic agent response.
-- [ ] **S4-08** Validate User B's entry behaviour, expired/malformed tokens and missing permissions.
+- [ ] **S4-01** Build simple HTML/JavaScript web chat, error states, session and correlation handling.
+- [ ] **S4-02** Integrate Entra OIDC authorisation-code/PKCE sign-in for Sarah, James, Emma, David and Oliver.
+- [ ] **S4-03** Configure secure API Gateway entry, JWT validation, CORS, scopes/roles and fail-closed responses.
+- [ ] **S4-04** Build a **thin Lambda adapter** for request validation, correlation and identity-safe Runtime invocation; never forge/replace user context.
+- [ ] **S4-05** Deploy **Runtime U** Python Strands/Bedrock agent with verified JWT inbound and session isolation.
+- [ ] **S4-06** Deploy **Runtime M** Python Strands/Bedrock agent with AWS IAM inbound; protect against human or untrusted bypass.
+- [ ] **S4-07** Prove each of five humans can reach Runtime U with validated identity and invalid tokens fail.
+- [ ] **S4-08** Prove Scheduler/Lambda IAM can reach Runtime M while unauthorised IAM identities and user JWTs cannot.
+- [ ] **S4-09** Verify how identity reaches G1 from Runtime U; deny arbitrary forwarded headers/user IDs and IAM-only Runtime U invocation.
 
-## Stage 5 — Gateway, MCP & API integration
+## Stage 5 — Gateway, MCP & downstream integration
 
-- [ ] **S5-01** Configure first AgentCore Gateway, inbound authorisation and Runtime-to-Gateway credential handling.
-- [ ] **S5-02** Configure second AgentCore Gateway with documented distinction and boundary.
-- [ ] **S5-03** Build/configure simple downstream REST APIs with sufficient endpoints to demonstrate separate tool permissions.
-- [ ] **S5-04** Configure an AgentCore Gateway **OpenAPI target** with operations exposed as MCP tools.
-- [ ] **S5-05** Configure an AgentCore Gateway **REST API target** and document any required adapter/tool-definition differences.
-- [ ] **S5-06** Verify supported target types and exact AWS capabilities against current official docs before deployment; correct assumptions in docs.
-- [ ] **S5-07** Demonstrate MCP discovery (`tools/list`), tool schemas and JSON-RPC invocation (`tools/call`).
-- [ ] **S5-08** Connect Strands Runtime agent to both Gateways and demonstrate selection and calls.
-- [ ] **S5-09** Show whether a tool maps to one or multiple downstream API operations, using actual Gateway configuration and traces.
-- [ ] **S5-10** Handle upstream/downstream schema, validation, timeout and API errors.
+- [ ] **S5-01** Configure **G1 CUSTOM_JWT** human Gateway, Cedar attachment, identity/caller validation and target access.
+- [ ] **S5-02** Configure **G2 AWS_IAM** automation Gateway with only the reporter tool and narrow Runtime M IAM principal.
+- [ ] **S5-03** Build synthetic Network Operations API and Ticket API with PostgreSQL-backed assets/faults/tickets.
+- [ ] **S5-04** Configure G1 Network/Ticket **OpenAPI + Entra OBO** targets with `get_asset_status`, `get_diagnostics`, `get_ticket`, `create_ticket`; verify target compatibility.
+- [ ] **S5-05** Create shared S3/Bedrock Knowledge Base/S3 Vectors corpus and G1 `search_knowledge` retrieval tool.
+- [ ] **S5-06** Build mock NetworkMonitor SaaS API + separate Cognito user pool and G1 `search_vendor_alerts` target.
+- [ ] **S5-07** Add native API Gateway REST stage target on G1 for Oliver's `get_platform_health` with IAM outbound.
+- [ ] **S5-08** Add G2 read-only `get_network_health_summary` **OpenAPI + OAuth 2LO** target to shared Network API.
+- [ ] **S5-09** Demonstrate MCP `tools/list`, schemas, `tools/call`, target mapping and separate discovery visibility on G1/G2.
+- [ ] **S5-10** Handle validation, timeout, API and schema errors; verify current AWS target/credential capabilities.
 
 ## Stage 6 — Identity propagation & authorisation
 
-- [ ] **S6-01** Implement and test machine-to-machine 2LO/client-credentials entry path.
-- [ ] **S6-02** Implement and test service-account / application-identity downstream access.
-- [ ] **S6-03** Implement and test end-to-end OBO/token exchange where supported; document constraints and every identity transition.
-- [ ] **S6-04** Prove downstream API independently validates token issuer, audience, expiry and permissions.
-- [ ] **S6-05** Enforce a permission matrix: User A accesses both agreed tools; User B only the permitted tool; M2M has explicitly scoped access.
-- [ ] **S6-06** Clarify which controls live at API Gateway, AgentCore Gateway, policy layer and downstream API.
-- [ ] **S6-07** Define Cedar policy decision inputs, claims mapping and deny-by-default policy examples.
-- [ ] **S6-08** Implement a focused Cedar authorisation demonstration and compare it against simpler native/scoped controls.
-- [ ] **S6-09** Test denial, token substitution, wrong audience, privilege escalation and service-account confused-deputy scenarios.
-- [ ] **S6-10** Record actual user/agent/service identities seen at each hop for every pattern.
+- [ ] **S6-01** Implement and verify Entra JWT/OIDC entry for humans and identity propagation through adapter → Runtime U → G1.
+- [ ] **S6-02** Implement and verify Entra OBO token exchange for Network/Ticket API audiences and downstream independent JWT validation.
+- [ ] **S6-03** Implement Cedar role/tool/parameter rules: Emma basic + knowledge, James VIC, Sarah national, David vendor-only, Oliver platform-only.
+- [ ] **S6-04** Implement API authorisation and **PostgreSQL RLS** region isolation, mapping only verified claims to transaction-local context.
+- [ ] **S6-05** Implement ticket creation authorisation, explicit confirmation, idempotency and no mutation on denial.
+- [ ] **S6-06** Implement separate Cognito vendor 3LO consent/refresh/revocation and per-user token isolation for David.
+- [ ] **S6-07** Implement EventBridge Scheduler → IAM Lambda → Runtime M → G2 and scoped Entra OAuth **2LO** aggregate read; no user impersonation.
+- [ ] **S6-08** Apply IAM/SigV4 native REST target controls for Oliver and service-identity confused-deputy protection.
+- [ ] **S6-09** Test forbidden tool access, JWT substitution, wrong audiences, direct API bypass, cross-region RLS, vendor token reuse and machine writes.
+- [ ] **S6-10** Capture token/identity metadata at each trust hop without exposing secrets.
 
 ## Stage 7 — Verification & observability
 
@@ -156,21 +157,23 @@
 
 ## Decisions and blockers register
 
-| ID | Item | Status / next action |
+This is a **tracking index**, not the decision rationale. [Consolidated ADR](docs/architecture-decisions.md) is authoritative for architectural decisions.
+
+| ID | Item | Status |
 |---|---|---|
-| D-01 | Preserve all earlier agreed patterns; no new ones for now | Baseline; detail in ADR |
-| D-02 | Two Gateways are included for comparative learning | Define roles in S1-04 |
-| D-03 | Prefer OBO for preserving user identity; compare with service-account model | Validate exact supported flows |
-| D-04 | REST API vs OpenAPI target comparison is **orthogonal** to OBO vs service-account credentials | Verify capabilities in S5-06 |
-| D-05 | User A and User B have differing tool permissions | Finalise matrix in S1-02/S6-05 |
-| D-06 | Cedar is an authorisation-learning exercise, not assumed mandatory for every tool | Confirm policy enforcement design |
-| D-07 | Free Entra ID tenant is intended for the PoC | Verify eligibility and app registration requirements |
-| D-08 | Document architecture, patterns, standalone ADR and Q&A separately | Stage 2 |
-| D-09 | Fictional Network API with read and diagnostic operations; no real provider names or interview framing anywhere in project | Approved 2026-11-26 |
-| D-10 | Machine client (2LO) is read-only | Approved 2026-11-26 |
-| D-11 | Native API Gateway REST stage target currently uses IAM or API key, not OAuth outbound; compare with OpenAPI target for OAuth | AWS documentation reviewed; verify in Stage 5 |
-| D-12 | Two Gateways: G1 native API Gateway REST target with IAM; G2 OpenAPI target with OAuth / OBO experiment | Approved 2026-11-26; [design](docs/two-gateway-design.md); OBO is not yet proven |
-| D-13 | Documentation is architecture-first; include brief 2LO/3LO/OBO notes, not a general OAuth tutorial | [Architecture notes](docs/oauth-token-flows.md) revised; Stage 2/7 validation pending |
+| D-01 | Preserve original agreed patterns; no new ones without approval | Active constraint |
+| D-02 | Two Runtimes + two Gateways split by **human JWT versus automation IAM inbound** | Corrected; [ADR-001](docs/architecture-decisions.md) |
+| D-03 | Entra OBO for internal human Network/Ticket calls; downstream audiences and RLS to be proven | Agreed design; verification pending |
+| D-04 | Gateway targets select outbound auth independently; native REST/IAM for Oliver, OpenAPI/OBO for internal, OpenAPI/2LO for reporter | Agreed; capability verification pending |
+| D-05 | Five named human roles plus Network Health Reporter; role/region/tool permissions | Restored; sign-off in S1-12 |
+| D-06 | Cedar governs G1 human tools; G2 gets narrow IAM reporter permissions | Agreed design |
+| D-07 | Free Entra tenant, Sydney, AUD $30 equivalent alert (not cap), teardown | Baseline; verify Stage 3 |
+| D-08 | README technical overview; architecture behaviour; one ADR for why; TODO not advertised | Active document rule |
+| D-09 | Original Network + Ticket APIs, vendor Cognito, KB, Platform REST, Health Summary, RDS | Restored, supersedes generic two-endpoint-only summary |
+| D-10 | Reporter read-only aggregate OAuth 2LO, no human impersonation | Agreed |
+| D-11 | Native API Gateway REST stage target IAM outbound does not supply OBO | Verified documentation; test in Stage 5 |
+| D-12 | Earlier split-by-target-type rationale was incorrect | Superseded by ADR-001 |
+| D-13 | OAuth notes are concise and specific to our architecture, not general tutorials | Active constraint |
 
 ## Future discoveries / new stages
 
