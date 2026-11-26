@@ -99,7 +99,16 @@ Each Gateway has one inbound authentication method, while **each downstream targ
 
 ### Two ways to register REST APIs as MCP tools
 
-The two REST integration approaches are intentional: the **Network Operations API uses an OpenAPI-defined target** for OAuth, while **Platform Health uses a native AWS API Gateway REST-stage target** with IAM. Both ultimately call ordinary REST APIs. **OpenAPI is the API description, not another running service.**
+Both systems expose ordinary **REST APIs**. We deliberately register them with AgentCore Gateway in two different ways:
+
+| | Native API Gateway REST-stage target | OpenAPI-defined target |
+|---|---|---|
+| **Our example** | Platform Health API | Network Operations API |
+| **How AgentCore connects** | Import the existing AWS API Gateway REST stage | Supply an OpenAPI description of the REST endpoints |
+| **Outbound authentication** | IAM/SigV4 (or API key) | OAuth OBO for humans; OAuth 2LO for the service |
+| **Downstream identity** | Gateway's IAM role | Delegated human or application identity |
+
+**Why the difference?** It's a limitation of the **AgentCore target type**, not REST itself. The native AWS API Gateway stage target supports IAM and API-key outbound authentication **but not OAuth**. An **OpenAPI target supports OAuth** through AgentCore's separately configured outbound credential provider—even if the actual REST API is hosted on AWS API Gateway. **The OpenAPI file describes the API; it doesn't provide OAuth or run another service.**
 
 These are our **core integration/authentication patterns**. Detailed session handling, Cedar policies, database controls, logging and implementation decisions belong in the supporting architecture documents—not in the introductory access tables.
 
