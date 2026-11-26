@@ -1,4 +1,4 @@
-# PoC Scope and Acceptance Criteria — Draft
+# PoC Scope and Acceptance Criteria
 
 **Status:** Scope baseline approved (Stage 1 / S1-01). Technical implementation details requiring verification remain **TBD**.
 
