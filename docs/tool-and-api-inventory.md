@@ -1,77 +1,55 @@
-# Tool and API Inventory
+# Downstream Systems and MCP Tool Inventory
 
-**Stage:** 1 / S1-03  
-**Status:** Initial inventory recorded; service capabilities are sourced from AWS documentation and will be verified by deployment.
+**Status:** Restored agreed inventory. All systems/data are synthetic. Target and identity mechanisms must be validated in the running PoC.
 
-## Logical API and operations
+## Tool catalogue
 
-One fictional **Network API**, with two operations and no external provider dependency:
+| Gateway | MCP tool | REST/backend operation | Downstream system | Outbound authentication |
+|---|---|---|---|---|
+| **G1 — JWT humans** | `search_knowledge` | Retrieve procedure excerpts/citations | Bedrock Knowledge Base: S3 corpus / S3 Vectors | AWS-controlled retrieval |
+| G1 | `get_asset_status` | `GET /assets/{id}` | Network Operations REST API | Entra delegated **OBO** |
+| G1 | `get_diagnostics` | `GET /assets/{id}/diagnostics` | Network Operations REST API | Entra delegated **OBO** |
+| G1 | `get_ticket` | `GET /tickets/{id}` | Ticket Management REST API | Entra delegated **OBO** |
+| G1 | `create_ticket` | `POST /tickets` | Ticket Management REST API | Entra OBO + Cedar + explicit confirmation + idempotency |
+| G1 | `search_vendor_alerts` | `GET /alerts` | Mock NetworkMonitor SaaS REST API | **Cognito vendor 3LO**, separate from Entra |
+| G1 | `get_platform_health` | Platform health GET (path to finalise) | Platform Health REST API via native API Gateway stage target | Gateway IAM/SigV4 |
+| **G2 — IAM reporter** | `get_network_health_summary` | `GET /network/health-summary` | Network health API, read-only aggregate | OpenAPI target + restricted OAuth **2LO** |
 
-| ID | Method / resource | Logical operation | MCP tool name (candidate) | Permission | Side effect |
-|---|---|---|---|---|---|
-| API-01 | `GET /network/services/{id}` | Read service status | `get_service_status` | `network.status.read` | None |
-| API-02 | `POST /network/services/{id}/diagnostics` | Request simulated diagnostic | `request_diagnostic` | `network.diagnostics.request` | Creates mock diagnostic record only |
+A REST API can expose several operations/tools. **Target type and OAuth grant type are different design dimensions.** The same Network API implementation may serve G1 and G2 with separate audiences/operations, without duplicating its database.
 
-**API operation ≠ MCP tool by definition.** A REST API can expose multiple endpoints. A Gateway target can expose qualifying operations as individual MCP tools; exact names and visibility depend on target schemas, filters and product capabilities. No need to build a separate REST API for every tool.
+## Trust boundaries and data stores
 
-## Mock/sample API contract (S1-07) — design baseline
+- **Network Operations API:** validated user-delegated scopes and region claims; protected RDS PostgreSQL assets/faults with RLS.
+- **Ticket API:** validated scopes, region claims, confirmation and idempotent writes; protected RDS tickets with RLS.
+- **Knowledge repository:** approved shared corpus, 12 synthetic short articles; source citations; no unverified per-document ACLs.
+- **NetworkMonitor:** mock vendor data but real separate Cognito authorisation server; per-user consent, callback and token lifecycle.
+- **Platform Health:** separately exposed native REST stage to demonstrate API Gateway target + IAM, for Oliver.
+- **Network summary:** aggregate-only endpoint restricted to reporter; app token cannot read individual diagnostics or create tickets.
+- **RDS PostgreSQL:** reached only by Network/Ticket APIs, **not** direct MCP tool or agent SQL access.
 
-### `GET /network/services/{id}`
+## Synthetic deterministic fixtures
 
-- Input: `id` (fictional service identifier, e.g. `svc-001`)
-- Output: `{ "serviceId": "svc-001", "status": "operational", "region": "test-zone" }`
-- Test records: `svc-001` operational, `svc-002` degraded, unknown ID not found.
+- 20–40 assets across VIC/NSW, including known canaries `VIC-102` and `NSW-201`.
+- 30 synthetic faults; 10 initial tickets; 12 short approved procedure articles; 15 vendor alerts.
+- `get_asset_status` returns basic fields for Emma, richer authorised data for James/Sarah where policy permits.
+- `get_diagnostics` enforces role/region and returns only authorised fault rows.
+- `create_ticket` is the only agreed state-changing operation; cannot execute without confirmed intent, valid authority and idempotency key.
+- `get_network_health_summary` returns aggregate counts/health only; no individual user identity, raw fault detail or mutations.
+- Missing IDs, expired tokens, wrong regions and insufficient scopes produce deterministic, testable denials.
+- No real network equipment, customers or live external integrations.
 
-### `POST /network/services/{id}/diagnostics`
+## REST API stage vs OpenAPI target — actual placement
 
-- Input: `id`, `{ "checkType": "connectivity" }`
-- Output: `{ "diagnosticId": "diag-001", "serviceId": "svc-001", "result": "scheduled" }`
-- Creates a synthetic diagnostic outcome only. No actual network calls, customer records or infrastructure changes.
+- **Native API Gateway REST stage target:** G1's `get_platform_health`, using IAM/SigV4. It does **not** do OAuth OBO.
+- **OpenAPI OAuth OBO targets:** G1's Network and Ticket APIs for delegated human operations, subject to proof of actual Entra token exchange.
+- **Vendor Cognito 3LO target:** G1's NetworkMonitor integration, distinct from corporate login.
+- **OpenAPI OAuth 2LO target:** G2's read-only health summary.
+- Knowledge retrieval uses the agreed Bedrock KB integration, subject to actual target/tool configuration validation.
 
-**Deterministic fixtures and safety rules:** Use only `svc-001` (operational) and `svc-002` (degraded); unknown IDs return a consistent not-found response. A diagnostic request creates only a fictional record with a deterministic test identifier and `scheduled` status. Reject unsupported `checkType`, missing IDs, unauthorised callers and duplicate or malformed inputs predictably. No real network diagnostics, external network integrations or personal data. Final OpenAPI shapes and error codes are implementation details to test.
+## Verification requirements
 
-## Target comparison — same logical operations
+Confirm the exact supported target and credential combinations, OpenAPI `operationId` mappings, tool JSON schemas, `tools/list` and `tools/call`, outbound token audiences, IAM roles, vendor consent/refresh/revocation, RLS claims and per-tool Cedar policies. Record observed behaviour and any unsupported assumptions without silently substituting new patterns.
 
-| Dimension | Native API Gateway REST API stage target | OpenAPI specification target |
-|---|---|---|
-| Source of tool definitions | API Gateway REST API stage export / selected resources | Explicit OpenAPI 3.x document |
-| MCP exposure | Operations surfaced as tools, subject to filters | `operationId` determines exposed tool name |
-| Example API operations | API-01 and API-02 | API-01 and API-02 |
-| Downstream authentication | AWS IAM/SigV4 or API key per current AWS guidance | Credential provider; OAuth or API-key patterns to investigate |
-| Learning focus | AWS-native stage-to-tool mapping, service credentials | Explicit API contract and OAuth/OBO feasibility |
+Relevant AWS docs: [API Gateway stage targets](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-target-api-gateway.html) · [OpenAPI targets](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-schema-openapi.html) · [outbound authentication](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html).
 
-**Critical constraint from AWS:** The native API Gateway REST API target does **not** currently support OAuth-based outbound authorisation. For an OAuth-protected API Gateway endpoint, AWS directs use through the OpenAPI target instead. Do not treat target type as an intrinsic 2LO/3LO/OBO setting. An actual delegated OBO exchange must be independently designed and proven.
-
-Relevant AWS references:
-- [API Gateway REST API stages as targets](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-target-api-gateway.html)
-- [OpenAPI schema targets](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-schema-openapi.html)
-- [Gateway VPC egress / authentication limitations](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-vpc-egress.html)
-- [Using MCP with AgentCore Gateway](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-using.html)
-
-## Proposed deployment inventory
-
-| Component | Count | Purpose | Confirmed? |
-|---|---:|---|---|
-| Fictional Network API | 1 | Host two test operations | Agreed |
-| HTTP operations | 2 | Read and mock diagnostic | Agreed |
-| Logical MCP tools | 2 per target (to validate) | Independently authorisable operations | To verify |
-| AgentCore Gateways | 2 | Compare target integration/security | Agreed |
-| API Gateway REST stage target | 1 | Native integration | Agreed |
-| OpenAPI target | 1 | Explicit contract / OAuth experiment | Agreed |
-| Test user principals | 2 | Operator and Viewer | Agreed |
-| Machine client principal | 1 | 2LO, read-only | Agreed |
-| Downstream service identity | 1 logical role | Compare app identity vs delegated OBO | Agreed for comparison |
-| Runtime / Strands agent | 1 | Discover and invoke both target families | Agreed |
-
-Gateway assignment is approved: Gateway 1 = REST stage/IAM, Gateway 2 = OpenAPI/OAuth experiment. See [technical design](two-gateway-design.md) and [ADR-001](architecture-decisions.md#adr-001--use-two-agentcore-gateways-for-separate-security-boundaries).
-
-## Candidate policy evidence
-
-- U-A can call both read and diagnostic.
-- U-B can call read but not diagnostic.
-- M-1 can call read but not diagnostic.
-- A service-account token alone does not prove U-A/U-B identity.
-- OBO is proven only if a downstream API receives a correctly exchanged user-delegated token for its audience.
-- Both target types expose the intended tool schemas through MCP discovery, with observed behaviour documented.
-
-See [identity matrix](identities-and-permissions.md) and [master board](../TODO.md).
+See [identities](identities-and-permissions.md), [two-Gateway technical design](two-gateway-design.md) and [master TODO](../TODO.md).
