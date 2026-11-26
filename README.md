@@ -95,7 +95,9 @@ We also agreed on two separate AgentCore entry paths:
 - **G1 — human Gateway:** inbound Microsoft Entra JWT for Sarah, James, Emma, David and Oliver.
 - **G2 — machine Gateway:** inbound AWS IAM for the Network Health Reporter runtime.
 
-Each Gateway has one inbound authentication method, while **each downstream target can use its own outbound method** from the table above.
+**Why two Gateways?** AgentCore Gateway lets you configure **only one inbound authentication type per Gateway**. G1 needs JWT for humans; G2 needs AWS IAM for the service runtime. **A single Gateway cannot use both inbound methods at once**, so the two-Gateway split is required for this design.
+
+This is **not** because the end systems use different authentication. **One Gateway can have multiple targets, each with its own outbound authentication** (such as OBO, 3LO or IAM).
 
 ### Two ways to register REST APIs as MCP tools
 
