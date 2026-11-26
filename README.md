@@ -4,7 +4,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and six callers to show when each pattern applies—and how to prevent unauthorized access.
 
-**Why these particular examples?** We deliberately chose systems that require **different ways of granting access**. Shared knowledge needs only a successful sign-in; the Network API must respect each person's permissions; the **Network Health Reporter service account** calls the Network API without a human, using its own application identity; an external vendor requires separate user consent; and an AWS-protected API uses an IAM role. Together, they demonstrate the main authentication and authorization patterns an enterprise AI agent must handle.
+**Why these particular examples?** We deliberately chose systems that require **different ways of granting access**. Shared knowledge is available to any human user who successfully signs in to the AI chat application; the Network API must respect each person's permissions; the **Network Health Reporter service account** calls the Network API without a human, using its own application identity; an external vendor requires separate user consent; and an AWS-protected API uses an IAM role. Together, they demonstrate the main authentication and authorization patterns an enterprise AI agent must handle.
 
 **The key idea:** Signing in to the chat app is only the start. **Every connected system must still enforce its own access rules.**
 
