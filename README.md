@@ -49,6 +49,20 @@ The application has **five human users** and **one non-human service account**.
 
 The tables above describe **what access the business needs**. They also explain **why we need several different authentication patterns**.
 
+### One API, different permissions
+
+The **Network API** is the clearest example of why identity matters:
+
+| Caller | Request | Result |
+|---|---|---|
+| **Sarah** | NSW diagnostics | ✅ Allowed |
+| **James** | NSW diagnostics | ❌ Denied — VIC only |
+| **Emma** | NSW basic asset status | ✅ Allowed — basic fields only |
+| **Emma** | NSW diagnostics | ❌ Denied |
+| **Service account** | National aggregate health summary | ✅ Allowed — aggregate only |
+
+**Same API, different results:** the system uses each caller's identity and permissions to decide what can be returned.
+
 We cannot use one shared service account for everything: some systems must know **which person** is making the request, some need only **which application**, and a third-party system must obtain **its own user's consent**.
 
 | Access requirement from Sections 1–2 | Pattern we need | What the downstream system knows |
@@ -58,6 +72,13 @@ We cannot use one shared service account for everything: some systems must know 
 | The scheduled Network Health Reporter needs aggregate data without a human signing in. | **OAuth 2LO (client credentials)** with Microsoft Entra ID. | **Which application** called, with aggregate-only app permission. No human identity. |
 | David accesses data belonging to his account with an external vendor. | **OAuth 3LO (user authorization/consent)** with the vendor's separate OAuth provider. | **Which vendor user** authorized access and which alerts they may see. |
 | Oliver alone can call Platform Health, but the final REST API uses an AWS service identity. | **AWS IAM/SigV4** for the downstream call. | The **AgentCore Gateway execution role**, not Oliver. Tool authorization must check Oliver *before* that call. |
+
+### Four terms in plain English
+
+- **OBO:** The agent accesses an API **on behalf of the signed-in person**.
+- **2LO:** A **service application** accesses an API without a human.
+- **3LO:** A person separately **authorizes access to a third-party account**.
+- **IAM:** An **AWS role** is authenticated when calling an AWS-protected service.
 
 ### Authentication is not the same as authorization
 
@@ -78,3 +99,10 @@ Each Gateway has one inbound authentication method, while **each downstream targ
 Finally, the two REST integration approaches are intentional: the **Network/Ticket APIs use OpenAPI-defined targets** for OAuth, while **Platform Health uses a native AWS API Gateway REST-stage target** with IAM. Both ultimately call ordinary REST APIs.
 
 These are our **core integration/authentication patterns**. Detailed session handling, Cedar policies, database controls, logging and implementation decisions belong in the supporting architecture documents—not in the introductory access tables.
+
+## More detail (optional)
+
+- [Architecture baseline](docs/architecture-baseline.md) — complete technical design.
+- [Patterns guide](docs/architecture-patterns.md) — detailed authentication flows and examples.
+- [Architecture decisions](docs/architecture-decisions.md) — all decisions in one ADR document.
+- [Test plan](docs/test-and-evidence-plan.md) — expected success and denial scenarios.
