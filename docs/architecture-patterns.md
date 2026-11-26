@@ -69,7 +69,7 @@ Entra issues an **app-only** Network API access token. The service's `roles` cla
 
 First use: David is redirected to vendor authorization, signs in to vendor and consents to `alerts.read`; a confidential component completes authorization-code exchange and securely associates the vendor token with David's session (AgentCore Identity/outbound credentials as supported). Subsequent tool calls use **David's vendor delegated access token**. NetworkMonitor validates it and shows only alert resources assigned to that vendor account.
 
-This is not Entra OBO and not 2LO. Token isolation and revocation are per David; Sarah cannot borrow his vendor credential. This simulates SharePoint/Glean-style user-specific access but with **a separate OAuth provider**, thereby adding a genuinely different pattern.
+This is not Entra OBO and not 2LO. Token isolation and revocation are per David; Sarah cannot borrow his vendor credential. This simulates user-specific access to external enterprise SaaS, using **a separate OAuth provider**, and therefore demonstrates a genuinely different pattern.
 
 ## P06 vs P07 — Two ways to represent REST endpoints as MCP tools
 
