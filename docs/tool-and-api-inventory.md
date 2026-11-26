@@ -14,7 +14,7 @@ One fictional **Network API**, with two operations and no external provider depe
 
 **API operation ≠ MCP tool by definition.** A REST API can expose multiple endpoints. A Gateway target can expose qualifying operations as individual MCP tools; exact names and visibility depend on target schemas, filters and product capabilities. No need to build a separate REST API for every tool.
 
-## Proposed safe sample contract
+## Mock/sample API contract (S1-07) — design baseline
 
 ### `GET /network/services/{id}`
 
@@ -28,7 +28,7 @@ One fictional **Network API**, with two operations and no external provider depe
 - Output: `{ "diagnosticId": "diag-001", "serviceId": "svc-001", "result": "scheduled" }`
 - Creates a synthetic diagnostic outcome only. No actual network calls, customer records or infrastructure changes.
 
-Mock response details are provisional; schema will be finalised before implementation.
+**Deterministic fixtures and safety rules:** Use only `svc-001` (operational) and `svc-002` (degraded); unknown IDs return a consistent not-found response. A diagnostic request creates only a fictional record with a deterministic test identifier and `scheduled` status. Reject unsupported `checkType`, missing IDs, unauthorised callers and duplicate or malformed inputs predictably. No real network diagnostics, external network integrations or personal data. Final OpenAPI shapes and error codes are implementation details to test.
 
 ## Target comparison — same logical operations
 
@@ -63,7 +63,7 @@ Relevant AWS references:
 | Downstream service identity | 1 logical role | Compare app identity vs delegated OBO | Agreed for comparison |
 | Runtime / Strands agent | 1 | Discover and invoke both target families | Agreed |
 
-Gateway assignment and hosting design remain Stage 1 / S1-04 questions.
+Gateway assignment is approved: Gateway 1 = REST stage/IAM, Gateway 2 = OpenAPI/OAuth experiment. See [technical design](two-gateway-design.md) and [ADR-001](architecture-decisions.md#adr-001--use-two-agentcore-gateways-for-separate-security-boundaries).
 
 ## Candidate policy evidence
 
