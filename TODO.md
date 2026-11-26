@@ -16,7 +16,7 @@
 ## Current focus
 
 - **Active stage:** Stage 1 — Scope & inventory
-- **Immediate next task:** `S1-05` Define the complete interactive 3LO, 2LO, service-account and OBO scenario matrix with expected identity at each hop.
+- **Immediate next task:** `S1-09` Confirm AWS account, Sydney Region, model, Entra tenant, budget and cleanup controls with Rory; then close Stage 1.
 - **Implementation status:** No PoC infrastructure deployed.
 - **Last board update:** 2026-11-26
 
@@ -49,10 +49,10 @@
 - [x] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges. Evidence: Rory approved machine-client read-only; [docs/identities-and-permissions.md](docs/identities-and-permissions.md).
 - [x] **S1-03** Inventory intended MCP tools, endpoints, sample downstream APIs and allowed operations; distinguish tool from HTTP endpoint. Evidence: [docs/tool-and-api-inventory.md](docs/tool-and-api-inventory.md); operational capabilities will be tested in Stage 5.
 - [x] **S1-04** Specify the two AgentCore Gateways' purposes, boundaries, target placements and comparative learning goals. Evidence: [technical design](docs/two-gateway-design.md) and the approved rationale in [ADR-001](docs/architecture-decisions.md#adr-001--use-two-agentcore-gateways-for-separate-security-boundaries). Operational verification remains in Stages 5–6.
-- [ ] **S1-05** Define the scenario matrix for interactive 3LO, client-credentials 2LO, service-account downstream access and OBO. Short architecture notes: [docs/oauth-token-flows.md](docs/oauth-token-flows.md); specific hop-by-hop scenario matrix still to finalise.
-- [ ] **S1-06** Define REST API target and OpenAPI target scenarios; distinguish integration method from caller/downstream authentication.
-- [ ] **S1-07** Establish realistic mock/sample API data and permitted writes so tests are safe and deterministic.
-- [ ] **S1-08** Define non-goals and success criteria, including a demonstrable unauthorised-tool denial and token-validation failure.
+- [x] **S1-05** Define the scenario matrix for interactive 3LO, client-credentials 2LO, service-account downstream access and OBO. Evidence: scenario matrix and identity handoffs in [docs/scope.md](docs/scope.md); concise terminology in [identity notes](docs/oauth-token-flows.md). Detailed exchange validation stays in Stages 2/6.
+- [x] **S1-06** Define REST API target and OpenAPI target scenarios; distinguish integration method from caller/downstream authentication. Evidence: comparison in [scope](docs/scope.md) and [inventory](docs/tool-and-api-inventory.md).
+- [x] **S1-07** Establish realistic mock/sample API data and permitted writes so tests are safe and deterministic. Evidence: fixtures, example responses and constraints in [tool inventory](docs/tool-and-api-inventory.md).
+- [x] **S1-08** Define non-goals and success criteria, including a demonstrable unauthorised-tool denial and token-validation failure. Evidence: [scope and acceptance criteria](docs/scope.md); runtime test results remain pending.
 - [ ] **S1-09** Confirm implementation region, model, AWS/Entra account ownership, budget and operational constraints.
 - [x] **S1-10** Reconcile Stage 1 documentation boundaries: public README summarises design, technical documents explain behaviour, and one consolidated ADR owns the decision rationale. Evidence: [README](README.md), [design](docs/two-gateway-design.md) and [ADR](docs/architecture-decisions.md).
 
