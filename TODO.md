@@ -49,7 +49,7 @@
 - [x] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges. Evidence: Rory approved machine-client read-only; [docs/identities-and-permissions.md](docs/identities-and-permissions.md).
 - [x] **S1-03** Inventory intended MCP tools, endpoints, sample downstream APIs and allowed operations; distinguish tool from HTTP endpoint. Evidence: [docs/tool-and-api-inventory.md](docs/tool-and-api-inventory.md); operational capabilities will be tested in Stage 5.
 - [x] **S1-04** Specify the two AgentCore Gateways' purposes, boundaries, target placements and comparative learning goals. Evidence: Rory approved Gateway 1 native REST/IAM and Gateway 2 OpenAPI/OAuth; [docs/two-gateway-design.md](docs/two-gateway-design.md). Operational verification remains in Stages 5–6.
-- [ ] **S1-05** Define the scenario matrix for interactive 3LO, client-credentials 2LO, service-account downstream access and OBO.
+- [ ] **S1-05** Define the scenario matrix for interactive 3LO, client-credentials 2LO, service-account downstream access and OBO. Reader tutorial drafted: [docs/oauth-token-flows.md](docs/oauth-token-flows.md); specific hop-by-hop scenario matrix still to finalise.
 - [ ] **S1-06** Define REST API target and OpenAPI target scenarios; distinguish integration method from caller/downstream authentication.
 - [ ] **S1-07** Establish realistic mock/sample API data and permitted writes so tests are safe and deterministic.
 - [ ] **S1-08** Define non-goals and success criteria, including a demonstrable unauthorised-tool denial and token-validation failure.
@@ -61,7 +61,7 @@
 - [ ] **S2-02** Draw a clear high-level architecture diagram showing web app, API Gateway, Runtime, Strands/Bedrock, both Gateways, MCP and APIs.
 - [ ] **S2-03** Draw sequence diagrams for user sign-in, token validation/propagation, discovery, invocation and response.
 - [ ] **S2-04** Document JWT issuers, audiences, scopes, roles, validation points, token lifetimes and refresh/expiry handling.
-- [ ] **S2-05** Document OBO token-exchange mechanics, downstream token audience and exactly where user identity is preserved versus terminated.
+- [ ] **S2-05** Review/extend [OAuth, 2LO, 3LO and OBO tutorial](docs/oauth-token-flows.md) with exact token-exchange mechanics, downstream audiences, examples and identity boundary diagrams.
 - [ ] **S2-06** Create `docs/patterns.md` with agreed patterns, prerequisites, examples, trade-offs and test expectations.
 - [ ] **S2-07** Explain REST API versus OpenAPI Gateway target behaviour and how tools map to operations/endpoints.
 - [ ] **S2-08** Create standalone `docs/architecture-decisions.md` (ADR collection) with status, context, choice, alternatives and consequences for each decision.
@@ -125,6 +125,7 @@
 - [ ] **S7-03** Capture token/identity flow metadata safely without logging secrets or raw bearer tokens.
 - [ ] **S7-04** Configure and demonstrate AgentCore/CloudWatch logs, metrics, tracing and correlation IDs.
 - [ ] **S7-05** Demonstrate MCP discovery and tool-call traffic with redacted JSON-RPC examples.
+- [ ] **S7-09** Add genuine, redacted 2LO/3LO/OBO token payloads and request/response traces to the [reader tutorial](docs/oauth-token-flows.md), then review with a reader unfamiliar with the project.
 - [ ] **S7-06** Exercise authentication failures, authorisation denials, expired tokens, rate limits, service errors and timeouts.
 - [ ] **S7-07** Review security, IAM scope, secret handling and cost against the design.
 - [ ] **S7-08** Update architecture, patterns and ADRs to match observed behaviour; clearly label unsupported or simulated functionality.
@@ -162,6 +163,7 @@
 | D-10 | Machine client (2LO) is read-only | Approved 2026-11-26 |
 | D-11 | Native API Gateway REST stage target currently uses IAM or API key, not OAuth outbound; compare with OpenAPI target for OAuth | AWS documentation reviewed; verify in Stage 5 |
 | D-12 | Two Gateways: G1 native API Gateway REST target with IAM; G2 OpenAPI target with OAuth / OBO experiment | Approved 2026-11-26; [design](docs/two-gateway-design.md); OBO is not yet proven |
+| D-13 | Documentation serves both builders and tutorial readers; explain OAuth/OIDC/2LO/3LO/OBO with diagrams and real redacted evidence later | [Tutorial](docs/oauth-token-flows.md) created; Stage 2/7 reviews pending |
 
 ## Future discoveries / new stages
 
