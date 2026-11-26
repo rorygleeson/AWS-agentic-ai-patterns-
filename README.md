@@ -12,7 +12,7 @@ The project will compare agreed patterns: interactive and machine identities, se
 
 ➡️ **[Project board / master TODO](TODO.md)** — authoritative stages, tasks, progress and next action.
 
-**Start learning:** [OAuth, 2LO, 3LO and OBO — tutorial](docs/oauth-token-flows.md) · [Identity/permissions matrix](docs/identities-and-permissions.md) · [Two-Gateway design](docs/two-gateway-design.md).
+**Architecture notes:** [2LO, 3LO and OBO](docs/oauth-token-flows.md) · [Identity/permissions matrix](docs/identities-and-permissions.md) · [Two-Gateway design](docs/two-gateway-design.md).
 
 ## How we work
 
