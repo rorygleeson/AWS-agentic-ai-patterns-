@@ -1,6 +1,6 @@
 # PoC Scope and Acceptance Criteria
 
-**Status:** Scope baseline approved (Stage 1 / S1-01). Technical implementation details requiring verification remain **TBD**.
+**Status:** Stage 1 scope and environment baseline approved 2026-11-26. Technical implementation details requiring verification remain **TBD**.
 
 ## Purpose
 
