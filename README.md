@@ -21,19 +21,15 @@ Each end system has a useful business purpose and a clearly defined interface.
 
 ## 2. The use cases — who wants to do what?
 
-**Shared RAG is a real use case, not an afterthought.** All five human users can ask questions of the same approved knowledge repository. None of them gains access to restricted Network, Ticket or vendor records merely by using RAG.
-
-| Use case | Caller | User story | End systems and expected result |
+| Use case | Caller | User story | End system and expected result |
 |---|---|---|---|
-| **UC00 — Shared knowledge search** | **Sarah, James, Emma, David and Oliver** | “Find the approved troubleshooting guide for a network outage.” | **Knowledge Repository (RAG):** each gets cited answers from the same non-sensitive documents. |
-| **UC01 — National investigation** | **Sarah**, National Admin | “Check the outage procedure, investigate faults across VIC and NSW, then create a support ticket.” | **RAG + Network REST API + Ticket REST API:** national diagnostics and a confirmed, authorized ticket. |
-| **UC02 — Regional engineering** | **James**, VIC Engineer | “Look up the diagnostic procedure, investigate this VIC asset and raise a ticket. Can I inspect NSW?” | **RAG + Network REST API + Ticket REST API:** VIC permitted; NSW **denied**, even if the agent asks. |
-| **UC03 — Basic service desk enquiry** | **Emma**, Service Desk | “Find the approved customer guidance and tell me whether this asset is up.” | **RAG + Network REST API:** national **basic** status only. Diagnostics and sensitive fields **denied**. |
-| **UC04 — External vendor alerts** | **David**, External Analyst | “Find the vendor alert procedure, then show my NetworkMonitor alerts.” | **RAG + NetworkMonitor SaaS:** separately authorized vendor **3LO**; only David's vendor records. |
-| **UC05 — Platform operations** | **Oliver**, Platform Analyst | “Check the platform operations guide and whether the platform is healthy.” | **RAG + native Platform Health REST API:** read-only synthetic platform status. |
-| **UC06 — Scheduled reporting** | **Network Health Reporter**, non-human workload | “Generate the scheduled national health summary.” | **Network REST API aggregate endpoint:** app-only report; **no RAG and no impersonated user**. |
-
-A use case may combine several tools, but the same authorization rules apply to **every individual call**. RAG contains only approved shared guidance; fine-grained restrictions are demonstrated by the protected APIs and vendor service.
+| **UC00 — Knowledge search** | **All five human users** | “Find the approved troubleshooting procedure for a network outage.” | **Knowledge Repository (RAG):** cited answers from the shared approved documents. |
+| **UC01 — National investigation** | **Sarah**, National Admin | “Investigate faults across VIC and NSW and create a support ticket.” | **Network Operations + Ticket Management:** nationwide diagnostics and authorized, confirmed ticket creation. |
+| **UC02 — Regional engineering** | **James**, VIC Engineer | “Diagnose this Victorian asset and raise a ticket. Can I also inspect NSW?” | **Network Operations + Ticket Management:** VIC allowed; NSW **denied**. |
+| **UC03 — Service desk enquiry** | **Emma**, Service Desk | “Is this network asset up?” | **Network Operations:** national **basic status only**; diagnostics and restricted fields **denied**. |
+| **UC04 — External vendor alerts** | **David**, External Analyst | “Show my NetworkMonitor alerts.” | **NetworkMonitor SaaS:** independently authorized 3LO access to David's vendor records. |
+| **UC05 — Platform operations** | **Oliver**, Platform Analyst | “Is the AI platform healthy?” | **Platform Health REST API:** read-only synthetic platform status via native API Gateway stage target. |
+| **UC06 — Scheduled reporting** | **Network Health Reporter**, service identity | “Generate the national health summary.” | **Network Operations aggregate REST endpoint:** app-only, read-only report via 2LO. |
 
 ## 3. Who can access each system?
 
