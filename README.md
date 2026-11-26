@@ -85,6 +85,22 @@ We cannot use one shared service account for everything: some systems must know 
 - **3LO:** A person separately **authorizes access to a third-party account**.
 - **IAM:** An **AWS role** is authenticated when calling an AWS-protected service.
 
+### Why OBO needs a second token
+
+**Example: James asks the agent for VIC diagnostics.** He has already signed in with Entra ID, so why can't the agent reuse his access token all the way to the Network API?
+
+Because an OAuth access token is issued **for a specific API** (its *audience*). The Network API should reject a token intended for the AI application.
+
+| | Token A — initial | Token B — obtained through OBO |
+|---|---|---|
+| **User** | James | **James — unchanged** |
+| **Intended for** | AI application | Network Operations API |
+| **Permission** | `chat.invoke` | `diagnostics.read` |
+
+The trusted agent backend uses **OBO** to request Token B from Entra, without asking James to sign in again. The Network API validates Token B and **then checks James's own permissions**: VIC data allowed; NSW data denied.
+
+**In short:** OBO preserves *who the user is*, while obtaining a token meant for *the next API*. It does **not** automatically grant access to all that API's data.
+
 ### Authentication is not the same as authorization
 
 - **Authentication** establishes the identity of the user, application or AWS role.
