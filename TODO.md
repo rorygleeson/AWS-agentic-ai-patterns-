@@ -15,8 +15,8 @@
 
 ## Current focus
 
-- **Active stage:** Stage 2 — Architecture & decisions
-- **Immediate next task:** `S2-01` Create the main architecture document with components, trust boundaries and flows. Cross-reference ADR-001; keep decision rationale only in the ADR.
+- **Active stage:** Stage 1 — Reconciliation reopened
+- **Immediate next task:** `S1-12` Verify restored Stage 1 against original design: five named humans + reporter, two Runtimes, two Gateways, eight tools, downstream systems, auth and tests. Request Rory's sign-off before Stage 2.
 - **Implementation status:** No PoC infrastructure deployed.
 - **Last board update:** 2026-11-26
 
@@ -25,8 +25,8 @@
 | Stage | Outcome | Status |
 |---|---|---|
 | 0. Foundation | Short README and master task board | ✅ Complete |
-| 1. Scope & inventory | Frozen learning goals, actors, tools and scenarios | ✅ Complete |
-| 2. Architecture & decisions | Diagrams, patterns, ADR, security model and Q&A | ⏳ In progress |
+| 1. Scope & inventory | Reconcile original business stories, users, systems and patterns | ⏳ Reopened for verification |
+| 2. Architecture & decisions | Diagrams, patterns, ADR, security model and Q&A | Paused until Stage 1 verified |
 | 3. Accounts & deployment foundations | AWS/Entra prerequisites, IaC, budget controls | Planned |
 | 4. Identity & application entry | Web chat, sign-in, API Gateway, Runtime agent | Planned |
 | 5. Gateway, MCP & API integration | Two Gateways, discovery, REST/OpenAPI targets | Planned |
@@ -43,32 +43,36 @@
 
 **Exit:** README and board exist; Rory approves the baseline.
 
-## Stage 1 — Scope & inventory
+## Stage 1 — Scope & inventory (reopened after incomplete earlier sign-off)
 
-- [x] **S1-01** Review and confirm all agreed PoC objectives, boundaries and acceptance criteria. Evidence: Rory approved fictional Network API scenario and vendor-neutral scope; [docs/scope.md](docs/scope.md).
-- [x] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges. Evidence: Rory approved machine-client read-only; [docs/identities-and-permissions.md](docs/identities-and-permissions.md).
-- [x] **S1-03** Inventory intended MCP tools, endpoints, sample downstream APIs and allowed operations; distinguish tool from HTTP endpoint. Evidence: [docs/tool-and-api-inventory.md](docs/tool-and-api-inventory.md); operational capabilities will be tested in Stage 5.
-- [x] **S1-04** Specify the two AgentCore Gateways' purposes, boundaries, target placements and comparative learning goals. Evidence: [technical design](docs/two-gateway-design.md) and the approved rationale in [ADR-001](docs/architecture-decisions.md#adr-001--use-two-agentcore-gateways-for-separate-security-boundaries). Operational verification remains in Stages 5–6.
-- [x] **S1-05** Define the scenario matrix for interactive 3LO, client-credentials 2LO, service-account downstream access and OBO. Evidence: scenario matrix and identity handoffs in [docs/scope.md](docs/scope.md); concise terminology in [identity notes](docs/oauth-token-flows.md). Detailed exchange validation stays in Stages 2/6.
-- [x] **S1-06** Define REST API target and OpenAPI target scenarios; distinguish integration method from caller/downstream authentication. Evidence: comparison in [scope](docs/scope.md) and [inventory](docs/tool-and-api-inventory.md).
-- [x] **S1-07** Establish realistic mock/sample API data and permitted writes so tests are safe and deterministic. Evidence: fixtures, example responses and constraints in [tool inventory](docs/tool-and-api-inventory.md).
-- [x] **S1-08** Define non-goals and success criteria, including a demonstrable unauthorised-tool denial and token-validation failure. Evidence: [scope and acceptance criteria](docs/scope.md); runtime test results remain pending.
-- [x] **S1-09** Confirm implementation environment/budget baseline. Evidence: Rory approved Sydney (`ap-southeast-2`), existing AWS account, free Entra test tenant, low-cost model selection at setup, AUD $30 equivalent alert threshold, and teardown after testing; [docs/scope.md](docs/scope.md). Exact account ID, model and billing alerts remain Stage 3 verification.
-- [x] **S1-10** Reconcile Stage 1 documentation boundaries: public README summarises design, technical documents explain behaviour, and one consolidated ADR owns the decision rationale. Evidence: [README](README.md), [design](docs/two-gateway-design.md) and [ADR](docs/architecture-decisions.md).
+- [x] **S1-01** Original PoC scope and objectives. **Corrected baseline:** [scope](docs/scope.md) restores five named humans, Network Health Reporter and enterprise journeys. Earlier generic two-user summary is superseded.
+- [x] **S1-02** Named principals, permissions and region restrictions. **Corrected baseline:** [identities](docs/identities-and-permissions.md); Sarah, James, Emma, David, Oliver + reporter.
+- [x] **S1-03** Full systems/tools inventory. **Corrected baseline:** [eight tools, six downstream integration areas and RDS](docs/tool-and-api-inventory.md).
+- [x] **S1-04** Correct technical split: **Runtime U/JWT + G1/CUSTOM_JWT** for humans; **Runtime M/IAM + G2/AWS_IAM** for reporter. Evidence: [technical design](docs/two-gateway-design.md), rationale only in [ADR-001](docs/architecture-decisions.md).
+- [x] **S1-05** Human Entra OIDC/OBO, vendor Cognito 3LO, scheduled IAM+OAuth 2LO and service-IAM patterns. Evidence: [scope](docs/scope.md), [identity notes](docs/oauth-token-flows.md).
+- [x] **S1-06** Correct target placement: G1 internal Network/Ticket OpenAPI OBO + KB + vendor 3LO + native REST/IAM Platform Health; G2 health summary OpenAPI 2LO. Evidence: [inventory](docs/tool-and-api-inventory.md).
+- [x] **S1-07** Synthetic fixtures and safe mutations: VIC/NSW assets, faults, tickets, knowledge, vendor alerts, test canaries, confirmation and idempotency. Evidence: [inventory](docs/tool-and-api-inventory.md).
+- [x] **S1-08** Negative acceptance tests: JWT, Cedar, RLS, ticket action, vendor revocation, M2M, knowledge citations and audit. Evidence: [scope](docs/scope.md).
+- [x] **S1-09** Baseline environment: user AWS, Sydney, free Entra test tenant, low-cost model at implementation, AUD $30 equivalent alert, teardown. Exact resources and model pending Stage 3 verification.
+- [x] **S1-10** Documentation boundaries: README summary, technical architecture behaviour, single ADR for decisions, TODO internal.
+- [x] **S1-11** Recover original [Master Plan](https://chatgpt.com/library?file_id=libfile_7a4eec8ec75c8191a8fe4736cd8dac52&account_id=personal), [Design Review](https://chatgpt.com/library?file_id=libfile_461e7617f9f481919da8d5f9822d0871&account_id=personal), and later approved Oliver/native REST/2LO additions; restore them to existing repository documents without new patterns.
+- [ ] **S1-12** **Verification gate:** Check restored documents against the original and later approved discussion; Rory reviews the exact personas, eight tools, two Runtime/Gateway lanes, security flows and scope. No Stage 2 progression until approved.
+
+**Reconciliation note:** Previous Stage 1 “complete” status was incorrect. Existing tasks keep their IDs and correction history. No cloud resources have been deployed.
 
 ## Stage 2 — Architecture & decisions
 
-- [ ] **S2-01** Create `docs/architecture.md`: components, trust boundaries, deployment topology and end-to-end flow.
-- [ ] **S2-02** Draw a clear high-level architecture diagram showing web app, API Gateway, Runtime, Strands/Bedrock, both Gateways, MCP and APIs.
-- [ ] **S2-03** Draw sequence diagrams for user sign-in, token validation/propagation, discovery, invocation and response.
-- [ ] **S2-04** Document JWT issuers, audiences, scopes, roles, validation points, token lifetimes and refresh/expiry handling.
+- [ ] **S2-01** Create `docs/architecture.md`: full interactive and scheduled lanes; five users + reporter, both Runtimes and Gateways, each target, RDS and all trust boundaries.
+- [ ] **S2-02** Draw a complete high-level architecture diagram of both Runtimes, both Gateways, eight tools, downstream systems, Knowledge Base, Cognito and PostgreSQL.
+- [ ] **S2-03** Draw sequences for Emma status/RAG, James VIC OBO/RLS, Sarah ticket confirmation, David Cognito 3LO, Oliver native REST/IAM and scheduled reporter IAM/2LO.
+- [ ] **S2-04** Document Entra JWT issuer/audiences/scopes, OBO and user claim mapping, Cognito vendor grants, IAM principals, Runtime ingress controls, and token lifecycle.
 - [ ] **S2-05** Keep [2LO, 3LO and OBO architecture notes](docs/oauth-token-flows.md) concise and accurate; document exact token-exchange mechanics, downstream audiences and boundaries in the architecture/sequence diagrams.
-- [ ] **S2-06** Create `docs/patterns.md` with agreed patterns, prerequisites, examples, trade-offs and test expectations.
-- [ ] **S2-07** Explain REST API versus OpenAPI Gateway target behaviour and how tools map to operations/endpoints.
+- [ ] **S2-06** Create `docs/patterns.md` for the **seven existing agreed patterns P01–P07 only**, with prerequisites, examples and tests; no new patterns.
+- [ ] **S2-07** Explain native API Gateway REST stage (`get_platform_health`) vs OpenAPI targets (Entra OBO Network/Ticket and OAuth 2LO summary), plus Cognito 3LO and per-target auth.
 - [ ] **S2-08** Maintain one consolidated [ADR document](docs/architecture-decisions.md) with status, context, choice, alternatives and consequences for *approved* decisions. ADR-001 is recorded; remaining agreed decisions require review in Stage 2.
-- [ ] **S2-09** Capture decisions already made: OBO preference, service-account comparison, two Gateways for learning, two users, REST/OpenAPI comparison, Cedar evaluation and no further patterns for now.
-- [ ] **S2-10** Create `docs/security.md`: identity boundaries, least privilege, secrets, policy points, threat scenarios and logging/redaction.
-- [ ] **S2-11** Create `docs/questions-and-answers.md` covering why Gateway, why two, MCP vs endpoint, OBO vs service account, REST vs OpenAPI, Cedar, JWT and 2LO/3LO.
+- [ ] **S2-09** Check approved decisions against original design: two inbound auth lanes, Entra OBO, Cognito 3LO, reporter 2LO, Cedar, RLS, shared KB, ticket confirmation and no new patterns; record only agreed decisions in consolidated ADR.
+- [ ] **S2-10** Create `docs/security.md`: JWT/IAM ingress, Cedar and API authorisation, PostgreSQL RLS, Cognito consent, ticket integrity, secrets, audit/redaction and negative tests.
+- [ ] **S2-11** Create concise architecture Q&A: two Gateway inbound types, per-target auth, MCP, Entra OBO, vendor Cognito 3LO, reporter OAuth 2LO, Cedar, RLS and security limitations.
 - [ ] **S2-12** Cross-check all diagrams, documents and stage acceptance criteria; resolve open design decisions before implementation.
 
 ## Stage 3 — Accounts & deployment foundations
@@ -126,7 +130,9 @@
 - [ ] **S7-03** Capture token/identity flow metadata safely without logging secrets or raw bearer tokens.
 - [ ] **S7-04** Configure and demonstrate AgentCore/CloudWatch logs, metrics, tracing and correlation IDs.
 - [ ] **S7-05** Demonstrate MCP discovery and tool-call traffic with redacted JSON-RPC examples.
-- [ ] **S7-09** Add concise redacted 2LO/3LO/OBO claim examples and evidence links to the [architecture notes](docs/oauth-token-flows.md); keep detailed traces in test evidence.
+- [ ] **S7-09** Add concise redacted Entra OBO, vendor Cognito 3LO and reporter 2LO claim evidence links to [architecture notes](docs/oauth-token-flows.md); keep detailed traces in test evidence.
+- [ ] **S7-10** Run all named persona tests: Emma knowledge/basic status, James VIC/NSW RLS, Sarah confirmed national tickets, David vendor consent/revocation, Oliver platform health, reporter aggregate-only IAM/2LO.
+- [ ] **S7-11** Verify dual Runtime ingress bypass protection, ticket idempotency and zero mutation on denial, KB citations, and full downstream direct-access rejection.
 - [ ] **S7-06** Exercise authentication failures, authorisation denials, expired tokens, rate limits, service errors and timeouts.
 - [ ] **S7-07** Review security, IAM scope, secret handling and cost against the design.
 - [ ] **S7-08** Update architecture, patterns and ADRs to match observed behaviour; clearly label unsupported or simulated functionality.
