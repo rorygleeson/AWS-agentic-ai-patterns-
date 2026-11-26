@@ -8,7 +8,7 @@ A practical AWS proof of concept exploring how AI agents securely discover and i
 
 The solution uses a fictional Network API with two operations: read service status and request a diagnostic.
 
-**Why two Gateways?** To compare **authentication, authorisation and identity propagation** across two separate security boundaries. Each Gateway has its own inbound authoriser and IAM execution role, while each downstream target has its own supported outbound authentication method. One Gateway *could* host both target types; two are an intentional learning and isolation choice.
+**Why two Gateways?** To **isolate two different trust and authorisation models**: (1) a Gateway invoking AWS APIs as a service identity and (2) a Gateway investigating delegated user access via OAuth/OBO. Separate Gateways give each model its own inbound authoriser configuration, execution role, policies, credentials and audit boundary. This makes the security differences testable without sharing the same Gateway role or policy surface. AWS supports different outbound credentials per target on a single Gateway, so **two are a deliberate security-isolation and learning choice, not an AWS requirement**.
 
 | | Gateway 1 | Gateway 2 |
 |---|---|---|
