@@ -16,7 +16,7 @@
 ## Current focus
 
 - **Active stage:** Stage 0 — Foundation
-- **Immediate next task:** `S1-01` Review and confirm the PoC scope and acceptance criteria against our discussions.
+- **Immediate next task:** `S0-03` Review board completeness with Rory and amend missing tasks or decisions. Stage 1 begins after sign-off.
 - **Implementation status:** No PoC infrastructure deployed.
 - **Last board update:** 2026-11-26
 
