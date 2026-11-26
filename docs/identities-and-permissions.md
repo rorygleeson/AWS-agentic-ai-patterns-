@@ -1,69 +1,44 @@
-# Test Identities and Permission Matrix
+# Identities and Authorisation Matrix
 
-**Stage:** 1 / S1-02  
-**Status:** Identity/permission baseline approved 2026-11-26. Precise Entra implementation remains to be verified.  
-**Environment:** Test-only identities in a dedicated Microsoft Entra ID tenant. No personal accounts, real customer data, or production privileges.
+**Status:** Restored agreed design baseline. Five named humans **plus** one automation principal; implementation claims are unverified.
 
-## Principals
-
-| ID | Principal | Login/token flow | Purpose |
+| Identity | Auth at entry | Approved business scope | Explicit denial |
 |---|---|---|---|
-| U-A | **User A — Operator** | Interactive OIDC sign-in; OAuth authorisation-code + PKCE (3LO context) | Full two-operation demonstration |
-| U-B | **User B — Viewer** | Interactive OIDC sign-in; OAuth authorisation-code + PKCE (3LO context) | Read-only demonstration and denied diagnostic |
-| M-1 | **Machine Client — Automation** | OAuth client credentials (2LO) | Independent non-interactive client; no human subject |
-| S-1 | **Downstream Service Identity** | Application credential where a target requires a shared service principal | Compare app-only API access to delegated OBO |
+| **Sarah — National Admin** | Entra user JWT → Runtime U / G1 JWT | National assets, diagnostics, ticket read/create with confirmation, shared KB | Cannot use David's separately authorised vendor account |
+| **James — VIC Engineer** | Entra user JWT → Runtime U / G1 JWT | VIC asset/diagnostic/ticket actions, shared KB | NSW rows and ticket mutations without confirmation |
+| **Emma — Service Desk** | Entra user JWT → Runtime U / G1 JWT | Nationwide **basic** asset status, shared approved procedures | Diagnostic details, ticket actions |
+| **David — External Analyst** | Entra user JWT; independent Cognito 3LO for vendor | Vendor alerts linked to his own NetworkMonitor account | Privileged internal Network/Ticket tools and other users' vendor tokens |
+| **Oliver — Platform Operations Analyst** | Entra user JWT → Runtime U / G1 JWT | `get_platform_health` native target only | Network/Ticket, vendor and broader privileged functions |
+| **Network Health Reporter** | IAM Lambda → Runtime M / G2 IAM; Entra OAuth 2LO outbound | `get_network_health_summary` aggregate only | Any personal delegation, diagnostics, tickets, or write tools |
 
-**M-1 and S-1 represent distinct logical roles**, even if the implementation later uses one app registration for a safe, clearly documented reason. We should prefer separate registrations/credentials for clarity and least privilege. User A/B are test-only users, not real people.
+**Not one-user-per-pattern:** Roles drive business permissions; several users may traverse the same technical integration. The reporter is a service identity, not a sixth human user.
 
-## Candidate API operations and MCP tools
+## Enforcement boundaries
 
-The fictional Network API has two logically separate operations:
+1. **Entry:** Validate JWT signature, issuer, audience, expiry, permitted scope/role. Entra sign-in is not enough to authorise tools.
+2. **Runtime U/G1:** Preserve validated human identity; G1 inbound `CUSTOM_JWT`; Cedar uses trusted user roles/region/tool/parameters and denies by default.
+3. **Runtime M/G2:** AWS IAM inbound for the scheduled workload; a narrow policy allows only the health-summary tool. G2's IAM principal is the Runtime M workload, not implicitly the Scheduler Lambda.
+4. **Internal Network/Ticket APIs:** Validate **new audience-specific Entra OBO tokens** where supported. Map verified claims to permitted operations/regions.
+5. **Database:** Network/Ticket APIs alone connect to PostgreSQL and set transaction-scoped RLS context. The DB does not directly consume Entra user tokens.
+6. **Vendor:** Independent Cognito authorisation-code 3LO; vendor validates vendor token and own entitlements. No token sharing between David and Sarah.
+7. **Platform Health:** Native API Gateway REST stage target uses AWS IAM/SigV4 outbound, with Oliver's tool restriction enforced before service-identity call.
+8. **Automation:** Restricted OAuth 2LO client credentials for a Network health-summary API audience and aggregate-only data; no end-user identity.
 
-| Tool (candidate name) | HTTP operation | Permission |
-|---|---|---|
-| `get_service_status` | `GET /network/services/{id}` | `network.status.read` |
-| `request_diagnostic` | `POST /network/services/{id}/diagnostics` | `network.diagnostics.request` |
+## Named tools
 
-Tool names, URL paths and permission strings are *design labels* until validated against actual Gateway and Entra configuration. Tool/operation correspondence must be confirmed independently for REST API and OpenAPI targets.
+**G1 (human JWT):** `search_knowledge`, `get_asset_status`, `get_diagnostics`, `get_ticket`, `create_ticket`, `search_vendor_alerts`, `get_platform_health`.
 
-## Authorisation matrix
+**G2 (IAM automation):** `get_network_health_summary` only.
 
-| Principal | Read service status | Request diagnostic | Notes |
-|---|---|---|---|
-| U-A — Operator | **Allow** | **Allow** | Delegated user authorisation |
-| U-B — Viewer | **Allow** | **Deny** | Denial enforced by trusted layer and downstream resource authority |
-| M-1 — Automation | **Allow** | **Deny** | Approved read-only app-only client |
-| S-1 — Service Identity | **Requires separate policy** | **Requires separate policy** | Its downstream privileges are **not** a substitute for checking the initiating user |
+## Essential negative tests
 
-The agreed matrix is: User A gets both operations; User B gets read only; M-1 also gets read only.
+- Emma directly invokes `get_diagnostics` → Cedar deny; downstream protected API also denies.
+- James requests NSW asset/ticket rows or says “I am national admin” → token claims and RLS remain VIC-only.
+- James/Sarah trigger ticket creation without explicit confirmation → **no mutation**; duplicate confirmed submission produces only one ticket.
+- Sarah attempts David's vendor alerts without own Cognito authorisation → deny.
+- Oliver attempts any tool beyond platform health → deny.
+- Reporter invokes any human tool or write operation → deny.
+- Wrong audience/issuer/expired token at each resource boundary → deny.
+- No relying on prompt text or client-supplied `userId` as identity.
 
-## Trust and identity propagation
-
-1. **Browser to API Gateway:** The user's token proves the caller's identity and relevant authorisation. Gateway validates appropriate issuer, audience, signature, expiry and claims.
-2. **API Gateway to AgentCore Runtime:** Invocation is secured. The design must define exactly which verified identity claims and/or tokens cross this boundary; forwarding browser bearer tokens blindly is not acceptable.
-3. **Runtime to AgentCore Gateway:** Gateway authenticates its calling agent and authorises tool access according to the configured controls.
-4. **Gateway to API — OBO:** Where supported, exchange a delegated token for the correct API audience; the API validates the new token and applies the user's permissions.
-5. **Gateway to API — service identity:** The API sees an application principal, **not User A or B**. The initiating user's tool permission must already be enforced in a trusted layer, and downstream app rights must be narrowly scoped.
-6. **M2M:** Client credentials token represents the application; do not represent it as a 3LO user token or invent an end-user identity.
-
-**Critical rule:** A caller-controlled `userId`, prompt or HTTP header is not proof of identity. User-based policy inputs must come from validated claims or trusted identity context. Tool discovery alone is not an authorisation boundary.
-
-## Negative tests to prove
-
-- U-B requests a diagnostic through agent → denied.
-- U-B attempts direct API diagnostic invocation → denied when delegated; service-identity variant needs trusted pre-execution controls and direct-API isolation.
-- U-A invokes both tools → allowed.
-- M-1 gets an app token and attempts an unauthorised operation → denied.
-- User token presented to API with incorrect audience → denied.
-- Expired/forged token → denied.
-- Service identity token cannot be used by browser callers.
-- Logs identify caller, token audience/flow, selected tool and outcome without exposing raw tokens.
-
-## Open confirmations
-
-- **Resolved:** M-1 is read-only, approved by Rory on 2026-11-26.
-- Confirm the Entra tenant, exact role/scope issuance method, and whether gateway policy maps roles or scopes to MCP tool names.
-- Confirm downstream OBO feasibility and token-exchange design against current service documentation.
-- Confirm whether the service principal needs diagnostic permission in the service-account comparison; if so, enforce the initiating user's restrictions in a trusted layer.
-
-See [Scope](scope.md) and [Master TODO](../TODO.md). No identities or infrastructure have been provisioned yet.
+Open implementation verification: Entra app registrations, group/claim mapping, exact audiences/scopes, policy inputs, RLS context and target-credential compatibility. See [scope](scope.md).
