@@ -1,7 +1,7 @@
 # Test Identities and Permission Matrix
 
 **Stage:** 1 / S1-02  
-**Status:** Proposed baseline — awaiting confirmation of the machine-client permission set and precise Entra implementation.  
+**Status:** Identity/permission baseline approved 2026-11-26. Precise Entra implementation remains to be verified.  
 **Environment:** Test-only identities in a dedicated Microsoft Entra ID tenant. No personal accounts, real customer data, or production privileges.
 
 ## Principals
@@ -32,10 +32,10 @@ Tool names, URL paths and permission strings are *design labels* until validated
 |---|---|---|---|
 | U-A — Operator | **Allow** | **Allow** | Delegated user authorisation |
 | U-B — Viewer | **Allow** | **Deny** | Denial enforced by trusted layer and downstream resource authority |
-| M-1 — Automation | **Allow (proposal)** | **Deny (proposal)** | App-only; exact permissions to confirm |
+| M-1 — Automation | **Allow** | **Deny** | Approved read-only app-only client |
 | S-1 — Service Identity | **Requires separate policy** | **Requires separate policy** | Its downstream privileges are **not** a substitute for checking the initiating user |
 
-We have already agreed User A gets both and User B gets read only. **M-1's access is proposed, not yet approved.**
+The agreed matrix is: User A gets both operations; User B gets read only; M-1 also gets read only.
 
 ## Trust and identity propagation
 
@@ -61,7 +61,7 @@ We have already agreed User A gets both and User B gets read only. **M-1's acces
 
 ## Open confirmations
 
-- Confirm whether M-1 should be **read-only** (recommended for a clean comparison) or authorised for both.
+- **Resolved:** M-1 is read-only, approved by Rory on 2026-11-26.
 - Confirm the Entra tenant, exact role/scope issuance method, and whether gateway policy maps roles or scopes to MCP tool names.
 - Confirm downstream OBO feasibility and token-exchange design against current service documentation.
 - Confirm whether the service principal needs diagnostic permission in the service-account comparison; if so, enforce the initiating user's restrictions in a trusted layer.
