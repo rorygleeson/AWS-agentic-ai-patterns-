@@ -1,75 +1,54 @@
 # Architecture Decision Records
 
-This document records **why** architectural choices were made, their alternatives and consequences. Technical implementation details belong in the related architecture documents.
+Only **approved decisions** appear here. Technical implementation detail belongs in the architecture documents. Keep this one consolidated ADR file.
 
 ---
 
-## ADR-001 — Use two AgentCore Gateways for separate security boundaries
+## ADR-001 — Separate human JWT and automation IAM Gateways
 
 | Field | Value |
 |---|---|
-| Status | **Accepted** (design); implementation unverified |
+| Status | Accepted design; not yet implemented |
 | Decision date | 2026-11-26 |
-| Decision owner | Rory Gleeson |
-| Related task | S1-04 |
-| Related design | [Two-Gateway Architecture](two-gateway-design.md) |
+| Owner | Rory Gleeson |
+| Technical design | [Two-Runtime / Two-Gateway architecture](two-gateway-design.md) |
 
 ### Context
 
-Our PoC compares two ways an AI agent reaches the **same logical Network API** (status read and simulated diagnostic):
+We need interactive corporate users **and** scheduled machine automation. These callers have different inbound trust and authentication requirements: Entra JWT for humans versus AWS IAM for workloads.
 
-- A native API Gateway REST stage target using an **IAM/SigV4 service identity**.
-- An OpenAPI target using **OAuth**, with a planned **on-behalf-of (OBO)** token-exchange experiment to preserve delegated user identity.
-
-AWS AgentCore Gateway allows **multiple targets with different outbound authentication methods on one Gateway**. Therefore, **two Gateways are not required merely because IAM and OAuth differ**.
+AgentCore Gateway has **one inbound authoriser configuration per Gateway**, while each target can independently select a supported outbound credential provider. A single Gateway can therefore mix target types and outbound IAM/OAuth methods. **REST versus OpenAPI is not the reason to separate Gateways.**
 
 ### Decision
 
-Deploy **two separately configured AgentCore Gateways**:
+Use two Runtimes and two Gateways:
 
-1. **Gateway 1 — Service identity:** Native API Gateway REST stage target, IAM/SigV4 outbound credentials, and trusted controls that enforce user/tool restrictions before any shared-service-identity call.
-2. **Gateway 2 — Delegated identity:** OpenAPI target with OAuth outbound configuration, to evaluate and prove an actual user-delegated OBO token reaching the Network API.
+- **Runtime U + Gateway G1:** JWT inbound, for human interactive flows. G1 uses `CUSTOM_JWT`, Cedar user/tool policies and multiple targets: internal Entra OBO Network/Ticket APIs; a shared KB; Cognito vendor 3LO; and a native API Gateway REST/IAM Platform Health target.
+- **Runtime M + Gateway G2:** IAM inbound for scheduled Network Health Reporter. G2 uses `AWS_IAM` and exposes only the aggregate `get_network_health_summary` OpenAPI OAuth 2LO target.
 
-Each Gateway has its own inbound authoriser configuration, execution role, credential/policy boundary and observability. Exact inbound settings and OBO compatibility will be validated during design and implementation.
+This separates inbound identity domains, roles, policies, exposed tools and execution boundaries while still allowing *per-target* outbound authentication on G1.
 
-### Why
+### Rationale
 
-- **Separate trust boundaries and reduced blast radius:** Service-identity privileges and delegated-identity experiments do not share one Gateway IAM role and policy boundary.
-- **Independent security configurations:** We can test different inbound authorisation and policy controls without altering the other path.
-- **Clear identity evidence:** It is easier to prove whether a downstream request represents a workload versus User A/User B.
-- **Controlled comparison:** Both paths offer equivalent logical operations, so differences in authorisation behaviour are visible.
-
-AWS recommends separate Gateways for targets with different trust boundaries/sensitivity. It also notes that the execution role is shared across targets using the Gateway IAM role.
+- **Different inbound authorisers:** A human bearer-token gateway and a machine IAM gateway have different trust contracts; separate Gateways make each enforceable and testable without weakening the other.
+- **Least privilege and isolation:** G2 exposes only one aggregate tool, not every human tool or Cedar rule. Separate execution roles and authorisers reduce blast radius.
+- **Clear evidence:** We can demonstrate a delegated human API call versus an IAM-scheduled app-token summary without conflating caller identity with target credentials.
+- **No needless backend duplication:** Both lanes may reach the same Network API implementation through separately scoped operations; RDS stays behind APIs.
 
 ### Alternatives considered
 
-| Alternative | Assessment |
+| Alternative | Consequence |
 |---|---|
-| **One Gateway with both targets** | Fully supported and simpler; may be preferable in production when trust boundaries are shared, but less isolation for this controlled PoC |
-| **Two Gateways with the same target and auth** | Extra operational work without meaningful security/learning differentiation |
-| **Only OpenAPI** | Omits AWS-native REST stage target behaviour |
-| **Only API Gateway REST target** | Omits the OAuth/OBO experiment |
+| One Gateway for both humans and automation | Simplifies footprint but forces one inbound authorisation configuration; more complex separation of JWT people and IAM workload trust |
+| Two Gateways split by read versus write | Doesn't reflect actual identity/trust boundary; rejected |
+| Two Gateways split by REST versus OpenAPI | Based on a false requirement; one Gateway can mix outbound target authentication; rejected |
 
-### Consequences and trade-offs
+### Trade-offs / consequences
 
-**Benefits:** Clear separation of security models, independently scoped roles/policies, easier negative testing and audit trails.
-
-**Costs:** More resources, configuration, deployment effort, credential management, monitoring and potential charges.
-
-**Risks to validate:** An OpenAPI OAuth target does **not** automatically establish end-to-end OBO; the actual Entra exchange and downstream token audience must be proven. Service identity alone cannot identify the original user; trusted upstream authorisation must prevent User B requesting diagnostics.
-
-### Evidence required before claiming implementation complete
-
-- [ ] Independently configure and trace both Gateways' inbound/outbound authorisation.
-- [ ] Verify Gateway 1 uses application identity and prevents unauthorised diagnostic requests.
-- [ ] Demonstrate whether Gateway 2 obtains a downstream token with validated delegated user context.
-- [ ] Confirm User A can call both tools; User B and machine client remain read-only.
-- [ ] Verify isolation and compare operational costs.
+Additional Runtime/Gateway resources, execution roles, policy configuration, logs and costs. Entra JWT propagation through the thin adapter, IAM ingress restrictions, OBO token exchange, downstream RLS and vendor 3LO require explicit validation. **No claim of implemented security is made until tests pass.**
 
 ### References
 
-- [AWS: Add Gateway targets — per-target credential providers](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-building-adding-targets.html)
-- [AWS: Gateway outbound authorisation and role isolation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html)
-- [AWS: Gateway inbound authorisation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-inbound-auth.html)
-
----
+- [AWS Gateway inbound authorisation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-inbound-auth.html)
+- [AWS Gateway per-target outbound authorisation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html)
+- [AWS Gateway target configuration](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-building-adding-targets.html)
