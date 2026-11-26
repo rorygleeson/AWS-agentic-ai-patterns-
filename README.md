@@ -17,20 +17,47 @@ Everything is fictional and uses synthetic data. This is our **architecture desi
 | **Platform Health API** | AWS API Gateway **REST API** secured with IAM. | Returns synthetic platform-health status. |
 | **Supporting database: RDS PostgreSQL** | Private database behind the Network and Ticket APIs. | Stores assets, diagnostics, tickets and permissions. The agent **never accesses RDS directly**. |
 
-## 2. Users — what can they do?
+## 2. Users — who can access what?
 
-All five humans use the same chat app. They can all search the shared RAG knowledge base, but their access to the other systems is different.
+We have **five people** using the same AI chat app and **one scheduled service account**. Logging in lets a person chat; it does **not** give them access to every system.
 
-| User | Example request | Allowed | Denied or restricted |
+### Internal systems
+
+| Caller | Knowledge Base (RAG) | Network API | Ticket API |
 |---|---|---|---|
-| **Sarah — National Admin** | “Diagnose faults across Australia and raise a ticket.” | RAG; nationwide Network API; Ticket API read/create. | Vendor alerts and Platform Health. |
-| **James — VIC Engineer** | “Investigate this Victorian asset. What about NSW?” | RAG; Network and Ticket APIs for **VIC only**. | NSW/other regions, vendor alerts and Platform Health. |
-| **Emma — Service Desk** | “Is this asset working?” | RAG; **basic** Network API asset status nationwide. | Diagnostics, sensitive fields, ticket actions and other tools. |
-| **David — External Analyst** | “Show my vendor alerts.” | RAG; his own NetworkMonitor alerts after separate OAuth consent. | Internal diagnostics, tickets and Platform Health. |
-| **Oliver — Platform Analyst** | “Is the AI platform healthy?” | RAG; **Platform Health API**. | Network diagnostics, tickets and vendor alerts. |
-| **Network Health Reporter — service account** | Automatically produce a national health report. | Network API's **aggregate summary endpoint only**. | Human-only tools, raw diagnostics, tickets, RAG and impersonation. |
+| **Sarah** — National Admin | ✅ Shared guides | ✅ **All regions:** status + diagnostics | ✅ **All regions:** read + create |
+| **James** — VIC Engineer | ✅ Shared guides | ✅ **VIC only:** status + diagnostics | ✅ **VIC only:** read + create |
+| **Emma** — Service Desk | ✅ Shared guides | ✅ **All regions:** basic status **only** | ❌ No access |
+| **David** — External Analyst | ✅ Shared guides | ❌ No access | ❌ No access |
+| **Oliver** — Platform Analyst | ✅ Shared guides | ❌ No access | ❌ No access |
+| **Reporter** — service account | ❌ No access | ✅ **Aggregate health summary only** | ❌ No access |
 
-The key test is not just whether a permitted request succeeds. It is whether **James is denied NSW data, Emma is denied sensitive data, and each identity is restricted to its actual permissions**.
+**Important differences:** James cannot get NSW records. Emma can see that an asset is up or down, but **not** restricted diagnostic fields. The service account cannot request individual assets—it gets only a pre-defined aggregate report. Ticket creation also requires confirmation.
+
+### Other systems
+
+| Caller | NetworkMonitor (third-party alerts) | Platform Health API |
+|---|---|---|
+| **Sarah** | ❌ | ❌ |
+| **James** | ❌ | ❌ |
+| **Emma** | ❌ | ❌ |
+| **David** | ✅ **His own alerts**, after vendor OAuth consent | ❌ |
+| **Oliver** | ❌ | ✅ **Read-only health** |
+| **Reporter** | ❌ | ❌ |
+
+✅ = access permitted within the stated limits. ❌ = access denied. Any system not listed as permitted is denied by default.
+
+### What they actually ask the agent
+
+| Caller | Example use case |
+|---|---|
+| **Anyone human** | “Find the approved troubleshooting procedure.” → **RAG** |
+| **Sarah** | “Investigate VIC and NSW faults, then raise a ticket.” |
+| **James** | “Diagnose a VIC fault.” A follow-up asking for **NSW is denied**. |
+| **Emma** | “Is this asset working?” → Basic status, no diagnostics. |
+| **David** | “Show my NetworkMonitor alerts.” → Separate vendor consent. |
+| **Oliver** | “Is the AI platform healthy?” → Platform Health API. |
+| **Reporter** | Scheduled job → Aggregate network-health report. |
 
 ## 3. AWS architecture
 
