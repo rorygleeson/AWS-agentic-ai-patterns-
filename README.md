@@ -1,52 +1,92 @@
 # AWS Agentic AI Patterns
 
-A practical, security-focused AWS proof of concept demonstrating how agents connect to enterprise systems while preserving identity and enforcing authorisation.
+An enterprise GenAI proof of concept built around realistic **business users, the systems they need, and the security rules that control access**. All operational data and external services are synthetic.
 
-## Architecture
+## 1. The end systems
 
-**Interactive:** Web chat → Microsoft Entra ID → API Gateway → thin request adapter → AgentCore Runtime U (JWT) → AgentCore Gateway G1 (JWT/Cedar) → MCP tools → downstream services.
+Before looking at AWS components, these are the systems the assistant must work with.
 
-**Scheduled:** EventBridge Scheduler → IAM Lambda → AgentCore Runtime M (IAM) → AgentCore Gateway G2 (IAM) → read-only network health summary.
+| End system | What it contains or does |
+|---|---|
+| **Network Operations** | Network assets, status and fault diagnostics |
+| **Ticket Management** | Read tickets and create authorised follow-up tickets |
+| **Knowledge Repository** | Approved procedures and troubleshooting articles with citations |
+| **NetworkMonitor SaaS** | Vendor alerts available through a separately authorised account |
+| **Platform Health** | Operational health information about the platform |
+| **Network Health Summary** | Read-only, aggregated health reporting for automation |
 
-Two Runtimes and two Gateways separate **human JWT** and **machine IAM** inbound authentication. Each Gateway target independently configures its downstream credentials (OBO, 3LO, 2LO or IAM). See [ADR-001](docs/architecture-decisions.md#adr-001--separate-human-jwt-and-automation-iam-gateways) for the decision rationale.
+Network Operations and Ticket Management use a protected **PostgreSQL database** behind their REST APIs. The database is not exposed directly as an AI tool.
 
-The synthetic demonstration includes five named human roles (Sarah, James, Emma, David and Oliver), one Network Health Reporter service, a Knowledge Base, Network and Ticket APIs, an independent vendor API, a Platform Health API, and RDS PostgreSQL behind the internal APIs.
+## 2. Who can access what?
 
-## Business use cases
+We use five named people and one automated service. Each has a specific business purpose and permission boundary.
 
-Six synthetic business journeys give each security and integration pattern a concrete purpose.
-
-| ID | Persona | Use case |
+| Persona | Accessible end systems | Restrictions |
 |---|---|---|
-| UC01 | **Emma — Service Desk** | Check basic asset status and retrieve standard outage procedures |
-| UC02 | **James — VIC Engineer** | Diagnose Victorian faults and escalate through authorised tickets |
-| UC03 | **Sarah — National Admin** | Review national faults and create confirmed, authorised tickets |
-| UC04 | **David — External Analyst** | Connect a separate NetworkMonitor account and retrieve his vendor alerts |
-| UC05 | **Oliver — Platform Operations** | View platform health through a native REST API integration |
-| UC06 | **Network Health Reporter — automation** | Generate a scheduled, read-only aggregate health summary without human sign-in |
+| **Emma — Service Desk** | Network basic status; Knowledge Repository | No diagnostics or ticket actions |
+| **James — VIC Engineer** | Network diagnostics; Ticket Management; Knowledge Repository | VIC records only; tickets require confirmation |
+| **Sarah — National Admin** | Network diagnostics; Ticket Management; Knowledge Repository | National permissions; ticket creation requires confirmation |
+| **David — External Analyst** | NetworkMonitor SaaS | Must separately authorise his vendor account; no privileged internal access |
+| **Oliver — Platform Operations** | Platform Health | No broader Network/Ticket privileges |
+| **Network Health Reporter — automation** | Network Health Summary | Aggregate read-only data; no human identity or writes |
 
-## Architecture patterns
+### User-to-system overview
 
-Seven reusable patterns explain **how** the journeys are implemented and secured.
+```mermaid
+flowchart TB
+  Emma["Emma · Service Desk"] -->|"Basic status"| Network["Network Operations"]
+  Emma --> Knowledge["Knowledge Repository"]
+  James["James · VIC Engineer"] -->|"VIC diagnostics"| Network
+  James -->|"VIC tickets"| Tickets["Ticket Management"]
+  James --> Knowledge
+  Sarah["Sarah · National Admin"] -->|"National diagnostics"| Network
+  Sarah -->|"National tickets"| Tickets
+  Sarah --> Knowledge
+  David["David · External Analyst"] -->|"Separate consent"| Vendor["NetworkMonitor SaaS"]
+  Oliver["Oliver · Platform Ops"] --> Platform["Platform Health"]
+  Reporter["Network Health Reporter"] -->|"Aggregate only"| Summary["Network Health Summary"]
+  Network --> RDS[("PostgreSQL")]
+  Tickets --> RDS
+```
 
-| ID | Pattern | Demonstrated by |
+These arrows describe **permitted business access**, not unrestricted direct connections. Identity, tool policies and each protected API must enforce the restrictions.
+
+## 3. Business use cases
+
+| ID | Journey | Desired result |
 |---|---|---|
-| P01 | **Corporate SSO + JWT** | Entra sign-in and validated access through API Gateway and Runtime U |
-| P02 | **OAuth On-Behalf-Of (OBO)** | James accesses Network/Ticket APIs under delegated identity |
-| P03 | **IAM + OAuth 2LO** | Scheduled reporter uses IAM in AWS and a scoped downstream application token |
-| P04 | **Third-party OAuth 3LO** | David separately authorises the Cognito-backed vendor account |
-| P05 | **MCP Gateway + Cedar** | Tool- and parameter-level access decisions independent of the model |
-| P06 | **REST APIs + PostgreSQL RLS** | James receives VIC rows; Sarah receives authorised national data |
-| P07 | **Shared RAG retrieval** | Bedrock Knowledge Base provides approved procedure excerpts and citations |
+| **UC01** | Emma checks an asset and asks for an outage procedure | Basic status and cited guidance |
+| **UC02** | James investigates a VIC network fault | VIC diagnostics and an authorised escalation |
+| **UC03** | Sarah reviews national faults and creates a ticket | National visibility and a confirmed, authorised ticket |
+| **UC04** | David connects NetworkMonitor | Alerts from his separately authorised vendor account |
+| **UC05** | Oliver checks platform health | Platform health information only |
+| **UC06** | Reporter produces the daily health summary | Scheduled, read-only aggregate results |
 
-The design exposes **eight MCP tools** across the two Gateways. [See the complete tool and downstream API catalogue](docs/tool-and-api-inventory.md).
+## 4. Architecture patterns
 
-## Technical documentation
+The seven agreed technical patterns explain **how** we deliver and secure those journeys.
 
-- [Architecture and Gateway mapping](docs/two-gateway-design.md)
+| ID | Pattern | Demonstration |
+|---|---|---|
+| **P01** | Corporate SSO + JWT | Microsoft Entra sign-in and validated API access |
+| **P02** | OAuth On-Behalf-Of (OBO) | James's delegated identity reaches the Network API |
+| **P03** | IAM + OAuth 2LO | Machine reporter obtains scoped application access |
+| **P04** | Third-party OAuth 3LO | David separately authorises NetworkMonitor via Cognito |
+| **P05** | MCP Gateway + Cedar | Fine-grained tool and parameter authorisation |
+| **P06** | REST APIs + PostgreSQL RLS | VIC versus national data isolation |
+| **P07** | Shared RAG retrieval | Approved Knowledge Base excerpts and citations |
+
+## 5. AWS implementation
+
+The design uses **two AgentCore Runtimes and two AgentCore Gateways**: one lane for human JWT callers and another for IAM-authenticated automation. The Gateways expose **eight MCP tools** across the end systems above, with independently configured downstream credentials.
+
+The full AWS architecture, authentication flows, controls and component diagram belong in the [technical architecture](docs/two-gateway-design.md). The reason for the dual inbound-authentication boundaries is recorded in [ADR-001](docs/architecture-decisions.md#adr-001--separate-human-jwt-and-automation-iam-gateways).
+
+### Technical reference
+
 - [Users and permissions](docs/identities-and-permissions.md)
-- [Downstream systems and MCP tools](docs/tool-and-api-inventory.md)
-- [2LO, 3LO and OBO notes](docs/oauth-token-flows.md)
+- [Eight MCP tools and downstream API mappings](docs/tool-and-api-inventory.md)
+- [2LO, 3LO and OBO architecture notes](docs/oauth-token-flows.md)
 - [Architecture decisions](docs/architecture-decisions.md)
 
-**Status:** Architecture design under reconciliation. No infrastructure has been deployed or identity flows proven yet.
+**Status:** Design in progress; no infrastructure has been deployed and identity flows are not yet verified.
