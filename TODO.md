@@ -16,7 +16,7 @@
 ## Current focus
 
 - **Active stage:** Stage 1 — Scope & inventory
-- **Immediate next task:** `S1-02` Confirm Machine Client permissions in the drafted [identity matrix](docs/identities-and-permissions.md) with Rory.
+- **Immediate next task:** `S1-04` Define and verify the distinct roles and target assignment of the two AgentCore Gateways.
 - **Implementation status:** No PoC infrastructure deployed.
 - **Last board update:** 2026-11-26
 
@@ -46,8 +46,8 @@
 ## Stage 1 — Scope & inventory
 
 - [x] **S1-01** Review and confirm all agreed PoC objectives, boundaries and acceptance criteria. Evidence: Rory approved fictional Network API scenario and vendor-neutral scope; [docs/scope.md](docs/scope.md).
-- [ ] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges. Draft: [docs/identities-and-permissions.md](docs/identities-and-permissions.md); awaiting M-1 permission decision.
-- [ ] **S1-03** Inventory intended MCP tools, endpoints, sample downstream APIs and allowed operations; distinguish tool from HTTP endpoint.
+- [x] **S1-02** Define named actors and identities: interactive User A, User B with restricted access, and a machine/service principal; confirm privileges. Evidence: Rory approved machine-client read-only; [docs/identities-and-permissions.md](docs/identities-and-permissions.md).
+- [x] **S1-03** Inventory intended MCP tools, endpoints, sample downstream APIs and allowed operations; distinguish tool from HTTP endpoint. Evidence: [docs/tool-and-api-inventory.md](docs/tool-and-api-inventory.md); operational capabilities will be tested in Stage 5.
 - [ ] **S1-04** Specify the two AgentCore Gateways' purposes, boundaries, target placements and comparative learning goals.
 - [ ] **S1-05** Define the scenario matrix for interactive 3LO, client-credentials 2LO, service-account downstream access and OBO.
 - [ ] **S1-06** Define REST API target and OpenAPI target scenarios; distinguish integration method from caller/downstream authentication.
@@ -159,6 +159,8 @@
 | D-07 | Free Entra ID tenant is intended for the PoC | Verify eligibility and app registration requirements |
 | D-08 | Document architecture, patterns, standalone ADR and Q&A separately | Stage 2 |
 | D-09 | Fictional Network API with read and diagnostic operations; no real provider names or interview framing anywhere in project | Approved 2026-11-26 |
+| D-10 | Machine client (2LO) is read-only | Approved 2026-11-26 |
+| D-11 | Native API Gateway REST stage target currently uses IAM or API key, not OAuth outbound; compare with OpenAPI target for OAuth | AWS documentation reviewed; verify in Stage 5 |
 
 ## Future discoveries / new stages
 
