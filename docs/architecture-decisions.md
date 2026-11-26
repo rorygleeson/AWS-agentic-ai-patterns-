@@ -73,15 +73,3 @@ AWS recommends separate Gateways for targets with different trust boundaries/sen
 - [AWS: Gateway inbound authorisation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-inbound-auth.html)
 
 ---
-
-## ADR register — other decisions awaiting formal write-up
-
-The following decisions are recorded in the [master task board](../TODO.md) and related design notes, but **have not yet been expanded into full ADRs**:
-
-- Prefer user-delegated OBO where feasible; compare with service identity.
-- Two test users plus read-only machine client and explicit tool permissions.
-- Compare native REST stage and OpenAPI target integrations.
-- Use Cedar to evaluate explicit fine-grained policies.
-- Keep the public README architecture-focused.
-
-New ADRs will be added here as the design progresses. Do not mark them accepted without a recorded decision.
