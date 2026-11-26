@@ -10,7 +10,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 |---|---|---|---|
 | **1** | **Knowledge Base (RAG)** | Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases. | **All human users who successfully sign in to the AI chat app** can search the same approved knowledge. |
 | **2** | **Network Operations API** | Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and reads/creates support tickets. | **Only authorized callers.** Human permissions depend on region and operation; the service account has aggregate-only access. |
-| **3** | **NetworkMonitor** | Simulated third-party SaaS returning monitoring alerts belonging to an individual vendor user. | **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts. |
+| **3** | **NetworkMonitor** | Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts. | **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts. |
 | **4** | **Platform Health API** | AWS API Gateway REST API returning synthetic AI platform-health information. | **Only users explicitly granted access to this tool.** The downstream API authenticates the Gateway's IAM role. |
 
 ### Supporting database — Amazon RDS PostgreSQL
@@ -48,7 +48,11 @@ The application has **five human users** and **one non-human service account**.
 
 ## 3. How these requirements lead to authentication patterns
 
-**Why these use cases?** We selected them to demonstrate **different access and identity patterns**, not simply different business features. Shared RAG shows a resource available to everyone who signs in. Sarah, James and Emma call the **same Network API** using user-delegated OAuth (OBO), but receive different data because their permissions differ. The service account calls that API without a human, using app-only OAuth (2LO). David demonstrates separate consent at a third-party provider (3LO). Oliver demonstrates a different final hop: he is authorized to use the tool, but the Platform Health API receives the **Gateway's IAM identity**. Together, these examples show **when an agent must preserve the user, use an application identity or obtain independent authorization**.
+**Why these use cases?** We selected them to demonstrate **different access and identity patterns**, not simply different business features. Shared RAG shows a resource available to everyone who signs in. Sarah, James and Emma call the **same Network API** using user-delegated OAuth (OBO), but receive different data because their permissions differ. The service account calls that API without a human, using app-only OAuth (2LO).
+
+**Third-party example — David:** NetworkMonitor is a **different company's system**: signing into our app with Entra does **not** grant him access to NetworkMonitor. He must separately sign in and authorize our app through the vendor's own OAuth server (simulated with Cognito), after which it returns only his permitted alerts (3LO).
+
+**Service-identity example — Oliver:** His request demonstrates a different final hop: he is authorized to use the tool, but the Platform Health API receives the **Gateway's IAM identity**. Together, these examples show **when an agent must preserve the user, use an application identity or obtain independent authorization**.
 
 ### One API, different permissions
 
@@ -71,7 +75,7 @@ We cannot use one shared service account for everything: some systems must know 
 | All signed-in humans use the same shared knowledge base. | **Shared RAG access:** corporate sign-in for the chat app; **AWS IAM** for knowledge retrieval. | The AWS service identity. No individual document permissions are needed. |
 | Sarah, James and Emma have different permissions for the same Network API, including its ticket endpoints. | **OAuth on-behalf-of (OBO)** with Microsoft Entra ID (corporate identity provider). | **Which human** called. The API then enforces that person's permissions; RLS restricts rows and the API restricts sensitive fields. |
 | The scheduled Network Health Reporter needs aggregate data without a human signing in. | **OAuth 2LO (client credentials)** with Microsoft Entra ID. | **Which application** called, with aggregate-only app permission. No human identity. |
-| David accesses data belonging to his account with an external vendor. | **OAuth 3LO (user authorization/consent)** with the vendor's separate OAuth provider. | **Which vendor user** authorized access and which alerts they may see. |
+| David accesses data belonging to his account with an external vendor. | **OAuth 3LO** with the other company's separate OAuth provider (simulated using Cognito, not Entra). | **Which vendor user** authorized access and which alerts they may see. |
 | Oliver alone can call Platform Health, but the final REST API uses an AWS service identity. | **AWS IAM/SigV4** for the downstream call. | The **AgentCore Gateway execution role**, not Oliver. Tool authorization must check Oliver *before* that call. |
 
 ### Four terms in plain English
