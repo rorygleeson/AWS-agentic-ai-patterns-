@@ -4,6 +4,8 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and six callers to show when each pattern applies—and how to prevent unauthorized access.
 
+**The key idea:** Signing in to the AI chat app does not give an agent permission to call every connected system. Each system must receive the **right identity and permission for that system**. Sometimes that means carrying the human user's identity forward; sometimes it means using an application identity or asking for separate consent.
+
 ## 1. End systems
 
 | # | End system | Description | High-level access rule |
@@ -85,21 +87,27 @@ We cannot use one shared service account for everything: some systems must know 
 - **3LO:** A person separately **authorizes access to a third-party account**.
 - **IAM:** An **AWS role** is authenticated when calling an AWS-protected service.
 
-### Why OBO needs a second token
+### Why can't James use his first token for the Network API?
 
-**Example: James asks the agent for VIC diagnostics.** He has already signed in with Entra ID, so why can't the agent reuse his access token all the way to the Network API?
+James signs in **once** to our AI chat app. Entra ID gives the app an access token. James then asks: “Show me VIC diagnostics.”
 
-Because an OAuth access token is issued **for a specific API** (its *audience*). The Network API should reject a token intended for the AI application.
+The Network API is a **different API**. His first token is meant for the AI app, **not** the Network API. The Network API should reject it. Otherwise, a token issued for one system could be reused to enter another.
 
-| | Token A — initial | Token B — obtained through OBO |
+**OBO (on-behalf-of) solves this without another sign-in:**
+
+1. The trusted AI backend asks Entra ID for a token **for the Network API**, on James's behalf.
+2. Entra ID issues a **new token** that still identifies James, but is intended for the Network API.
+3. The Network API accepts that token only after validating it, then checks James's permissions: **VIC allowed, NSW denied**.
+
+| | First token | New OBO token |
 |---|---|---|
-| **User** | James | **James — unchanged** |
+| **Represents** | James | James |
 | **Intended for** | AI application | Network Operations API |
-| **Permission** | `chat.invoke` | `diagnostics.read` |
+| **Example permission** | `chat.invoke` | `diagnostics.read` |
 
-The trusted agent backend uses **OBO** to request Token B from Entra, without asking James to sign in again. The Network API validates Token B and **then checks James's own permissions**: VIC data allowed; NSW data denied.
+**Why this matters:** Each API should accept a token intended **for that API**, with the appropriate permissions. Microsoft recommends OBO when a middle-tier API calls another API on behalf of a signed-in user. See [Microsoft's guidance on APIs calling other APIs](https://learn.microsoft.com/en-us/security/zero-trust/develop/api-calls-api).
 
-**In short:** OBO preserves *who the user is*, while obtaining a token meant for *the next API*. It does **not** automatically grant access to all that API's data.
+**Remember:** OBO preserves *who James is*. It does **not** give him permission to see everything.
 
 ### Authentication is not the same as authorization
 
