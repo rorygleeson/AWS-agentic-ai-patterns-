@@ -1,87 +1,81 @@
-# AWS Agentic AI Patterns
+# Enterprise GenAI Platform on AWS
 
-An enterprise GenAI proof of concept built around realistic **business users, the systems they need, and the security rules that control access**. All operational data and external services are synthetic.
+**A reference architecture and hands-on proof of concept for secure agent access to enterprise systems.**
 
-## 1. The end systems
+This repository documents a deliberately small fictional network-operations enterprise. It illustrates *who can access which end system*, then explains the AWS AgentCore, MCP, OAuth, IAM, Cedar, REST and database patterns that make those permissions enforceable. The design is generic and is not associated with a particular organisation.
 
-Before looking at AWS components, these are the systems the assistant must work with.
+> **Documentation status:** Architecture baseline and patterns are design specifications. The AWS/Entra environment is not yet deployed. Examples and results are synthetic; no operational health metrics are claimed.
 
-| End system | Type / example endpoint | Purpose |
+![AWS AgentCore reference architecture showing the human and machine flows](docs/diagrams/aws-agentcore-architecture.svg)
+
+The numbered callouts are explained in [Architecture patterns](docs/architecture-patterns.md); this diagram distinguishes the inbound JWT/IAM boundaries from each target's outbound authentication.
+
+## 1. Meet the end systems first
+
+| End system | What it is | What it returns or changes |
 |---|---|---|
-| **Network Operations** | Protected **REST API** — `GET /assets/{id}`, `GET /assets/{id}/diagnostics` | Asset status and faults |
-| **Ticket Management** | Protected **REST API** — `GET /tickets/{id}`, `POST /tickets` | Read and create tickets |
-| **Knowledge Repository** | **RAG** — Bedrock Knowledge Base retrieval | Approved procedures with citations |
-| **NetworkMonitor SaaS** | Third-party **REST API** — `GET /alerts` | Separately authorised vendor alerts |
-| **Platform Health** | **REST API** — `get_platform_health` operation | Platform status for operations |
-| **Network Health Summary** | **REST API** — `GET /network/health-summary` | Read-only aggregate automation report |
+| **Shared Knowledge Repository** | Bedrock Knowledge Base with approved fictional operational guides (RAG). | Cited troubleshooting guidance and procedures; all five humans may search it. |
+| **Network Operations API** | Internal OAuth-protected REST API backed by RDS PostgreSQL. | `get_asset_status` (basic status), `get_diagnostics` (restricted faults), and a restricted aggregate health report. |
+| **Ticket Management API** | Separate internal OAuth-protected REST API backed by RDS. | `get_ticket` and `create_ticket`, with explicit confirmation and idempotency. |
+| **NetworkMonitor** | Fictional external SaaS with its own Cognito OAuth authorization server. | `search_vendor_alerts`: alerts visible to the separately authorized vendor user. |
+| **Platform Health API** | Small AWS API Gateway REST API protected by IAM/SigV4. | `get_platform_health`: synthetic status of platform services. |
+| **PostgreSQL** | Private RDS database behind the Network and Ticket APIs; *not* a direct agent tool. | Assets, diagnostics, tickets, principals and entitlements; RLS constrains records. |
 
-Network Operations and Ticket Management use a protected **PostgreSQL database** behind their REST APIs. The database is not exposed directly as an AI tool.
+The two REST-to-MCP approaches are intentional: the Network/Ticket APIs use **OpenAPI targets + OAuth OBO**; the Platform Health API uses a **native API Gateway stage target + IAM**.
 
-## 2. Who can access what?
+## 2. Meet the callers
 
-We use five named people and one automated service. Each has a specific business purpose and permission boundary.
+| Caller | Business task | Allowed | Denied or limited |
+|---|---|---|---|
+| **Sarah — National Admin** | Investigate nationwide faults and manage tickets. | Shared RAG; national asset status, diagnostics, authorized tickets. | David's separately authorized vendor account; Oliver-only platform health. |
+| **James — VIC Engineer** | Diagnose a Victorian network fault and raise a ticket. | Shared RAG; VIC status, diagnostics and VIC ticket actions. | NSW restricted records, Oliver-only platform health. |
+| **Emma — Service Desk** | Answer routine outage enquiries. | Shared RAG; nationwide **basic** asset-status fields. | Diagnostics, ticket creation, sensitive fields, Oliver-only platform health. |
+| **David — External Analyst** | Search his NetworkMonitor alerts after separate consent. | Shared RAG; his external vendor alerts via 3LO. | Privileged internal assets, diagnostics and ticket actions. |
+| **Oliver — Platform Analyst** | Check platform health. | Shared RAG and `get_platform_health`. | Internal network diagnostics/tickets and other users' vendor data. |
+| **Network Health Reporter — service** | Produce a scheduled aggregate health summary. | Read-only aggregate via IAM Runtime/Gateway and OAuth 2LO. | Human delegated tokens, diagnostics and writes. |
 
-| Persona | Accessible end systems | Restrictions |
-|---|---|---|
-| **Emma — Service Desk** | Network basic status; Knowledge Repository | No diagnostics or ticket actions |
-| **James — VIC Engineer** | Network diagnostics; Ticket Management; Knowledge Repository | VIC records only; tickets require confirmation |
-| **Sarah — National Admin** | Network diagnostics; Ticket Management; Knowledge Repository | National permissions; ticket creation requires confirmation |
-| **David — External Analyst** | NetworkMonitor SaaS | Must separately authorise his vendor account; no privileged internal access |
-| **Oliver — Platform Operations** | Platform Health | No broader Network/Ticket privileges |
-| **Network Health Reporter — automation** | Network Health Summary | Aggregate read-only data; no human identity or writes |
+A successful login grants **chat access**, not universal tool or data access.
 
-### Simple user-access diagram
+## 3. How the design is organized
 
-Each row shows one user or service and the systems they may access. It is a **business access map**, not the AWS technical architecture.
+- **Architecture Baseline:** [docs/architecture-baseline.md](docs/architecture-baseline.md) — systems, personas, topology, trust boundaries, contracts and requirements.
+- **Patterns Guide:** [docs/architecture-patterns.md](docs/architecture-patterns.md) — the 14 agreed patterns, comparison tables and practical Q&A.
+- **Architecture Decision Register:** [docs/architecture-decisions.md](docs/architecture-decisions.md) — the accepted decisions, reasons and consequences in a **single document**.
+- **Implementation Guide:** [docs/console-implementation-guide.md](docs/console-implementation-guide.md) — a **separate**, console-first build sequence; no IaC required.
+- **Test and Evidence Plan:** [docs/test-and-evidence-plan.md](docs/test-and-evidence-plan.md) — positive, negative and bypass scenarios.
 
-```mermaid
-flowchart LR
-  Emma["Emma · Service Desk"] --> E["Network REST API: basic status / Knowledge Base: RAG"]
-  James["James · VIC Engineer"] --> J["Network REST API: VIC diagnostics / Ticket REST API: VIC tickets"]
-  Sarah["Sarah · National Admin"] --> S["Network REST API: national diagnostics / Ticket REST API: national tickets"]
-  David["David · External Analyst"] --> D["NetworkMonitor REST API: vendor alerts"]
-  Oliver["Oliver · Platform Ops"] --> O["Platform Health REST API: health status"]
-  Reporter["Network Health Reporter"] --> R["Health Summary REST API: aggregate read"]
-```
+## 4. Key design decisions in one glance
 
-James and Sarah can also use shared RAG procedures. Every connection is limited by the role, region and consent requirements in the table above. The protected Network and Ticket APIs enforce database access; users never connect directly to PostgreSQL.
+**Two AgentCore Runtimes:** Runtime U uses Entra JWT inbound; Runtime M uses AWS IAM inbound.
 
-## 3. Business use cases
+**Two AgentCore Gateways:** G1 uses `CUSTOM_JWT` inbound for humans; G2 uses `AWS_IAM` inbound for the reporter. **Each Gateway has exactly one inbound authorizer type; each target independently configures outbound credentials.**
 
-| ID | Journey | Desired result |
-|---|---|---|
-| **UC01** | Emma checks an asset and asks for an outage procedure | Basic status and cited guidance |
-| **UC02** | James investigates a VIC network fault | VIC diagnostics and an authorised escalation |
-| **UC03** | Sarah reviews national faults and creates a ticket | National visibility and a confirmed, authorised ticket |
-| **UC04** | David connects NetworkMonitor | Alerts from his separately authorised vendor account |
-| **UC05** | Oliver checks platform health | Platform health information only |
-| **UC06** | Reporter produces the daily health summary | Scheduled, read-only aggregate results |
+**Two API integration methods:**
+1. Oliver → G1/Cedar → **native API Gateway stage target** → Gateway IAM/SigV4 → Platform Health REST API. The backend sees the Gateway role, *not Oliver*.
+2. James → G1/Cedar → **OpenAPI target** → Entra OBO → Network REST API → PostgreSQL RLS. The backend sees **James's delegated identity**.
 
-## 4. Architecture patterns
+**Three OAuth patterns:** OBO for user delegation, 2LO for a workload, 3LO for David's independent SaaS account consent.
 
-The seven agreed technical patterns explain **how** we deliver and secure those journeys.
+**No silent privilege translation:** The human JWT never becomes a claimed human identity merely because Lambda or Gateway possesses an IAM role.
 
-| ID | Pattern | Demonstration |
-|---|---|---|
-| **P01** | Corporate SSO + JWT | Microsoft Entra sign-in and validated API access |
-| **P02** | OAuth On-Behalf-Of (OBO) | James's delegated identity reaches the Network API |
-| **P03** | IAM + OAuth 2LO | Machine reporter obtains scoped application access |
-| **P04** | Third-party OAuth 3LO | David separately authorises NetworkMonitor via Cognito |
-| **P05** | MCP Gateway + Cedar | Fine-grained tool and parameter authorisation |
-| **P06** | REST APIs + PostgreSQL RLS | VIC versus national data isolation |
-| **P07** | Shared RAG retrieval | Approved Knowledge Base excerpts and citations |
+## 5. Architecture at a glance
 
-## 5. AWS implementation
+The interactive path is **Web Chat → Entra login → API Gateway JWT authorizer → proxy Lambda → JWT Runtime U → JWT Gateway G1 → MCP tools → protected systems**.
 
-The design uses **two AgentCore Runtimes and two AgentCore Gateways**: one lane for human JWT callers and another for IAM-authenticated automation. The Gateways expose **eight MCP tools** across the end systems above, with independently configured downstream credentials.
+The automated path is **EventBridge Scheduler → Reporter Lambda → IAM Runtime M → IAM Gateway G2 → restricted aggregate API using service 2LO**.
 
-The full AWS architecture, authentication flows, controls and component diagram belong in the [technical architecture](docs/two-gateway-design.md). The reason for the dual inbound-authentication boundaries is recorded in [ADR-001](docs/architecture-decisions.md#adr-001--separate-human-jwt-and-automation-iam-gateways).
+G1 exposes shared RAG, internal Network/Ticket tools, external NetworkMonitor and Oliver's platform health tool; G2 exposes only the reporter's aggregate operation. This deliberate separation avoids copying human Cedar policies into G2.
 
-### Technical reference
+See the baseline for the detailed trust boundaries and end-to-end token contracts. **No ASKnbn or employer-specific assumptions are needed.**
 
-- [Users and permissions](docs/identities-and-permissions.md)
-- [Eight MCP tools and downstream API mappings](docs/tool-and-api-inventory.md)
-- [2LO, 3LO and OBO architecture notes](docs/oauth-token-flows.md)
-- [Architecture decisions](docs/architecture-decisions.md)
+## 6. What the repository demonstrates
 
-**Status:** Design in progress; no infrastructure has been deployed and identity flows are not yet verified.
+- Entra authentication versus authorization; JWT audiences/scopes/app roles.
+- User-token forwarding, OBO, client credentials 2LO and independent vendor 3LO.
+- AgentCore Runtime, Gateway, Identity, MCP and OpenAPI target contracts.
+- Gateway tool policies (Cedar) plus downstream API entitlements and PostgreSQL RLS.
+- IAM service authorization versus end-to-end delegated user authorization.
+- Shared RAG, safe ticket writes, session isolation and audit correlation.
+- Denial scenarios designed alongside successful business use cases.
+
+**Repository scope:** Reference architecture, documentation and future sample code. Real customer data, real network access and production-readiness claims are explicitly excluded.
