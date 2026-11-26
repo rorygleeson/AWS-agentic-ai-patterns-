@@ -80,13 +80,13 @@ The **Network API** is the clearest example of why identity matters:
 
 The same service account cannot replace every user. Some systems need to know **which person** made the request, some only **which application**, and the external vendor needs **separate user consent**.
 
-| Access requirement from Sections 1–2 | Pattern we need | What the downstream system knows |
+| Why this pattern is needed | Authentication approach | What the downstream system knows |
 |---|---|---|
-| All signed-in humans use the same shared knowledge base. | **Shared RAG access:** corporate sign-in for the chat app; **AWS IAM** for knowledge retrieval. | The AWS service identity. No individual document permissions are needed. |
-| Sarah, James and Emma have different permissions for the same Network API, including its ticket endpoints. | **OAuth on-behalf-of (OBO)** with Microsoft Entra ID (corporate identity provider). | **Which human** called. The API then enforces that person's permissions; RLS restricts rows and the API restricts sensitive fields. |
-| The scheduled Network Health Reporter needs aggregate data without a human signing in. | **OAuth Client Credentials** with Microsoft Entra ID. | **Which application** called, with aggregate-only app permission. No human identity. |
-| David accesses data belonging to his account with an external vendor. | **OAuth Authorization Code** with the other company's separate OAuth provider (simulated using Cognito, not Entra). | **Which vendor user** authorized access and which alerts they may see. |
-| Oliver alone can use Platform Health, whose final API call is AWS IAM-protected rather than user-OAuth-protected. | **IAM/SigV4 role-based access:** authorize Oliver to use the tool first; then AgentCore Gateway signs the downstream call with its role. | The **Gateway IAM role**, not Oliver's Entra token. The final API trusts that AWS role, so **tool access must be restricted before invocation**. |
+| **Shared RAG:** Everyone signed into the AI app sees the same approved knowledge, so there is no need for per-user document access. | **Application sign-in + AWS IAM** for knowledge retrieval. | The AWS service identity, not individual document permissions. |
+| **Network API:** Sarah, James and Emma have different region and action permissions. The API **must know which person** called. | **OAuth On-Behalf-Of (OBO)** with Microsoft Entra ID. | The human caller. The API enforces permissions and sensitive fields; PostgreSQL RLS restricts database rows. |
+| **Service account:** Network Health Reporter runs on a schedule with **no human to represent**. | **OAuth Client Credentials** with Microsoft Entra ID. | The application identity and its aggregate-only permission. |
+| **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). | Which vendor user authorized our application and what alerts they can access. |
+| **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it. | **IAM/SigV4:** AgentCore Gateway uses its role for the final API call. | The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation. |
 
 ### Authentication terms in plain English
 
