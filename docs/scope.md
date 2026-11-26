@@ -1,6 +1,6 @@
 # PoC Scope and Acceptance Criteria — Draft
 
-**Status:** Draft for review (Stage 1 / S1-01). This captures agreed intent; implementation details requiring technical verification are deliberately marked **TBD**.
+**Status:** Scope baseline approved (Stage 1 / S1-01). Technical implementation details requiring verification remain **TBD**.
 
 ## Purpose
 
@@ -24,16 +24,16 @@ The emphasis is **identity and access decisions at each hop**, not a sophisticat
 10. **Cedar:** Explore a concrete policy-based access decision and compare it with simpler role/scope restrictions; avoid assuming Cedar is mandatory.
 11. **Explainability:** Provide diagrams, recorded decisions, a pattern catalogue and an end-user Q&A.
 
-## Proposed demonstration scenario (requires confirmation)
+## Agreed demonstration scenario
 
-Use one harmless fictional **Network API** to support interview-relevant demonstrations without relying on a real telecom provider or external paid API.
+Use one harmless fictional **Network API** for realistic, repeatable technical demonstrations without depending on a real provider or external paid API.
 
 | Candidate operation | HTTP example | Proposed MCP tool | User A | User B |
 |---|---|---|---|---|
 | Read network service status | `GET /network/services/{id}` | `get_service_status` | Allow | Allow |
 | Request a simulated diagnostic | `POST /network/services/{id}/diagnostics` | `request_diagnostic` | Allow | Deny |
 
-These are **proposed names**, not implemented endpoints. We should validate whether the two API operations are represented as two tools for each target configuration. A single REST API may expose multiple endpoints while an MCP tool has its own declared name and input schema.
+These are **agreed example operations**, not implemented endpoints. We should validate whether the two API operations are represented as two tools for each target configuration. A single REST API may expose multiple endpoints while an MCP tool has its own declared name and input schema.
 
 **Proposed actors:** Entra User A (both), Entra User B (read only), and an Entra application/service principal for M2M and service-identity comparison. All identities synthetic/test-only.
 
@@ -74,7 +74,7 @@ Production telecom integrations; customer data; paid telecom APIs; elaborate UI;
 
 ## Decisions still needed
 
-1. Confirm the fictional Network API and the read/diagnostic permission split.
+1. The fictional Network API and read/diagnostic permission split are **approved**. Keep the entire project vendor-neutral; do not mention any real telecommunications company by name.
 2. Agree each Gateway's distinct use case after validating current product constraints.
 3. Confirm concrete REST API vs OpenAPI target support, credentials and tool mapping from up-to-date AWS documentation.
 4. Decide the specific Entra tenant/application layout and AWS Region.
