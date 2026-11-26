@@ -1,6 +1,8 @@
 # Enterprise AI Agent — AWS AgentCore PoC
 
-This proof of concept uses fictional enterprise systems and users to demonstrate how an AI agent can access different systems with different permissions.
+Agentic AI introduces a difficult enterprise architecture challenge: **an agent may need to access several systems, but each system can authenticate callers differently and enforce different permissions**. Preserving a person's identity, allowing a service account to act independently, and obtaining third-party consent are not the same problem.
+
+**The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, five end systems and six callers to show when each pattern applies—and how to prevent unauthorized access.
 
 ## 1. End systems
 
