@@ -44,6 +44,25 @@ The application has **five human users** and **one non-human service account**.
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
 | **Network Health Reporter** | **Automated service account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
 
+### Where do these permissions come from?
+
+**Entra groups, application roles and OAuth scopes do different jobs.** An API does not *own* an Entra group; it can check the authenticated user's group membership and apply its own rules.
+
+For this PoC we make their responsibilities explicit:
+
+| Control | Our example | Where it is enforced |
+|---|---|---|
+| **Application role** — what kind of tool the person may use | James: `Network.Engineer`; Emma: `Network.ServiceDesk` | Assigned directly to each test user in Entra; the role appears in the token issued for the AI backend. **AgentCore/Cedar** uses validated role claims to restrict tool calls. |
+| **Entra security group** — which data the person may see | James belongs to `Network-VIC-Engineers` | The **Network API** verifies James's membership using trusted Entra group IDs and maps it to a **VIC-only entitlement**. |
+| **OAuth scope** — which API operation the client can request | `diagnostics.read` in the Network API access token | The **Network API** checks the OBO token's audience and delegated scope; this **does not** automatically grant NSW access. |
+| **Database row-level security (RLS)** — which records may be returned | James can retrieve VIC rows, not NSW rows | **PostgreSQL**, using the trusted entitlement set by the Network API, not a region supplied by the user or agent. |
+
+**Example — James asks for NSW diagnostics:** He is signed in, has the Engineer role and may have the `diagnostics.read` scope. But his Entra group maps to **VIC only**, so the Network API denies the NSW request and database RLS prevents NSW rows being returned.
+
+**Our Entra Free PoC choice:** Assign application roles **directly to users**, and use security-group membership separately for regional entitlements. Assigning an Entra **group to an enterprise-app role** is another valid production approach, but requires Entra ID P1/P2. Group membership does **not** automatically become an app role or an OAuth scope. Configure and validate group claims for the Network API; if membership cannot be verified, **deny access**. The service account instead uses an **application role** (`HealthSummary.Read`) and has no human group membership.
+
+See [Microsoft's app-role guidance](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps) and [group-assignment licensing](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/assign-user-or-group-access-portal).
+
 ### Explicit restrictions
 
 | User | Access that must be denied |
