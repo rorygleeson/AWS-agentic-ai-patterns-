@@ -10,7 +10,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 - **Network Operations API:** Sarah, James and Emma must sign in to the AI app, but **each can see or do only what their own permissions allow**. For example, James can retrieve VIC diagnostics, not NSW diagnostics.
 - **Network Health Reporter service account:** This scheduled application **does not sign in as a person**. It authenticates using its own application identity and can request **aggregate network health only**.
 - **External NetworkMonitor service:** David signs in to the AI app **and separately authorizes access to his account with the other company**. He receives only the vendor alerts he is permitted to see.
-- **Platform Health API:** Oliver signs in to the AI app and is **the only human allowed to use this tool**. The final API call is authenticated using an **AWS IAM role**, not Oliver's own token.
+- **Platform Health API:** Oliver signs in to the AI app and is **the only human allowed to use this tool**. Unlike the Network API, this AWS-protected API **does not need Oliver's OAuth token**: it accepts a request signed with the **AgentCore Gateway's IAM role**. We must check that the caller is Oliver **before** making that role-based call.
 
 Together, they show why enterprise AI agents need different authentication and authorization patterns.
 
@@ -86,7 +86,7 @@ The same service account cannot replace every user. Some systems need to know **
 | Sarah, James and Emma have different permissions for the same Network API, including its ticket endpoints. | **OAuth on-behalf-of (OBO)** with Microsoft Entra ID (corporate identity provider). | **Which human** called. The API then enforces that person's permissions; RLS restricts rows and the API restricts sensitive fields. |
 | The scheduled Network Health Reporter needs aggregate data without a human signing in. | **OAuth 2LO (client credentials)** with Microsoft Entra ID. | **Which application** called, with aggregate-only app permission. No human identity. |
 | David accesses data belonging to his account with an external vendor. | **OAuth 3LO** with the other company's separate OAuth provider (simulated using Cognito, not Entra). | **Which vendor user** authorized access and which alerts they may see. |
-| Oliver alone can call Platform Health, but the final REST API uses an AWS service identity. | **AWS IAM/SigV4** for the downstream call. | The **AgentCore Gateway execution role**, not Oliver. Tool authorization must check Oliver *before* that call. |
+| Oliver alone can use Platform Health, whose final API call is AWS IAM-protected rather than user-OAuth-protected. | **IAM/SigV4 role-based access:** authorize Oliver to use the tool first; then AgentCore Gateway signs the downstream call with its role. | The **Gateway IAM role**, not Oliver's Entra token. The final API trusts that AWS role, so **tool access must be restricted before invocation**. |
 
 ### Four terms in plain English
 
@@ -145,6 +145,8 @@ Both systems expose ordinary **REST APIs**. We deliberately register them with A
 | **How AgentCore connects** | Import the existing AWS API Gateway REST stage | Supply an OpenAPI description of the REST endpoints |
 | **Outbound authentication** | IAM/SigV4 (or API key) | OAuth OBO for humans; OAuth 2LO for the service |
 | **Downstream identity** | Gateway's IAM role | Delegated human or application identity |
+
+**Why does Platform Health get its own pattern?** We intentionally chose a downstream API protected by **AWS IAM instead of OAuth**. The Network API needs the caller's identity to decide which records they may see. Platform Health needs only a trusted AWS role to read synthetic health data—provided the agent first verifies that **Oliver is allowed to use the tool**. It demonstrates the important distinction between **authorizing a human to invoke a tool** and **authenticating the tool's service identity at the final API**.
 
 **Why the difference?** It's a limitation of the **AgentCore target type**, not REST itself. The native AWS API Gateway stage target supports IAM and API-key outbound authentication **but not OAuth**. An **OpenAPI target supports OAuth** through AgentCore's separately configured outbound credential provider—even if the actual REST API is hosted on AWS API Gateway. **The OpenAPI file describes the API; it doesn't provide OAuth or run another service.**
 
