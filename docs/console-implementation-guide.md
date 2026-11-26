@@ -16,21 +16,19 @@
 
 1. Create private RDS PostgreSQL with small assets/diagnostics/tickets and entitlement tables. Use synthetic VIC, NSW and national regions. Keep database unreachable from public internet.
 2. Create least-privileged database API roles, RLS policies and a service-side entitlement mapping keyed by Entra `tid/oid` and automation app identity. Never use a table-owner/BYPASSRLS role for application requests.
-3. Deploy a small Network REST API exposing `get_asset_status`, `get_diagnostics`, `get_network_health_summary` against RDS. Build independent delegated versus app-only authorization.
-4. Deploy a separate Ticket REST API exposing `get_ticket` and `create_ticket`. Support confirmation state, region authorization and idempotency.
-5. Deploy Platform Health as **AWS API Gateway REST API stage** backed by a tiny synthetic endpoint (e.g. Lambda), secured to accept IAM/SigV4 calls from the Gateway execution role. Its response is fictional health, not real infrastructure diagnostics.
-6. Create a small non-sensitive S3 guide corpus, then a Bedrock Knowledge Base/vector store. All human identities may access its search tool.
-7. Create a fictional NetworkMonitor external vendor API and a separate Cognito user pool/app client. Configure authorization-code + PKCE/consent for per-David `alerts.read`. This is a *simulation of a third-party service*, not actual vendor integration.
+3. Deploy one Network Operations REST API exposing `get_asset_status`, `get_diagnostics`, `get_ticket`, `create_ticket` and `get_network_health_summary` against RDS. Enforce delegated human and app-only authorization independently; ticket writes require confirmation, region authorization and idempotency.
+4. Deploy Platform Health as **AWS API Gateway REST API stage** backed by a tiny synthetic endpoint (e.g. Lambda), secured to accept IAM/SigV4 calls from the Gateway execution role. Its response is fictional health, not real infrastructure diagnostics.
+5. Create a small non-sensitive S3 guide corpus, then a Bedrock Knowledge Base/vector store. All human identities may access its search tool.
+6. Create a fictional NetworkMonitor external vendor API and a separate Cognito user pool/app client. Configure authorization-code + PKCE/consent for per-David `alerts.read`. This is a *simulation of a third-party service*, not actual vendor integration.
 
 ### Phase 2 — Entra identity setup
 
 1. Register `enterprise-ai-backend` as the protected API. Expose `chat.invoke`; configure JWT issuer and audience.
 2. Register `enterprise-ai-web` as the browser/public client, with precise redirect URIs and authorization-code + PKCE. Grant delegated `chat.invoke`.
-3. Register `enterprise-network-api` with delegated `asset.read` and `diagnostics.read`, plus app permission `HealthSummary.Read`. Assign that application permission only to the reporter app.
-4. Register `enterprise-ticket-api` with delegated `ticket.read` and `ticket.create`.
-5. Register the confidential middle-tier/OBO credential and `network-health-reporter` service principal/client. Configure exact audience, consent and allowed credential handling.
-6. Create Sarah, James, Emma, David and Oliver nonproduction accounts. Assign app roles corresponding to agreed personas; optionally map trusted group object IDs server-side. **Groups are not OAuth scopes.**
-7. Check API delegated scopes against downstream OBO exchanges. Enforce `scp` for delegated calls and `roles` + app identity for app-only calls. No universal bearer token.
+3. Register **one** `enterprise-network-api` with delegated `asset.read`, `diagnostics.read`, `ticket.read`, `ticket.create`, plus app permission `HealthSummary.Read`. Assign the app-only permission only to the reporter app.
+4. Register the confidential middle-tier/OBO credential and `network-health-reporter` service principal/client. Configure exact audience, consent and allowed credential handling.
+5. Create Sarah, James, Emma, David and Oliver nonproduction accounts. Assign app roles corresponding to agreed personas; optionally map trusted group object IDs server-side. **Groups are not OAuth scopes.**
+6. Check API delegated scopes against downstream OBO exchanges. Enforce `scp` for delegated calls and `roles` + app identity for app-only calls. No universal bearer token.
 
 ### Phase 3 — Human Runtime U and G1
 
@@ -38,8 +36,8 @@
 2. Restrict resource policy and networking to the intended private Lambda/VPC route; verify runtime isn't accidentally invokable on an alternative trust path.
 3. Create G1 with inbound `CUSTOM_JWT`. Point to the Entra JWT issuer/audience. Register only human tools:
    - Managed Knowledge Base target `search_knowledge` — IAM outbound.
-   - OpenAPI Network target `get_asset_status`, `get_diagnostics` — Entra OBO.
-   - OpenAPI Ticket target `get_ticket`, `create_ticket` — Entra OBO.
+   - Network OpenAPI target operations `get_asset_status`, `get_diagnostics` — Entra OBO.
+   - Network OpenAPI target operations `get_ticket`, `create_ticket` — Entra OBO (same API resource and audience).
    - OpenAPI external NetworkMonitor target `search_vendor_alerts` — independent vendor 3LO.
    - **Native AWS API Gateway REST API stage target** `get_platform_health` — IAM outbound.
 4. Define Cedar policy by actual subject role and operation/arguments. Sarah nationally authorized, James VIC only, Emma basic asset only, David only vendor, Oliver only platform health plus RAG.
@@ -68,12 +66,12 @@
 | Leg | Authentication | Token's real subject |
 |---|---|---|
 | Browser → API Gateway → Runtime U → G1 | Entra JWT for AI backend | Sarah/James/Emma/David/Oliver |
-| G1 → Network/Ticket OpenAPI | Entra OBO, API-specific audience | The same human, delegated |
+| G1 → Network OpenAPI | Entra OBO, API-specific audience | The same human, delegated |
 | G1 → vendor OpenAPI | Vendor OAuth 3LO | Authorized vendor user account |
 | G1 → native Platform Health REST stage | AWS IAM/SigV4 | G1 Gateway execution role |
 | Reporter Lambda → Runtime M → G2 | AWS IAM | Runtime M execution IAM role at G2 |
 | G2 → Network aggregate OpenAPI | Entra OAuth client credentials 2LO | Reporter application, **no human** |
-| Network/Ticket APIs → RDS | Database service login plus mapped context/RLS | Server-set validated user or app entitlements |
+| Network API → RDS | Database service login plus mapped context/RLS | Server-set validated user or app entitlements |
 
 ## Implementation evidence to capture
 

@@ -20,7 +20,7 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 |---|---|
 | Identity and ingress | 001, 003, 004, 005, 006, 018 |
 | Runtime, Gateway and tool authorization | 002, 007, 009, 017 |
-| Downstream API, OAuth and database | 008, 010, 011, 012, 013 |
+| Downstream API, OAuth and database | 008, 010, 011, 012, 013, **022** |
 | Shared RAG and safe writes | 014, 015 |
 | Documentation, scope and delivery | 016, 019, 020, 021 |
 
@@ -36,7 +36,7 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-003
 
-- **Decision:** Forward original Entra human JWT through Lambda and Runtime U, then use audience-correct OBO for downstream Network/Ticket APIs.
+- **Decision:** Forward original Entra human JWT through Lambda and Runtime U, then use audience-correct OBO for the downstream Network API (including ticket operations).
 - **Why:** Makes James's identity independently verifiable at downstream systems.
 - **Alternative considered:** use Lambda IAM role as user identity, unacceptable for delegated API/RLS pattern.
 - **Consequence:** token forwarding, audience, exchange, consent and expiry handling matter.
@@ -104,7 +104,7 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-008
 
-- **Decision:** Apply PostgreSQL RLS plus response field filtering at the Network/Ticket APIs.
+- **Decision:** Apply PostgreSQL RLS plus response field filtering at the Network API.
 - **Why:** Scope rows by validated user; RLS alone cannot hide sensitive fields.
 - **Alternative considered:** filter in agent prompt, insecure.
 - **Consequence:** transaction-local principal context, no BYPASSRLS and careful pool cleanup.
@@ -184,6 +184,14 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 - **Why:** Design can be researched before testing, while tests later confirm real behavior.
 - **Alternative considered:** mislabel unverified flows as production-ready.
 - **Consequence:** clearly show assumptions and evidence gates.
+
+### ADR-022
+
+- **Decision:** Merge the previously separate Ticket Management API into the **Network Operations API**. The Network API hosts asset status, diagnostics, ticket read/create and aggregate-health endpoints, all backed by the same RDS database.
+- **Why:** The separate Ticket API did not demonstrate a new authentication pattern: both enterprise human paths used Entra OBO and user-specific authorization. A single API makes endpoint-, region-, read/write- and app-only permission differences easier to teach.
+- **Alternative considered:** Keep separate Network and Ticket APIs with separate Entra audiences. This adds deployment and token-registration complexity without supporting a distinct core use case.
+- **Consequence:** One Entra Network API resource/audience with delegated `asset.read`, `diagnostics.read`, `ticket.read`, `ticket.create`, plus the app-only `HealthSummary.Read` permission. Each operation remains a separate MCP tool. The native AWS API Gateway REST-stage vs OpenAPI registration comparison **still exists** through Platform Health vs Network Operations.
+- **Supersedes:** The separate-Ticket-API assumption in earlier drafts; all other identity and authorization decisions remain in force.
 
 ## Design invariants
 

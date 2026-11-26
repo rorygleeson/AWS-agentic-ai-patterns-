@@ -13,13 +13,12 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 | System | Classification | Input/API contract | Output and restriction |
 |---|---|---|---|
 | Shared knowledge | Shared RAG repository | Native managed KB connector, `search_knowledge(query)` | Cited procedure excerpts. Same approved documents for all five human users; no document-level ACL example. |
-| Network Operations | Protected enterprise REST API | `GET /assets/{id}/status`, `GET /assets/{id}/diagnostics`, `GET /network/health-summary` | Status DTO, restricted diagnostics, aggregated totals; regional and field authorization. |
-| Ticket Management | Separate protected enterprise REST API | `GET /tickets/{id}`, `POST /tickets` | Ticket status or new ticket; confirm, authorize and deduplicate state changes. |
+| Network Operations | Protected enterprise REST API | `GET /assets/{id}/status`, `GET /assets/{id}/diagnostics`, `GET /tickets/{id}`, `POST /tickets`, `GET /network/health-summary` | Asset status/diagnostics, ticket read/create and aggregate reporting; permission, region, field and write controls. |
 | NetworkMonitor | External simulated SaaS | `GET /alerts` | Alerts tied to separately authenticated vendor account; own Cognito authorization server. |
 | Platform Health | AWS-native protected REST API | `GET /platform/health` | Synthetic platform service health; IAM/SigV4 method, no human-specific data. |
-| RDS PostgreSQL | Private internal database | SQL only from Network/Ticket application tier | Assets, faults, tickets and entitlements with RLS; not exposed as an MCP tool. |
+| RDS PostgreSQL | Private internal database | SQL only from Network Operations application tier | Assets, faults, tickets and entitlements with RLS; not exposed as an MCP tool. |
 
-**Target-type rule:** API Gateway REST API *stage* targets support IAM/SigV4 and API keys, not OAuth outbound. Register OAuth-protected Network and Ticket API endpoints as **OpenAPI targets**, even if hosted on AWS API Gateway. Both remain ordinary REST APIs. The OpenAPI document describes operations; it is not an extra runtime service.
+**Target-type rule:** API Gateway REST API *stage* targets support IAM/SigV4 and API keys, not OAuth outbound. Register OAuth-protected Network API operations (including tickets) as an **OpenAPI target**, even if hosted on AWS API Gateway. Both remain ordinary REST APIs. The OpenAPI document describes operations; it is not an extra runtime service.
 
 ## 3. Actors and business use cases
 
@@ -43,7 +42,7 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 - API Gateway, Lambda, Runtime U and G1 validate/forward the **AI Backend API audience** Token A as one logical API protection domain. Lambda forwards the unchanged signed user bearer JWT to Runtime; Runtime validates it independently.
 - Runtime U uses JWT, not IAM, for invocation. Lambda's role alone does not authenticate as a user.
 - For calls to G1, the agent explicitly passes its inbound user JWT via the allowlisted Authorization header; G1 creates an `OAuthUser` Cedar principal from the verified JWT. **Do not silently replace this with a Gateway M2M token**, as that would change the policy principal.
-- AgentCore Identity obtains target-audience OBO Token B for Network or a separate Ticket API token. The downstream API validates the token and applies its own authorizations.
+- AgentCore Identity obtains target-audience OBO Token B for the Network API's asset, diagnostics and ticket operations. The downstream API validates the token and applies its own authorizations.
 - David's vendor tool uses independent Cognito 3LO consent. Oliver's native stage target deliberately uses Gateway IAM identity outbound, without OBO.
 - The Gateway's execution role is separate from the JWT principal presented to Cedar.
 
@@ -67,14 +66,13 @@ The API/Gateway and Runtime must not share unrestricted public bypasses: the hum
 
 1. `enterprise-ai-web`: public browser client, authorization-code + PKCE, granted `chat.invoke`.
 2. `enterprise-ai-backend`: protected logical AI API, exposes `chat.invoke`, confidential client performing OBO, audience for Token A.
-3. `enterprise-network-api`: Network API resource, delegated scopes `asset.read` / `diagnostics.read` and application role `HealthSummary.Read`.
-4. `enterprise-ticket-api`: separate Ticket API resource, delegated `ticket.read` / `ticket.create`.
-5. `network-health-reporter`: confidential service application granted **application** `HealthSummary.Read` only.
-6. NetworkMonitor Cognito: separate vendor authorization server/resource, client and `alerts.read` user consent.
+3. `enterprise-network-api`: one Network API resource, delegated scopes `asset.read`, `diagnostics.read`, `ticket.read`, `ticket.create`, and application role `HealthSummary.Read`.
+4. `network-health-reporter`: confidential service application granted **application** `HealthSummary.Read` only.
+5. NetworkMonitor Cognito: separate vendor authorization server/resource, client and `alerts.read` user consent.
 
 Token A: Entra issuer, **AI Backend API** audience, `chat.invoke` in `scp`, user `tid` + `oid` + `sub`, and directly assigned business-role claim(s). JWT authorizers require valid signature/expiry/issuer/audience and appropriate scope.
 
-Token B: issued via Entra OBO, **Network API** audience, the original user's delegated identity, narrow Network scopes. Ticket calls obtain a different Ticket API-audience token. The OBO assertion must have the audience of the confidential backend client performing the exchange.
+Token B: issued via Entra OBO, **Network API** audience, the original user's delegated identity, narrow Network scopes. Ticket calls use the same Network API audience with narrower `ticket.read` / `ticket.create` delegated scopes. The OBO assertion must have the audience of the confidential backend client performing the exchange.
 
 Token C: Entra client credentials, **Network API** audience, Reporter application's `roles` (not human `scp`), no human `oid` identity claim.
 
@@ -99,13 +97,13 @@ Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHE
 | G1 | `search_knowledge` | Managed KB connector, Gateway IAM retrieval | Available to all human roles |
 | G1 | `get_asset_status` | Network OpenAPI target, Entra OBO | Emma basic DTO, Sarah national, James VIC |
 | G1 | `get_diagnostics` | Network OpenAPI target, Entra OBO | Sarah national, James VIC; Emma denied |
-| G1 | `get_ticket` | Ticket OpenAPI target, Entra OBO | Sarah and James authorized region |
-| G1 | `create_ticket` | Ticket OpenAPI target, Entra OBO | Sarah/James, confirmation and idempotency |
+| G1 | `get_ticket` | Network OpenAPI target, Entra OBO | Sarah and James authorized region |
+| G1 | `create_ticket` | Network OpenAPI target, Entra OBO | Sarah/James, confirmation and idempotency |
 | G1 | `search_vendor_alerts` | NetworkMonitor OpenAPI/MCP target, Cognito authorization-code 3LO | David with vendor consent only |
 | G1 | `get_platform_health` | **Native API Gateway REST stage** target, Gateway role SigV4 | **Oliver only**, simulated read-only status |
 | G2 | `get_network_health_summary` | Network OpenAPI target, Entra application token 2LO | Runtime M role + aggregate-only service permission |
 
-An API with two OpenAPI operations yields two MCP tools. Native API Gateway targets may import/export a stage's operations, but do **not** require authoring a new separate OpenAPI integration in G1. The same underlying Network backend may be shared without duplicating API code, data or every policy.
+Each operation in the Network API's OpenAPI definition is exposed as a distinct MCP tool with its own authorization decision. A single backend and RDS database serves assets, diagnostics, tickets and the aggregate report. The Platform Health REST API remains a separate **native API Gateway stage** target using IAM.
 
 ## 8. Session, audit and network controls
 
@@ -125,7 +123,7 @@ No document-specific RAG ACL exercise, real customer data or production-readines
 ## 10. Reference architecture requirements
 
 - Distinguish business use cases, reusable patterns and implementation components.
-- Show all six callers, both Runtime modes, both Gateway modes, token transitions and five end systems.
+- Show all six callers, both Runtime modes, both Gateway modes, token transitions and four end systems.
 - Prefer short, accessible user-to-system diagrams before the detailed AWS service view; AWS-icon diagram may be expanded as a separate deliverable.
 - Keep architecture, patterns, ADR, implementation and testing documents independent.
 - Design intent is supported by AWS/Microsoft/PostgreSQL documentation; test procedures verify the future deployment **conforms** to the design.

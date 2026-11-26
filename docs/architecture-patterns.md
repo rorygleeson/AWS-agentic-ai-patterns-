@@ -12,10 +12,10 @@
 | P04 | OAuth 2-legged client credentials (2LO) | Application identity, no human | Scheduled reporter |
 | P05 | OAuth 3-legged consent (3LO) | Vendor user consent and vendor token | David |
 | P06 | Native API Gateway REST stage MCP target | Gateway IAM/SigV4 identity downstream | Oliver |
-| P07 | OpenAPI-defined REST MCP target | OAuth token downstream | Network/Ticket APIs |
+| P07 | OpenAPI-defined REST MCP target | OAuth token downstream | Network API (including ticket operations) |
 | P08 | JWT-inbound Gateway with Cedar | Human subject, role and arguments | G1 |
 | P09 | IAM-inbound Gateway with Cedar | Runtime M IAM role | G2 |
-| P10 | Downstream API authorization and PostgreSQL RLS | Validated Entra human/app claims | Network/Ticket APIs |
+| P10 | Downstream API authorization and PostgreSQL RLS | Validated Entra human/app claims | Network API |
 | P11 | Shared managed knowledge retrieval | Gateway/connector service identity | All human users |
 | P12 | Secured, separate AgentCore Runtime ingress | JWT on U; IAM on M | Chat and reporter |
 | P13 | Confirmed, idempotent writes | Delegated user identity | Ticket creation |
@@ -27,7 +27,7 @@
 
 **Flow:** Browser signs in with Entra ID using authorization code + PKCE. The registered web client requests the AI backend's delegated `chat.invoke` scope. The browser submits a chat request and access token to AWS API Gateway. API Gateway validates issuer, signature, audience, expiry and configured authorization constraints. Authentication does not itself authorize all MCP tools.
 
-**Principal:** Entra `tid` + `oid` is stable user identity. The token is for the AI backend, not Microsoft Graph, Network API or Ticket API.
+**Principal:** Entra `tid` + `oid` is stable user identity. The token is for the AI backend, not Microsoft Graph or the downstream Network API.
 
 ## P02 — Lambda forwards the authenticated principal
 
@@ -49,7 +49,7 @@
 4. Network API validates its own audience, scopes and `tid/oid`, maps James to approved VIC rows and applies RLS.
 5. Denied NSW diagnostic queries remain denied regardless of the model's instructions.
 
-For Ticket API, use its **own** audience and scopes (`ticket.read`, `ticket.create`); do not reuse a Network API token. The exact Gateway outbound OBO token exchange integration and identity propagation must be matched to documented AWS connector capabilities before console configuration; no custom impersonation shortcut.
+Ticket read/create operations use the **same Network API audience** but require their own delegated scopes (`ticket.read`, `ticket.create`). The exact Gateway outbound OBO token exchange integration and identity propagation must be matched to documented AWS connector capabilities before console configuration; no custom impersonation shortcut.
 
 **Security invariant:** A shared Lambda/Gateway IAM role must not override the downstream delegated authorization decision.
 

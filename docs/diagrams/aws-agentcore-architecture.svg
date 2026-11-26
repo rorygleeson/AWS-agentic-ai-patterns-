@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 925" role="img" aria-label="AWS icon architecture diagram: human Entra JWT through AWS API Gateway, Lambda, AgentCore Runtime U and human Gateway G1 to five targets; machine scheduled IAM Runtime M and G2 to aggregate Network API.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 925" role="img" aria-label="AWS icon architecture diagram: human Entra JWT through AWS API Gateway, Lambda, AgentCore Runtime U and human Gateway G1 to four end systems; machine scheduled IAM Runtime M and G2 to aggregate Network API.">
 <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#536981" stroke-width="1.5"/></marker><symbol id="icon_agentcore" viewBox="0 0 80 80">
 <g clip-path="url(#agentcore_clip0_211_73)">
 <rect width="80" height="80" fill="#01A88D"/>
@@ -105,22 +105,22 @@
 <path d="M1262 307 H991 V337" fill="none" stroke="#66809b" stroke-width="1.8" marker-end="url(#arrow)"/>
 <path d="M1262,307 L1262,337" class="arrow"/>
 <g><rect x="40" y="337" width="236" height="90" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_bedrock" x="52" y="353" width="48" height="48"/><text x="108" y="368" class="label">Knowledge Base</text><text x="108" y="390" class="small">Shared RAG · IAM</text></g>
-<g><rect x="317" y="337" width="236" height="90" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="329" y="353" width="48" height="48"/><text x="385" y="368" class="label">Network API</text><text x="385" y="390" class="small">OpenAPI · OBO</text></g>
-<g><rect x="595" y="337" width="236" height="90" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="607" y="353" width="48" height="48"/><text x="663" y="368" class="label">Ticket API</text><text x="663" y="390" class="small">OpenAPI · OBO</text></g>
+<g><rect x="317" y="337" width="514" height="90" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="331" y="353" width="48" height="48"/><text x="391" y="366" class="label">Network Operations API</text><text x="391" y="387" class="small">OpenAPI · Entra OBO</text><text x="391" y="409" class="small">Asset status · Diagnostics · Ticket read/create</text></g>
+
 <g><rect x="872" y="337" width="236" height="90" rx="12" fill="#f6f0ff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_cognito" x="884" y="353" width="48" height="48"/><text x="940" y="368" class="label">Vendor SaaS</text><text x="940" y="390" class="small">Cognito · 3LO</text></g>
 <g><rect x="1149" y="337" width="231" height="90" rx="12" fill="#fff8ea" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="1161" y="353" width="48" height="48"/><text x="1217" y="368" class="label">Platform Health</text><text x="1217" y="390" class="small">Native REST · IAM</text></g>
 <g><rect x="594" y="479" width="236" height="75" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_rds" x="606" y="495" width="48" height="48"/><text x="662" y="510" class="label">RDS PostgreSQL</text><text x="662" y="532" class="small">RLS · behind APIs</text></g>
-<path d="M435 427 V459 H700 V479" class="arrow"/><path d="M713 427 V479" class="arrow"/>
-<text x="44" y="473" class="desc">G1: Sarah/James/Emma protected data access, David vendor consent, Oliver IAM-only platform tool.</text>
+<path d="M713 427 V479" class="arrow"/>
+<text x="44" y="473" class="desc">G1: One Network API for assets and tickets (OBO); David vendor 3LO; Oliver platform IAM.</text>
 <rect x="20" y="599" width="1380" height="193" rx="16" fill="#fff7ea" stroke="#efd4a5"/>
 <text x="40" y="630" class="section">Machine flow — AWS IAM Runtime M / Gateway G2 AWS_IAM</text>
 <g><rect x="38" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_eventbridge" x="50" y="682" width="48" height="48"/><text x="106" y="697" class="label">EventBridge</text><text x="106" y="719" class="small">Scheduled report</text></g>
 <g><rect x="310" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_lambda" x="322" y="682" width="48" height="48"/><text x="378" y="697" class="label">Reporter Lambda</text><text x="378" y="719" class="small">IAM invoke role</text></g>
 <g><rect x="582" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_agentcore" x="594" y="682" width="48" height="48"/><text x="650" y="697" class="label">Runtime M</text><text x="650" y="719" class="small">IAM-only agent</text></g>
 <g><rect x="854" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_agentcore" x="866" y="682" width="48" height="48"/><text x="922" y="697" class="label">Gateway G2</text><text x="922" y="719" class="small">IAM · Cedar</text></g>
-<g><rect x="1126" y="666" width="252" height="83" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="1138" y="682" width="48" height="48"/><text x="1194" y="697" class="label">Network summary</text><text x="1194" y="719" class="small">OpenAPI · Entra 2LO</text></g>
+<g><rect x="1126" y="666" width="252" height="83" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="1138" y="682" width="48" height="48"/><text x="1194" y="697" class="label">Network API</text><text x="1194" y="719" class="small">Same API · 2LO summary</text></g>
 <path d="M280,708 L310,708" class="arrow"/><path d="M552,708 L582,708" class="arrow"/><path d="M824,708 L854,708" class="arrow"/><path d="M1096,708 L1126,708" class="arrow"/>
-<text x="40" y="776" class="small">G2 sees Runtime M execution role, not Reporter Lambda's role. Downstream Network API sees a service-app OAuth token, not a human.</text>
+<text x="40" y="776" class="small">G2 calls the SAME Network Operations API for aggregate summary using app-only OAuth 2LO.</text>
 <rect x="20" y="807" width="1380" height="97" rx="12" fill="#fff" stroke="#d4dfec"/>
 <text x="39" y="835" class="section">Key comparison</text>
 <text x="39" y="860" class="desc">James → OpenAPI → Entra OBO → Network API knows James → RLS enforces VIC only.</text>
