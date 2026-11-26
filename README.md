@@ -8,7 +8,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 | # | End system | Description | High-level access rule |
 |---|---|---|---|
-| **1** | **Knowledge Base (RAG)** | Retrieves information from shared troubleshooting documents using Amazon Bedrock Knowledge Bases. | **All human users who successfully sign in to the AI chat app** can search the same approved knowledge. |
+| **1** | **Knowledge Base (RAG)** | Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases. | **All human users who successfully sign in to the AI chat app** can search the same approved knowledge. |
 | **2** | **Network Operations API** | Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and reads/creates support tickets. | **Only authorized callers.** Human permissions depend on region and operation; the service account has aggregate-only access. |
 | **3** | **NetworkMonitor** | Simulated third-party SaaS returning monitoring alerts belonging to an individual vendor user. | **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts. |
 | **4** | **Platform Health API** | AWS API Gateway REST API returning synthetic AI platform-health information. | **Only users explicitly granted access to this tool.** The downstream API authenticates the Gateway's IAM role. |
@@ -69,7 +69,7 @@ We cannot use one shared service account for everything: some systems must know 
 | Access requirement from Sections 1–2 | Pattern we need | What the downstream system knows |
 |---|---|---|
 | All signed-in humans use the same shared knowledge base. | **Shared RAG access:** corporate sign-in for the chat app; **AWS IAM** for knowledge retrieval. | The AWS service identity. No individual document permissions are needed. |
-| Sarah, James and Emma have different permissions for the same Network API, including its ticket endpoints. | **OAuth on-behalf-of (OBO)** with Microsoft Entra ID. | **Which human** called. The API then enforces that person's permissions; RLS restricts rows and the API restricts sensitive fields. |
+| Sarah, James and Emma have different permissions for the same Network API, including its ticket endpoints. | **OAuth on-behalf-of (OBO)** with Microsoft Entra ID (corporate identity provider). | **Which human** called. The API then enforces that person's permissions; RLS restricts rows and the API restricts sensitive fields. |
 | The scheduled Network Health Reporter needs aggregate data without a human signing in. | **OAuth 2LO (client credentials)** with Microsoft Entra ID. | **Which application** called, with aggregate-only app permission. No human identity. |
 | David accesses data belonging to his account with an external vendor. | **OAuth 3LO (user authorization/consent)** with the vendor's separate OAuth provider. | **Which vendor user** authorized access and which alerts they may see. |
 | Oliver alone can call Platform Health, but the final REST API uses an AWS service identity. | **AWS IAM/SigV4** for the downstream call. | The **AgentCore Gateway execution role**, not Oliver. Tool authorization must check Oliver *before* that call. |
@@ -85,21 +85,21 @@ We cannot use one shared service account for everything: some systems must know 
 
 - **Authentication** establishes the identity of the user, application or AWS role.
 - **Authorization** decides which tool, operation, region, record or field that identity may access.
-- **OBO preserves user identity; it does not automatically grant all data.** The downstream Network API still enforces their rules.
-- **Cedar** is used for restricted AgentCore tool access. **PostgreSQL RLS** enforces appropriate row restrictions behind the enterprise APIs. Shared RAG does not require a special per-user Cedar restriction.
+- **OBO preserves user identity; it does not automatically grant all data.** The Network API still enforces each user's permissions.
+- **Cedar** (rules controlling which tools an agent may call) is used for restricted AgentCore tool access. **PostgreSQL RLS** enforces appropriate row restrictions behind the enterprise APIs. Shared RAG does not require a special per-user Cedar restriction.
 
 ### Two Gateway authentication boundaries
 
 We also agreed on two separate AgentCore entry paths:
 
-- **G1 — human Gateway:** inbound Microsoft Entra JWT for Sarah, James, Emma, David and Oliver.
+- **G1 — human Gateway:** inbound Microsoft Entra JWT (signed user access token) for Sarah, James, Emma, David and Oliver.
 - **G2 — machine Gateway:** inbound AWS IAM for the Network Health Reporter runtime.
 
 **Why two Gateways?** AgentCore Gateway lets you configure **only one inbound authentication type per Gateway**. G1 needs JWT for humans; G2 needs AWS IAM for the service runtime. **A single Gateway cannot use both inbound methods at once**, so the two-Gateway split is required for this design.
 
 This is **not** because the end systems use different authentication. **One Gateway can have multiple targets, each with its own outbound authentication** (such as OBO, 3LO or IAM).
 
-### Two ways to register REST APIs as MCP tools
+### Two ways to register REST APIs as MCP (agent) tools
 
 Both systems expose ordinary **REST APIs**. We deliberately register them with AgentCore Gateway in two different ways:
 
