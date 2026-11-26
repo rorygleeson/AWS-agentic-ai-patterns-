@@ -6,11 +6,11 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **Why these particular examples?** We chose them because each demonstrates a different access requirement:
 
-- **Shared knowledge (RAG):** Any human who successfully signs in to the AI chat app can search the same approved documents. **Why this approach?** The knowledge is intentionally shared; there are no user-specific documents to filter. We need app sign-in, not delegated access to each document.
-- **Network Operations API (OBO):** Sarah, James and Emma sign in to the AI app, but each has different rights. **Why OBO?** The final API must know **which person** is asking so it can enforce region and operation permissions—for example, James can see VIC diagnostics, not NSW.
-- **Network Health Reporter service account (OAuth Client Credentials):** A scheduled application requests aggregate network health without a person present. **Why this flow?** There is **no human user to represent**. The service authenticates as itself and receives aggregate-only permission.
-- **External NetworkMonitor service (OAuth Authorization Code):** David signs in to our AI app and separately authorizes access to his vendor account. **Why this flow?** The other company controls those accounts and must obtain **David's consent** before our agent can retrieve his permitted alerts. Our corporate sign-in is not enough.
-- **Platform Health API (IAM):** Oliver signs in to the AI app and is the only human authorized to use this tool. **Why IAM?** This downstream API trusts a **signed AWS role request**, not a person's OAuth token. We must authorize Oliver **before** Gateway calls it using its IAM role.
+- **Shared knowledge:** Anyone who successfully signs in to the AI chat app can search the same approved documents. **Why?** The documents are shared with all signed-in users, so we do not need to filter them by person.
+- **Network Operations API:** Sarah, James and Emma sign in, but have different permissions. **Why?** This API must know **which person** is requesting data. James, for example, can see VIC diagnostics but not NSW.
+- **Network Health Reporter service account:** This scheduled application requests an aggregate network-health report. **Why?** It runs without a human signing in, so it must use **its own application identity**, with access to the summary only.
+- **External NetworkMonitor service:** David signs in to our AI app, then separately authorizes access to his account at another company. **Why?** Our corporate sign-in does not grant access to the vendor's system. David must consent to sharing his permitted alerts.
+- **Platform Health API:** Oliver signs in to the AI app and is the only human allowed to use this tool. **Why?** The API accepts a request authenticated by an **AWS IAM role**, not Oliver's user token. We must check Oliver's permission **before** the Gateway uses that role.
 
 Together, they show why enterprise AI agents need different authentication and authorization patterns.
 
@@ -42,7 +42,7 @@ The application has **five human users** and **one non-human service account**.
 | **Emma** | Service Desk | **RAG, Network API** | Shared knowledge; **basic asset status in all regions**. No detailed diagnostics or sensitive fields. |
 | **David** | External Analyst | **RAG, NetworkMonitor** | Shared knowledge; **his own third-party alerts**, after separate vendor authorization. |
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
-| **Network Health Reporter** | **M2M Service Account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
+| **Network Health Reporter** | **Automated service account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
 
 ### Explicit restrictions
 
