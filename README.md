@@ -6,14 +6,14 @@ An enterprise GenAI proof of concept built around realistic **business users, th
 
 Before looking at AWS components, these are the systems the assistant must work with.
 
-| End system | What it contains or does |
-|---|---|
-| **Network Operations** | Network assets, status and fault diagnostics |
-| **Ticket Management** | Read tickets and create authorised follow-up tickets |
-| **Knowledge Repository** | Approved procedures and troubleshooting articles with citations |
-| **NetworkMonitor SaaS** | Vendor alerts available through a separately authorised account |
-| **Platform Health** | Operational health information about the platform |
-| **Network Health Summary** | Read-only, aggregated health reporting for automation |
+| End system | Type / example endpoint | Purpose |
+|---|---|---|
+| **Network Operations** | Protected **REST API** — `GET /assets/{id}`, `GET /assets/{id}/diagnostics` | Asset status and faults |
+| **Ticket Management** | Protected **REST API** — `GET /tickets/{id}`, `POST /tickets` | Read and create tickets |
+| **Knowledge Repository** | **RAG** — Bedrock Knowledge Base retrieval | Approved procedures with citations |
+| **NetworkMonitor SaaS** | Third-party **REST API** — `GET /alerts` | Separately authorised vendor alerts |
+| **Platform Health** | **REST API** — `get_platform_health` operation | Platform status for operations |
+| **Network Health Summary** | **REST API** — `GET /network/health-summary` | Read-only aggregate automation report |
 
 Network Operations and Ticket Management use a protected **PostgreSQL database** behind their REST APIs. The database is not exposed directly as an AI tool.
 
@@ -30,26 +30,21 @@ We use five named people and one automated service. Each has a specific business
 | **Oliver — Platform Operations** | Platform Health | No broader Network/Ticket privileges |
 | **Network Health Reporter — automation** | Network Health Summary | Aggregate read-only data; no human identity or writes |
 
-### User-to-system overview
+### Simple user-access diagram
+
+Each row shows one user or service and the systems they may access. It is a **business access map**, not the AWS technical architecture.
 
 ```mermaid
-flowchart TB
-  Emma["Emma · Service Desk"] -->|"Basic status"| Network["Network Operations"]
-  Emma --> Knowledge["Knowledge Repository"]
-  James["James · VIC Engineer"] -->|"VIC diagnostics"| Network
-  James -->|"VIC tickets"| Tickets["Ticket Management"]
-  James --> Knowledge
-  Sarah["Sarah · National Admin"] -->|"National diagnostics"| Network
-  Sarah -->|"National tickets"| Tickets
-  Sarah --> Knowledge
-  David["David · External Analyst"] -->|"Separate consent"| Vendor["NetworkMonitor SaaS"]
-  Oliver["Oliver · Platform Ops"] --> Platform["Platform Health"]
-  Reporter["Network Health Reporter"] -->|"Aggregate only"| Summary["Network Health Summary"]
-  Network --> RDS[("PostgreSQL")]
-  Tickets --> RDS
+flowchart LR
+  Emma["Emma · Service Desk"] --> E["Network REST API: basic status / Knowledge Base: RAG"]
+  James["James · VIC Engineer"] --> J["Network REST API: VIC diagnostics / Ticket REST API: VIC tickets"]
+  Sarah["Sarah · National Admin"] --> S["Network REST API: national diagnostics / Ticket REST API: national tickets"]
+  David["David · External Analyst"] --> D["NetworkMonitor REST API: vendor alerts"]
+  Oliver["Oliver · Platform Ops"] --> O["Platform Health REST API: health status"]
+  Reporter["Network Health Reporter"] --> R["Health Summary REST API: aggregate read"]
 ```
 
-These arrows describe **permitted business access**, not unrestricted direct connections. Identity, tool policies and each protected API must enforce the restrictions.
+James and Sarah can also use shared RAG procedures. Every connection is limited by the role, region and consent requirements in the table above. The protected Network and Ticket APIs enforce database access; users never connect directly to PostgreSQL.
 
 ## 3. Business use cases
 
