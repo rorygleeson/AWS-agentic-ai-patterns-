@@ -1,28 +1,23 @@
 # AWS Agentic AI Patterns
 
-A practical AWS proof of concept exploring how AI agents securely discover and invoke downstream APIs using Amazon Bedrock AgentCore.
+A practical, security-focused AWS proof of concept demonstrating how agents connect to enterprise systems while preserving identity and enforcing authorisation.
 
 ## Architecture
 
-**Web app → Amazon API Gateway → AgentCore Runtime (Strands + Bedrock) → AgentCore Gateway → MCP tools → Network REST API**
+**Interactive:** Web chat → Microsoft Entra ID → API Gateway → thin request adapter → AgentCore Runtime U (JWT) → AgentCore Gateway G1 (JWT/Cedar) → MCP tools → downstream services.
 
-The solution uses a fictional Network API with two operations: read service status and request a diagnostic.
+**Scheduled:** EventBridge Scheduler → IAM Lambda → AgentCore Runtime M (IAM) → AgentCore Gateway G2 (IAM) → read-only network health summary.
 
-Two AgentCore Gateways separate the service-identity and delegated-identity integration paths. Their selection and trade-offs are documented in [ADR-001](docs/architecture-decisions.md#adr-001--use-two-agentcore-gateways-for-separate-security-boundaries).
+Two Runtimes and two Gateways separate **human JWT** and **machine IAM** inbound authentication. Each Gateway target independently configures its downstream credentials (OBO, 3LO, 2LO or IAM). See [ADR-001](docs/architecture-decisions.md#adr-001--separate-human-jwt-and-automation-iam-gateways) for the decision rationale.
 
-| | Gateway 1 | Gateway 2 |
-|---|---|---|
-| API integration | Native API Gateway REST stage target | OpenAPI specification target |
-| Outbound authentication | IAM/SigV4 application identity | OAuth token exchange / OBO experiment |
-| Identity at the API | Gateway/service principal | Delegated end-user identity (to be verified) |
+The synthetic demonstration includes five named human roles (Sarah, James, Emma, David and Oliver), one Network Health Reporter service, a Knowledge Base, Network and Ticket APIs, an independent vendor API, a Platform Health API, and RDS PostgreSQL behind the internal APIs.
 
-Microsoft Entra ID supplies interactive (3LO) and machine-to-machine (2LO) identities. We test **User A: read + diagnostics**, **User B: read only**, and **machine client: read only**, with Cedar-based policy evaluation. The OAuth/OpenAPI path is intended to prove actual on-behalf-of (OBO) delegation; OAuth alone does not guarantee OBO.
+## Technical documentation
 
-## Architecture notes
-
-- [Two-Gateway design](docs/two-gateway-design.md)
-- [Identity and permissions](docs/identities-and-permissions.md)
+- [Architecture and Gateway mapping](docs/two-gateway-design.md)
+- [Users and permissions](docs/identities-and-permissions.md)
+- [Downstream systems and MCP tools](docs/tool-and-api-inventory.md)
 - [2LO, 3LO and OBO notes](docs/oauth-token-flows.md)
-- [API and tool inventory](docs/tool-and-api-inventory.md)
+- [Architecture decisions](docs/architecture-decisions.md)
 
-**Project status:** Design in progress. Features and identity propagation are not yet validated in a deployed environment.
+**Status:** Architecture design under reconciliation. No infrastructure has been deployed or identity flows proven yet.
