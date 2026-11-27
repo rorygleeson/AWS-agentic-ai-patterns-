@@ -60,7 +60,23 @@ The application has **five human users** and **one non-human service account**.
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
 | **Network Health Reporter** | **Automated service account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
 
-**Endpoint access at a glance:** Sarah and James can use **status, diagnostics and ticket read/create** (with their respective regional limits). Emma can use **basic status only**. The Network Health Reporter can use **health-summary only**. David and Oliver have **no Network Operations API access**.
+### Network API — which users can call which endpoint?
+
+**This is one REST API with five endpoints, but each endpoint has different access rules.** Signing into the AI chat app does **not** give everyone access to every endpoint.
+
+| Network API endpoint | Who can use it? | Who cannot? |
+|---|---|---|
+| `GET /assets/{id}/status` | **Sarah:** all regions, full permitted status. **James:** VIC only. **Emma:** all regions, basic fields only. | David, Oliver, Reporter |
+| `GET /assets/{id}/diagnostics` | **Sarah:** all regions. **James:** VIC only. | Emma, David, Oliver, Reporter |
+| `GET /tickets/{id}` | **Sarah:** all regions. **James:** VIC only. | Emma, David, Oliver, Reporter |
+| `POST /tickets` | **Sarah:** all regions. **James:** VIC only. Both require confirmation before creation. | Emma, David, Oliver, Reporter |
+| `GET /network/health-summary` | **Network Health Reporter service account only.** Returns aggregates, not individual assets. | Sarah, James, Emma, David, Oliver |
+
+**A simple example:** James can call the diagnostics endpoint for a **VIC** asset, but the **same endpoint** must deny him diagnostics for an **NSW** asset. Emma can call the **status** endpoint but cannot call **diagnostics** at all. The Reporter can call **health-summary** but cannot call the human endpoints.
+
+**How are these rules enforced?** Cedar decides which **agent tools** a signed-in human may invoke. The **Network API** independently verifies the correct OAuth token, permitted endpoint and caller's regional/field permissions; **PostgreSQL row-level security** adds protection over stored records. The service account uses an **app-only OAuth token**, not a human token. Details follow in the authentication-pattern sections.
+
+**David and Oliver have no access to any Network Operations API endpoint.** They use different end systems described above.
 
 ### Explicit restrictions
 
