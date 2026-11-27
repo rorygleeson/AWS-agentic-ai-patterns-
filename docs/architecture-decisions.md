@@ -254,7 +254,7 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 
 ## ADR — Enforce delegated scopes and app-only roles at different Network API methods
 
-- **Decision:** Configure a Network **REST API Lambda authorizer** to validate Entra JWT issuer and Network API audience (API Gateway's native JWT authorizer is for HTTP APIs). Require `status.read`, `diagnostics.read` and `tickets.write` delegated scopes on corresponding human methods. Do **not** require an `scp` scope on `GET /network/health-summary`; its Lambda instead requires the exact approved Entra v2 `azp` and application `roles` membership `HealthSummary.Read` and rejects delegated user tokens.
+- **Decision:** Configure the Network **REST API native JWT authorizer** to validate Entra JWT issuer and Network API audience, using AWS's documented REST JWT authorizer and method-specific scope settings. Require `status.read`, `diagnostics.read` and `tickets.write` delegated scopes on corresponding human methods. Do **not** require an `scp` scope on `GET /network/health-summary`; its Lambda instead requires the exact approved Entra v2 `azp` and application `roles` membership `HealthSummary.Read` and rejects delegated user tokens.
 - **Why:** A Client Credentials token has app roles, not delegated scopes. Signature/audience validation alone is insufficient to grant summary access.
 - **Decision:** In G1 Cedar, treat Entra `roles` arrays as serialized strings; match complete quoted role values and exact `azp`, rejecting missing claims.
 - **Why:** AgentCore principal tags are strings; approximate role matching could authorize the wrong principal.
