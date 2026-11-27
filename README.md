@@ -17,7 +17,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 | **1** | **Knowledge Base (RAG)** | Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases. | **All human users who successfully sign in to the AI chat app** can search the same approved knowledge. |
 | **2** | **Network Operations API** | Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and creates support tickets. | **Only authorized callers.** Human permissions depend on region and operation; the two approved automation identities have aggregate-only access. |
 | **3** | **NetworkMonitor** | Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts. | **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts. |
-| **4** | **Platform Health API** | Existing internal AWS API Gateway REST API, originally used by AWS workloads such as Lambda to read platform-health data. It uses IAM authentication rather than OAuth. | **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role. |
+| **4** | **Platform Health API** | Existing internal-use AWS API Gateway REST API, originally used by AWS workloads such as Lambda to read platform-health data. It uses IAM authentication rather than OAuth. **For the native AgentCore REST-stage target, the API has a public endpoint type but requires IAM/SigV4 authorization**; it is not an unauthenticated public API. | **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role. |
 
 ### Network Operations API — four endpoints
 
@@ -227,6 +227,8 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 - **Why can't we just send Oliver's token?** His Entra token is an **OAuth** token, while this existing API expects **IAM/SigV4**. The API doesn't know who Oliver is; it recognizes the **AWS role** signing the request. If everyone could invoke the agent's Platform Health tool, the same role could retrieve results for users who should not have access.
 - **What solves it?** Oliver signs in to our AI application. Before any API call, **G1 uses Cedar to check that Oliver is allowed to invoke the tool**. Only then does AgentCore Gateway use its **IAM service role** to sign the request to the native API Gateway REST-stage target. The Platform Health API validates the IAM signature and role permissions. Sarah, James, Emma and David are denied **at the tool boundary**, before Gateway can use that role for their request.
 
+**A public endpoint type does not mean anonymous access:** AWS's native AgentCore API Gateway REST-stage target currently requires a **public endpoint type** (not API Gateway's private endpoint type). Our Platform Health API still requires **AWS IAM authorization** for every exposed method. The API can have private integrations behind its front door. This constraint applies to the **native stage target**, not to every API Gateway API or OpenAPI target.
+
 **Why can't we simply reuse one of the earlier patterns?**
 
 - **OBO won't work for this final API.** OBO creates a delegated **OAuth** token identifying James or Oliver. Platform Health is deliberately **IAM-only**, so it expects a **SigV4-signed AWS request**, not that token.
@@ -312,7 +314,7 @@ Now change the person:
 - **Microsoft Entra ID** is our corporate identity system. It knows who employees are and which roles or groups have been assigned.
 - **An access token** is a digitally signed message from Entra that the application sends to an API. Think of it as **proof of identity and specific permissions**, intended for **one particular API**. The receiving API verifies it; it must not blindly trust it.
 - **An app role** is a label **we define**, such as `Network.Engineer`. We assign it to James in Entra. In **our design**, Cedar uses that verified label to decide whether James can use a diagnostics tool.
-- **An Entra group** is a list of members, such as `Network-VIC-Engineers`. Our Network API knows that membership in this group means **VIC records only**. Entra stores the membership; **our code defines and enforces what VIC-only means**.
+- **An Entra group** is a list of members, such as `Network-Engineers-VIC`. Our Network API knows that membership in this group means **VIC records only**. Entra stores the membership; **our code defines and enforces what VIC-only means**.
 - **An OAuth scope** is permission for a **client application to call a particular protected API operation on behalf of a user**. Our Network API defines `diagnostics.read`; Entra can issue that permission in the token the client requests for the Network API. **The scope does not make James a national administrator.**
 
 **Where do we set these up?** In **Entra**, we register the APIs, define app roles and OAuth scopes, assign roles and maintain groups. In **AWS**, we configure Cedar tool rules and write Network API checks for scopes, users, groups and data. **Neither Entra nor AWS magically knows our business rules. We configure them.**
@@ -361,9 +363,9 @@ These names are **our PoC's proposed Entra configuration**. We assign human app 
 
 | Caller | Chat API app role (`roles` in Token A) | Entra membership relevant to Network API | Effective access |
 |---|---|---|---|
-| **Sarah** | `Network.Admin` | `Network-All-Regions` | All-region status, diagnostics, ticket creation |
-| **James** | `Network.Engineer` | `Network-VIC-Engineers` | VIC status, diagnostics, ticket creation |
-| **Emma** | `Network.ServiceDesk` | `Network-Service-Desk` | Basic status in all regions; no diagnostics/ticket actions |
+| **Sarah** | `Network.Admin` | `Network-Admins` | All-region status, diagnostics, ticket creation |
+| **James** | `Network.Engineer` | `Network-Engineers-VIC` | VIC status, diagnostics, ticket creation |
+| **Emma** | `Network.ServiceDesk` | `Network-ServiceDesk` | Basic status in all regions; no diagnostics/ticket actions |
 | **David** | `Vendor.Analyst` | **No Network API entitlement** | Vendor tool only, after separate vendor OAuth |
 | **Oliver** | `Platform.Analyst` | **No Network API entitlement** | Platform Health tool only, after Cedar approval |
 | **AWS Network Health Reporter** | No human role; IAM into G2 | No user group | Its own `HealthSummary.Read` app permission on Network API |
@@ -452,9 +454,9 @@ For Emma, even a valid `diagnostics.read` scope **must not override** her Servic
 
 For example, James and Emma could both have `diagnostics.read` in their OBO tokens. API Gateway would accept the scope for both. **Lambda then permits James's VIC diagnostics and denies Emma's diagnostics** based on their different Entra group memberships. For an NSW asset, James is denied too.
 
-The group IDs are mapped to permissions in **our protected authorization configuration/entitlement data**. Entra does not configure these AWS API endpoint rules automatically. A missing or unverifiable group means **deny**, not default access.
+**Where do the group rules live?** Entra remains the source of truth for **group membership**. For the PoC, **Amazon RDS PostgreSQL is the source of truth for our group's business permissions**: a protected `group_entitlements` table maps each Entra **group object ID** to permitted operations and regions. Network API Lambda reads that mapping after verifying the caller's group membership. Entra does not configure AWS endpoint rules automatically. Missing/unverifiable membership or missing group entitlement means **deny**.
 
-**Does this mean hardcoding Sarah, James and Emma? No.** Lambda contains reusable checks such as “does this verified caller's group permit diagnostics for this asset's region?” The **group IDs and their associated permissions** are configuration/entitlement data, not if-statements naming individual employees. Moving James into a different approved group changes his effective rights without changing the Lambda code (subject to fresh token/entitlement data). A deny-by-default result applies if group membership is absent or cannot be verified.
+**Does this mean hardcoding Sarah, James and Emma? No.** Lambda contains reusable checks such as “does this verified caller's group permit diagnostics for this asset's region?” The **group ID → permission/region mappings** are protected records in the RDS `group_entitlements` table, not if-statements naming individual employees. Moving James into a different approved group changes his effective rights without changing the Lambda code (subject to fresh token/entitlement data). A deny-by-default result applies if group membership is absent or cannot be verified.
 
 **Other valid options — and why we did not select them:**
 
@@ -498,7 +500,7 @@ Imagine James asks our AI application: **“Show me diagnostics for asset 123.�
 
 1. **James signs in** using Microsoft Entra ID.
 2. **OBO obtains a new OAuth access token for the Network API**, still representing James. It is not a generic token for the AI agent.
-3. **The Network API validates the token** and identifies James using trusted token claims. It then verifies his `Network-VIC-Engineers` membership with Entra claims or an authorised identity lookup.
+3. **The Network API validates the token** and identifies James using trusted token claims. It then verifies his `Network-Engineers-VIC` membership with Entra claims or an authorised identity lookup.
 4. **The Network API establishes trusted database context for this request:** James may access **VIC** data, not NSW. It does not accept a region merely because the user or AI agent supplied it in a prompt.
 5. **PostgreSQL applies its RLS policy** to the database query using that verified context. It excludes any row outside James's permitted region.
 6. **The API returns only authorized data** to the agent, which uses it to answer James.
