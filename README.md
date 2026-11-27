@@ -186,9 +186,20 @@ This is **not** because the end systems use different authentication. **One Gate
 
 ### Two ways to connect REST APIs to AgentCore tools
 
-**Both are ordinary REST APIs.** A REST API **can** authenticate users with OAuth. The difference is how we **register the API as a target in AgentCore Gateway** and which outbound credentials that particular target type supports.
+**First, what is an AgentCore Gateway target?** A **target** is the Gateway's configuration for connecting an AI agent to a backend system. It tells Gateway **where the system is, which operations to expose as tools, and how Gateway authenticates when calling it**. A target is **not a new API or another running service**.
 
-**Model Context Protocol (MCP)** lets the agent discover and call tools. AgentCore Gateway converts those tool calls into requests to the REST endpoints.
+**Model Context Protocol (MCP)** is the standard interface the agent uses to discover and call those tools.
+
+Think of the terms this way:
+
+- **End system:** Our Network Operations REST API.
+- **Endpoint:** One operation on that API, such as `GET /assets/{id}/diagnostics`.
+- **AgentCore Gateway target:** The configured connection to that API, including its operation definitions and outbound authentication.
+- **MCP tool:** The action the agent sees and invokes, such as `get_diagnostics`. Gateway translates the tool call into the REST endpoint request.
+
+**One Gateway can contain several targets, and one target can expose several tools.** Our Network API has five endpoints; each is exposed as its own agent tool.
+
+**Both are ordinary REST APIs.** A REST API **can** authenticate users with OAuth. The difference is how we **register the API as a target in AgentCore Gateway** and which outbound credentials that particular target type supports.
 
 | | Native AWS API Gateway stage target | OpenAPI schema target |
 |---|---|---|
