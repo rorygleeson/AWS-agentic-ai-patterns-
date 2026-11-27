@@ -107,7 +107,7 @@ Outbound credential providers are configured **per target**, independently of th
 
 Gateway's Cedar decision protects **tool invocation**; the downstream API must separately check the OAuth token. **Cedar receives Entra JWT `roles` arrays as serialized principal-tag strings**, so policies must match **complete quoted role names** (and fail closed on missing claims), not approximate substrings. The Entra v2 `azp` claim identifies the client application and must match the actual approved client ID. For each request:
 
-1. Verify signature, issuer, audience, expiry; distinguish delegated `scp` from app `roles`. For the Network **REST API**, a Lambda authorizer (not the HTTP API-only native JWT authorizer) requires the appropriate `scp` scope on each **human** method, but no delegated scope on the app-only health-summary method; its backend Lambda also checks exact approved `azp` and `HealthSummary.Read` app role.
+1. Verify signature, issuer, audience, expiry; distinguish delegated `scp` from app `roles`. For the Network **REST API**, use its documented **native JWT authorizer** with the appropriate `scp` scope on each **human** method, but no delegated scope on the app-only health-summary method; the backend Lambda separately checks exact approved `azp` and `HealthSummary.Read` app role.
 2. Map immutable Entra `tid/oid` or service app ID to an internal entitlement record.
 3. Derive authorized regions and operations from server-side policy, not prompt arguments.
 4. Use parameterized SQL and a transaction-scoped, server-set PostgreSQL principal context.
