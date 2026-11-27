@@ -390,6 +390,35 @@ We define these **delegated OAuth scopes on the Network Operations API**. They a
 
 Also, **scopes describe what the calling client may request**, not exactly what each individual employee may see. Sarah, James and Emma may participate in the same delegated client/API setup; their own roles and network entitlements still limit the result. Tool access is checked by Cedar and must also be enforced at the Network API boundary.
 
+#### How one OAuth token leads to different access for different users
+
+**This is the most important distinction in the Network API design:** the OAuth token is evidence, **not a complete access-control decision**. Two people can present Network API tokens with the *same delegated scopes* and still have very different permissions.
+
+**1. We register the Network API in Entra ID.** The `enterprise-network-api` app registration exposes delegated scopes such as `status.read`, `diagnostics.read` and `tickets.write`. These scopes describe what an authorized **client application** can request *on a signed-in user's behalf*. They are **not AD security groups**, and granting a client a scope does not automatically grant every user the corresponding business operation.
+
+**2. We configure the Network API endpoints in AWS.** API Gateway checks the Entra-issued Network API token's signature, issuer, audience and required **method scope**. For example, the diagnostics endpoint requires `diagnostics.read`. If that scope is missing, the request is denied before the Network API backend runs.
+
+**3. We identify the actual person.** The token issued through OBO still represents James or Emma and contains immutable user identity claims such as `tid` and `oid`. The backend uses these verified identifiers to determine **that particular person's** permissions. It can use Entra group *object IDs* from the token where supplied, or an authorized group-membership lookup/entitlement table. An Entra group is **not automatically translated into an OAuth scope or an app role**; we explicitly configure that mapping in our application authorization logic.
+
+**4. We enforce the user's business rights.** The Network API Lambda applies the verified role, operation and regional rules. PostgreSQL RLS provides another barrier for regional records. The backend sets trusted database context derived from the authenticated identity; the AI agent or browser cannot choose its own privileged identity or region.
+
+**Concrete example — same scope, different outcome:**
+
+| Caller | Network API token | Requested operation | Final result |
+|---|---|---|---|
+| **James** | `scp: diagnostics.read` | VIC asset diagnostics | **Allowed** — engineer entitled to VIC |
+| **James** | `scp: diagnostics.read` | NSW asset diagnostics | **Denied** — correct scope, wrong region |
+| **Emma** | `scp: diagnostics.read` (if her client obtained it) | Any asset diagnostics | **Denied** — she has no diagnostics business entitlement |
+| **Emma** | `scp: status.read` | Basic asset status | **Allowed** — API returns basic fields only |
+
+For Emma, even a valid `diagnostics.read` scope **must not override** her Service Desk permissions. For James, a valid diagnostics scope **must not override** his VIC-only entitlement.
+
+**Where does Cedar fit?** Before the Network API call, G1 Cedar can deny Emma the diagnostics **agent tool** based on her assigned AI-application role. That is valuable early enforcement, but it is **not sufficient by itself**: the Network API repeats its own checks because it must remain secure if called through another authorized client. RLS restricts database rows; the API also controls which **fields** Emma receives.
+
+**Non-human exception:** The two approved automated callers do **not** represent James or Emma. Their Entra Client Credentials tokens have `roles: [HealthSummary.Read]` instead of delegated `scp`, and the Network API checks the specific application ID and role. They can request **only** `GET /network/health-summary`.
+
+**In one sentence:** **OAuth scope permits the client to request an API operation; verified user identity plus business entitlements decide what that person may actually do or see.**
+
 #### Exactly where authorization is enforced
 
 | Stage | What it checks | Example |
