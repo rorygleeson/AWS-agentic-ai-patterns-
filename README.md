@@ -68,7 +68,7 @@ The Network API enforces each caller's permissions. The agent never queries RDS 
 
 ## 2. Users and their access
 
-The PoC has **five human users and two service accounts (M2M)**. A **service account** is an application or automated workload that accesses another system **without a human signing in**. The term covers different technical identities, not one special AWS or Entra account type. Here, the AWS Reporter is a scheduled Lambda using an **AWS IAM role**, while the Entra Automation Client is an application using an **Entra service principal**. Both run without a human and may request only the aggregate Network API report.
+The PoC has **five human users and two service accounts (M2M)**. A **service account** is an application or automated workload that accesses another system **without a human signing in**. The term covers different technical identities, not one special AWS or Entra account type. The **AWS Service Account** runs a scheduled Network Health Reporter Lambda using an **AWS IAM role**. The **Entra Service Account** uses an **Entra service principal**. Both run without a human and may request only the aggregate Network API report.
 
 - **Sarah**
   - **Role:** National Admin
@@ -95,12 +95,12 @@ The PoC has **five human users and two service accounts (M2M)**. A **service acc
   - **Systems they can access:** **RAG, Platform Health API**
   - **Exact permissions:** Shared knowledge; **read-only platform-health information**.
 
-- **AWS Network Health Reporter (non-human AWS workload)**
+- **AWS Service Account (M2M)**
   - **Role:** **Scheduled Lambda using an AWS IAM role; no human signs in**
   - **Systems they can access:** **Network API**
   - **Exact permissions:** Aggregate health only; **IAM/SigV4 into G2**, then its own Entra OAuth application token to the API.
 
-- **Entra Automation Client (non-human service account)**
+- **Entra Service Account (M2M)**
   - **Role:** **Entra application/service principal; no human signs in**
   - **Systems they can access:** **Network API**
   - **Exact permissions:** Aggregate health only; **Entra Client Credentials JWT into G1**, then its own Network API OAuth application token.
@@ -117,8 +117,8 @@ The PoC has **five human users and two service accounts (M2M)**. A **service acc
 | **Emma — Service Desk** | `GET /assets/{id}/status` — **all regions, basic fields only** |
 | **David — External Analyst** | **None.** David uses the separate NetworkMonitor vendor service. |
 | **Oliver — Platform Analyst** | **None.** Oliver uses the separate Platform Health API. |
-| **AWS Network Health Reporter — IAM workload** | `GET /network/health-summary` — aggregate summary only |
-| **Entra Automation Client — OAuth service principal** | `GET /network/health-summary` — aggregate summary only |
+| **AWS Service Account — IAM workload** | `GET /network/health-summary` — aggregate summary only |
+| **Entra Service Account — OAuth service principal** | `GET /network/health-summary` — aggregate summary only |
 
 **Any endpoint not listed for that caller is denied.** In particular:
 
@@ -140,15 +140,15 @@ The PoC has **five human users and two service accounts (M2M)**. A **service acc
 | **Emma** | Detailed diagnostics, sensitive asset fields, ticket actions, NetworkMonitor and Platform Health API. |
 | **David** | Network API and Platform Health API. |
 | **Oliver** | Network API and NetworkMonitor. |
-| **AWS Network Health Reporter** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
-| **Entra Automation Client** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
+| **AWS Service Account** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
+| **Entra Service Account** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
 
 **Default rule:** A successful sign-in allows a human to use the AI chat app and shared RAG. Every other system requires its own authorization. If access is not explicitly listed above, it is denied. Ticket creation additionally requires explicit confirmation.
 
 
 ## Architecture overview
 
-The diagram shows the **whole PoC at a glance**. Employees use our AI chat app; the agent uses AgentCore to reach four downstream systems. Each system has a different authentication requirement. The AWS Reporter enters IAM-protected G2, while a separate Entra Automation Client enters JWT-protected G1. Neither involves a human.
+The diagram shows the **whole PoC at a glance**. Employees use our AI chat app; the agent uses AgentCore to reach four downstream systems. Each system has a different authentication requirement. The AWS Service Account enters IAM-protected G2, while a separate Entra Service Account enters JWT-protected G1. Neither involves a human.
 
 ![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview.svg)
 
@@ -178,7 +178,7 @@ Before following the examples, here are the AWS parts:
 | **AI chat application** | The web page where a person signs in and types a question. |
 | **Chat API and Lambda** | The application backend receiving that question and passing the authenticated request to the agent. |
 | **AgentCore Runtime** | Where our AI agent runs and decides which tool to request. |
-| **Amazon Bedrock AgentCore Gateway** | The controlled entry point for invoking agent tools. **G1** accepts Entra JWTs from signed-in humans **and the separately authorized Entra Automation Client**; **G2** accepts IAM/SigV4 from the AWS Reporter. |
+| **Amazon Bedrock AgentCore Gateway** | The controlled entry point for invoking agent tools. **G1** accepts Entra JWTs from signed-in humans **and the separately authorized Entra Service Account**; **G2** accepts IAM/SigV4 from the AWS Service Account. |
 | **MCP tool** | A named action the agent can invoke, such as `get_diagnostics` or `create_ticket`. |
 | **Gateway target** | Configuration connecting an MCP tool to an existing backend API. It is **not** another API or running service. |
 | **Cedar** | The policy language we use at Gateway to decide whether a caller may invoke a tool. It does not retrieve data or issue OAuth tokens. |
@@ -207,11 +207,11 @@ The **Network API** is the clearest example of why identity matters:
   - **Request:** NSW diagnostics
   - **Result:** ❌ Denied
 
-- **AWS Reporter — IAM into G2**
+- **AWS Service Account — IAM into G2**
   - **Request:** National aggregate health summary
   - **Result:** ✅ Allowed — aggregate only
 
-- **Entra Automation Client — JWT into G1**
+- **Entra Service Account — JWT into G1**
   - **Request:** National aggregate health summary
   - **Result:** ✅ Allowed — aggregate only
 
@@ -228,13 +228,13 @@ An application identity cannot replace an individual user. Some systems need to 
   - **Authentication approach:** **OAuth On-Behalf-Of (OBO)** with Microsoft Entra ID.
   - **What the downstream system knows:** The human caller. The API enforces permissions and sensitive fields; PostgreSQL RLS restricts database rows.
 
-- **AWS Reporter IAM workload:** Lambda/Runtime enters G2 via IAM/SigV4, without a human.**
+- **AWS Service Account IAM workload:** Lambda/Runtime enters G2 via IAM/SigV4, without a human.**
   - **Authentication approach:** **IAM inbound → Entra Client Credentials outbound** to Network API.
-  - **What the downstream system knows:** The Reporter's Entra app identity, summary-only.
+  - **What the downstream system knows:** The AWS Service Account's Entra app identity, summary-only.
 
-- **Entra Automation Client:** Another application enters G1 with a JWT, without a human.**
+- **Entra Service Account:** Another application enters G1 with a JWT, without a human.**
   - **Authentication approach:** **Entra Client Credentials JWT inbound → new Entra Client Credentials token outbound** to Network API.
-  - **What the downstream system knows:** The separate Automation Client Entra app identity, summary-only.
+  - **What the downstream system knows:** The separate Entra Service Account Entra app identity, summary-only.
 
 - **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account.**
   - **Authentication approach:** **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor OAuth sign-in/authorization, and the resulting vendor credential is bound to his authenticated session.
@@ -245,9 +245,9 @@ An application identity cannot replace an individual user. Some systems need to 
   - **What the downstream system knows:** The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation.
 
 
-### Five downstream access patterns and two machine entry methods
+### Five downstream access patterns and two service-account entry methods
 
-**Why five downstream patterns and two machine entry methods?** An **endpoint** is an action exposed by an API; a **pattern** is how a caller proves its identity and gets permission to perform that action. The same OBO pattern covers the three human Network API endpoints, while the fourth endpoint uses a service-account token. Our other patterns demonstrate shared RAG, an external vendor account and an existing IAM-protected API. **We are not creating a separate pattern for every endpoint.**
+**Why five downstream patterns and two service-account entry methods?** An **endpoint** is an action exposed by an API; a **pattern** is how a caller proves its identity and gets permission to perform that action. The same OBO pattern covers the three human Network API endpoints, while the fourth endpoint uses a service-account token. Our other patterns demonstrate shared RAG, an external vendor account and an existing IAM-protected API. **We are not creating a separate pattern for every endpoint.**
 
 The comparison table above is the quick reference. Here is the **reasoning behind each choice**, starting with what someone is trying to do.
 
@@ -280,18 +280,18 @@ The comparison table above is the quick reference. Here is the **reasoning behin
 
 All three use **human OBO**, not three new OAuth methods. The point of separate endpoints is to show that **one authenticated person does not automatically have permission for every operation**, and that a write can require tighter approval than a read.
 
-#### Pattern 3 — Non-human OAuth access through two different AgentCore ingress methods
+#### Pattern 3 — Service account (M2M) OAuth access through two different AgentCore ingress methods
 
-**Why does an enterprise need this?** Not every consumer of the Network Operations API is an employee asking a question. A scheduled Network Health Reporter generates an aggregate report automatically—for example, for an overnight operations briefing. The job runs in AWS and has an **IAM role**, but the existing Network API is protected by **Microsoft Entra OAuth**. That API is not configured to accept an AWS IAM signature.
+**Why does an enterprise need this?** Not every consumer of the Network Operations API is an employee asking a question. The AWS Service Account runs a scheduled Lambda that generates an aggregate report automatically—for example, for an overnight operations briefing. The job runs in AWS and has an **IAM role**, but the existing Network API is protected by **Microsoft Entra OAuth**. That API is not configured to accept an AWS IAM signature.
 
-- **What does the caller want?** The Reporter runs on a schedule and invokes **the same Network Operations API** used by people, but requests only `GET /network/health-summary`. It must never retrieve individual assets or tickets.
+- **What does the caller want?** The AWS Service Account runs on a schedule and invokes **the same Network Operations API** used by people, but requests only `GET /network/health-summary`. It must never retrieve individual assets or tickets.
 - **Why can't it use the human OBO pattern?** Nobody has signed in to the job. There is **no person's access token** to exchange, and inventing or borrowing a human identity would be wrong.
 - **Why isn't its AWS IAM role sufficient end to end?** IAM can authenticate the scheduled AWS workload when it invokes **machine Runtime M and Gateway G2**. But the **final Network API expects an Entra-issued OAuth access token**. IAM and Entra tokens are different credentials for different trust boundaries. The Network API must not start accepting an unrelated AWS role just to support this reporter.
-- **What solves it?** Register a dedicated **Network Health Reporter application identity** in Entra and grant it the application permission `HealthSummary.Read`. The Gateway's configured Entra OAuth credential provider uses **Client Credentials** to obtain an **app-only access token** for the Network API. The API validates the token's audience and application permission, recognises the Reporter application rather than any human, and permits **only** the aggregate endpoint. Its backend must still enforce that limitation.
+- **What solves it?** Register a dedicated **Entra app registration for the AWS Service Account's outbound OAuth access** and grant it the application permission `HealthSummary.Read`. The Gateway's configured Entra OAuth credential provider uses **Client Credentials** to obtain an **app-only access token** for the Network API. The API validates the token's audience and application permission, recognises the AWS Service Account application rather than any human, and permits **only** the aggregate endpoint. Its backend must still enforce that limitation.
 
 **Why a distinct pattern?** This is **machine-to-machine OAuth for an API that requires OAuth**, even though the caller runs on AWS. It differs from **OBO**, which carries a particular human's delegated identity; from **Shared RAG**, where the downstream AWS service accepts an IAM role; and from **Platform Health**, where the final REST API itself accepts IAM/SigV4. The two hops are intentional: **AWS IAM into G2; Entra OAuth Client Credentials out to Network Operations.**
 
-**Two non-human callers, not one identity described twice:** The **AWS Reporter** is an AWS Lambda/Runtime M workload that uses **IAM/SigV4 into G2**. The **Entra Automation Client** is a separate registered Entra service principal that obtains an **AI-backend-audience application JWT** using Client Credentials, invokes JWT-protected Runtime U and **G1**, and uses its own **Network-API-audience application token** for the summary. G1 must explicitly allow the machine's client ID and restrict its Cedar/tool authorization to **summary only**. Both caller identities are distinct, both lack a human, and neither uses OBO. **One token cannot be reused across the AI-backend and Network API audiences.**
+**Two service accounts (M2M), not one identity described twice:** The **AWS Service Account** is an AWS Lambda/Runtime M workload that uses **IAM/SigV4 into G2**. The **Entra Service Account** is a separate registered Entra service principal that obtains an **AI-backend-audience application JWT** using Client Credentials, invokes JWT-protected Runtime U and **G1**, and uses its own **Network-API-audience application token** for the summary. G1 must explicitly allow the machine's client ID and restrict its Cedar/tool authorization to **summary only**. Both caller identities are distinct, both lack a human, and neither uses OBO. **One token cannot be reused across the AI-backend and Network API audiences.**
 
 #### Pattern 4 — Independent authorization at an external vendor
 
@@ -316,7 +316,7 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 **Why can't we simply reuse one of the earlier patterns?**
 
 - **OBO won't work for this final API.** OBO creates a delegated **OAuth** token identifying James or Oliver. Platform Health is deliberately **IAM-only**, so it expects a **SigV4-signed AWS request**, not that token.
-- **The Reporter's Client Credentials pattern won't work for this final API either.** That pattern obtains an **OAuth application token** for the Network API. Platform Health does not accept OAuth tokens, and Oliver's request is initiated by a **human**, not a scheduled reporting service.
+- **The AWS Service Account's Client Credentials pattern won't work for this final API either.** That pattern obtains an **OAuth application token** for the Network API. Platform Health does not accept OAuth tokens, and Oliver's request is initiated by a **human**, not a scheduled reporting service.
 - **Shared RAG is the closest match, but it doesn't demonstrate the restriction we need.** Both RAG and Platform Health can use AWS service identity. In RAG, **every signed-in human** may retrieve shared documents. Here **only Oliver** may invoke the IAM-backed Platform Health tool. Because the downstream API sees Gateway's service role rather than Oliver, **Cedar must enforce Oliver's permission before the call**.
 
 **So why keep this example?** It demonstrates a real enterprise requirement the others do not show together: **a restricted human-triggered tool that calls an IAM-protected REST API using the AgentCore native API Gateway stage target**. This is an **authorization and integration pattern**, not a new authentication protocol.
@@ -450,12 +450,12 @@ The **Token A / Token B** comparison above shows the different audiences and per
 
 We also agreed on two separate AgentCore entry paths. **G1 is not a public alternative to our Chat API.** Runtime U reaches G1 over a **private AgentCore Gateway VPC endpoint (PrivateLink)**. G1's resource/organization policy restricts requests to the approved VPC endpoint (`aws:SourceVpce`), in addition to JWT validation and Cedar authorization; otherwise a caller could bypass the chat app by calling G1 directly with a token. G2 is restricted to Runtime M's AWS IAM role. The Runtime U ingress remains separately constrained to the trusted backend path and explicitly approved automation path.
 
-- **G1 — Entra JWT Gateway:** accepts five human users **and** the separate Entra Automation Client. Human access requires `chat.invoke` and the relevant assigned business role; the machine instead requires its assigned AI Backend **application role** `Automation.Summary.Invoke` and the exact approved client ID. Cedar distinguishes the two and grants the machine only its report tool.
-- **G2 — AWS IAM Gateway:** accepts IAM/SigV4 requests from the separate AWS Reporter Runtime M.
+- **G1 — Entra JWT Gateway:** accepts five human users **and** the separate Entra Service Account. Human access requires `chat.invoke` and the relevant assigned business role; the machine instead requires its assigned AI Backend **application role** `Automation.Summary.Invoke` and the exact approved client ID. Cedar distinguishes the two and grants the machine only its report tool.
+- **G2 — AWS IAM Gateway:** accepts IAM/SigV4 requests from the separate AWS Service Account Runtime M.
 
-**Why is GW2 necessary in *our chosen design*?** The Network Health Reporter is a scheduled AWS workload. Its Lambda and AgentCore Runtime use **AWS IAM roles**, and we deliberately want the Reporter to authenticate **into AgentCore Gateway using IAM/SigV4**—without pretending to be a human or obtaining an Entra JWT just to enter Gateway. G1 accepts **Entra OAuth JWTs**, from authorized humans and the separately registered Entra Automation Client. AgentCore Gateway has **one inbound authorizer type per Gateway**; therefore **these two chosen inbound methods cannot share a single Gateway**. GW2 is required *because we chose IAM inbound for this AWS workload*, not because all service accounts require their own Gateway.
+**Why is GW2 necessary in *our chosen design*?** The AWS Service Account is a scheduled AWS workload. Its Lambda and AgentCore Runtime use **AWS IAM roles**, and we deliberately want the AWS Service Account to authenticate **into AgentCore Gateway using IAM/SigV4**—without pretending to be a human or obtaining an Entra JWT just to enter Gateway. G1 accepts **Entra OAuth JWTs**, from authorized humans and the separately registered Entra Service Account. AgentCore Gateway has **one inbound authorizer type per Gateway**; therefore **these two chosen inbound methods cannot share a single Gateway**. GW2 is required *because we chose IAM inbound for this AWS workload*, not because all service accounts require their own Gateway.
 
-**The useful cross-boundary lesson:** Reporter Lambda / Runtime M → **GW2 (IAM/SigV4 inbound)** → a restricted health-summary OpenAPI target → **Network API (Entra OAuth Client Credentials outbound)** → RDS. The final Network API does not accept the Reporter's AWS role as an OAuth token. GW2 uses the Reporter's Entra application identity to obtain a separate Network API token; the API authorizes **health-summary only**.
+**The useful cross-boundary lesson:** AWS Service Account's Lambda / Runtime M → **GW2 (IAM/SigV4 inbound)** → a restricted health-summary OpenAPI target → **Network API (Entra OAuth Client Credentials outbound)** → RDS. The final Network API does not accept the AWS Service Account's AWS role as an OAuth token. GW2 uses the AWS Service Account's Entra application identity to obtain a separate Network API token; the API authorizes **health-summary only**.
 
 #### Exactly what we configure in AWS and Entra
 
@@ -482,13 +482,13 @@ We also agreed on two separate AgentCore entry paths. **G1 is not a public alter
 
 **GW2 does not convert an IAM signature into an OAuth token.** These are **two independent authentication steps**, each at a different boundary:
 
-1. **IAM into AgentCore:** EventBridge starts the AWS Reporter Lambda. Lambda invokes IAM-protected Runtime M using its execution role; **Runtime M uses its own authorized IAM execution role to sign its request to G2**. G2 checks the SigV4 caller identity. There is **no human Entra login or user OAuth token**.
+1. **IAM into AgentCore:** EventBridge starts the AWS Service Account Lambda. Lambda invokes IAM-protected Runtime M using its execution role; **Runtime M uses its own authorized IAM execution role to sign its request to G2**. G2 checks the SigV4 caller identity. There is **no human Entra login or user OAuth token**.
 2. **OAuth credential configured on the target:** G2 has a **health-summary OpenAPI target** configured with an **AgentCore Identity OAuth credential provider**, specifically the **Client Credentials** grant. That provider refers to the separate `network-health-reporter` Entra application registration.
 3. **Where the secret lives:** The Entra application has a **client ID** and **client secret**. AgentCore's credential-provider setup uses a secret protected in **AWS Secrets Manager** (it can also reference an existing secret). **Do not put the client secret in Lambda code, the agent prompt, or the MCP tool arguments.**
 4. **How a token is obtained:** When G2 invokes this target, **AgentCore Identity requests an access token from Microsoft Entra ID**, authenticating with those application credentials. Entra issues a **Network API-audience application token** containing the granted application permission, such as `HealthSummary.Read`. AgentCore Identity handles the OAuth token through its **encrypted token vault**.
 5. **OAuth into the enterprise API:** G2 sends that Entra bearer token to the **Network Operations API**. API Gateway validates the JWT, and the API checks the **application identity, audience and `HealthSummary.Read` role**. Only `GET /network/health-summary` is permitted. The API's Lambda retrieves aggregate data from RDS.
 
-- **Reporter Lambda IAM execution role**
+- **AWS Service Account's Lambda IAM execution role**
   - **Where it belongs:** AWS IAM
   - **What it is used for:** Invokes Runtime M; not a human OAuth identity
 
@@ -496,7 +496,7 @@ We also agreed on two separate AgentCore entry paths. **G1 is not a public alter
   - **Where it belongs:** AWS IAM
   - **What it is used for:** Signs the **inbound request to G2** with SigV4
 
-- **Reporter Entra client ID and client secret**
+- **AWS Service Account Entra client ID and client secret**
   - **Where it belongs:** Entra app registration; secret managed through **AWS Secrets Manager**
   - **What it is used for:** Obtains an application-only OAuth token
 
@@ -510,14 +510,14 @@ We also agreed on two separate AgentCore entry paths. **G1 is not a public alter
 
 - **`HealthSummary.Read` application permission**
   - **Where it belongs:** Defined/granted in **Entra**, enforced by the Network API
-  - **What it is used for:** Limits the Reporter to the aggregate report
+  - **What it is used for:** Limits the AWS Service Account to the aggregate report
 
 
-**The distinction from our Entra Automation Client:** That is an entirely **different application identity**. It first obtains an **Entra application JWT to enter G1**, then uses its **own separate outbound credential provider** to obtain a Network API token. It does **not** borrow the AWS Reporter's IAM role, client secret or access token. Both access the same final summary endpoint, but the Network API can identify which application called.
+**The distinction from our Entra Service Account:** That is an entirely **different application identity**. It first obtains an **Entra application JWT to enter G1**, then uses its **own separate outbound credential provider** to obtain a Network API token. It does **not** borrow the AWS Service Account's IAM role, client secret or access token. Both access the same final summary endpoint, but the Network API can identify which application called.
 
 **AWS references:** [AgentCore Gateway outbound authentication](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html), [OAuth credential providers and Secrets Manager references](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/resource-providers.html), and [AgentCore Identity token-vault encryption](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-data-encryption.html).
 
-**Could we remove GW2? Yes, but it would change what we demonstrate.** We could configure the Reporter to obtain an **Entra Client Credentials JWT for G1** and use one JWT-inbound Gateway. We explicitly retain GW2 to teach **AWS IAM inbound → enterprise OAuth outbound**. It is **not** needed just because downstream APIs use different authentication: **one AgentCore Gateway can contain multiple targets, each with its own outbound authentication**.
+**Could we remove GW2? Yes, but it would change what we demonstrate.** We could configure the AWS Service Account to obtain an **Entra Client Credentials JWT for G1** and use one JWT-inbound Gateway. We explicitly retain GW2 to teach **AWS IAM inbound → enterprise OAuth outbound**. It is **not** needed just because downstream APIs use different authentication: **one AgentCore Gateway can contain multiple targets, each with its own outbound authentication**.
 
 ### Two ways to connect REST APIs to AgentCore tools
 
@@ -535,8 +535,8 @@ Think of the terms this way:
 **One Gateway can contain several targets, and one target can expose several tools.** Our **one Network API** has four endpoints, but it is connected through **three Gateway target configurations**, because the human users and two service accounts have distinct outbound OAuth credentials:
 
 - **G1 human OpenAPI target:** Exposes **status, diagnostics and create-ticket** tools. Gateway uses **OBO** to call the Network API as the signed-in person.
-- **G1 Entra Automation OpenAPI target:** Exposes **health-summary only** for the verified Automation Client JWT. Gateway uses that application's **Client Credentials** for the Network API.
-- **G2 AWS Reporter OpenAPI target:** Exposes **health-summary only** for the authorized IAM Runtime M role. Gateway uses the Reporter's **separate Client Credentials** for the Network API.
+- **G1 Entra Automation OpenAPI target:** Exposes **health-summary only** for the verified Entra Service Account JWT. Gateway uses that application's **Client Credentials** for the Network API.
+- **G2 AWS Service Account OpenAPI target:** Exposes **health-summary only** for the authorized IAM Runtime M role. Gateway uses the AWS Service Account's **separate Client Credentials** for the Network API.
 
 **Three target configurations do not mean three copies of the API.** All three targets call the **same Network Operations REST API** and RDS database. We keep the human and two service-account targets separate; **Cedar/tool authorization denies** both service accounts from invoking human operations. Target registration alone does not guarantee per-caller tool discovery filtering.
 
@@ -573,7 +573,7 @@ These are our **core integration/authentication patterns**. Detailed session han
 
 ## Architecture at a glance
 
-This diagram shows how the chat app, AWS services and two AgentCore Gateways connect to the end systems. **G1 handles Entra JWT callers (humans and the Entra Automation Client); G2 handles the IAM-authenticated AWS Reporter.** The earlier tables explain who may use each connection.
+This diagram shows how the chat app, AWS services and two AgentCore Gateways connect to the end systems. **G1 handles Entra JWT callers (humans and the Entra Service Account); G2 handles the IAM-authenticated AWS Service Account.** The earlier tables explain who may use each connection.
 
 ![AWS AgentCore architecture with AWS service icons](docs/diagrams/aws-agentcore-architecture.svg)
 
@@ -740,7 +740,7 @@ A person signs in **once**, but each protected API expects a token intended for 
 5. Entra issues **Token B** for the Network API, **still identifying James** and containing the granted Network API delegated scope.
 6. AgentCore's **OpenAPI target** calls the Network REST endpoint with **Token B**; the Network API validates it and enforces James's business rights.
 
-**Who can participate?** Sarah, James and Emma are human users and can all be represented by OBO tokens **if the application setup and delegated permissions allow the exchange**. Group membership decides what they may **do afterward**. David and Oliver also have human identities, but we give them **no Network API authorization** in this PoC. The two automated callers have **no human user token**, so they use **Client Credentials**, not OBO.
+**Who can participate?** Sarah, James and Emma are human users and can all be represented by OBO tokens **if the application setup and delegated permissions allow the exchange**. Group membership decides what they may **do afterward**. David and Oliver also have human identities, but we give them **no Network API authorization** in this PoC. The two service accounts (M2M) have **no human user token**, so they use **Client Credentials**, not OBO.
 
 **Who does not request OBO?** Not the AD group; not API Gateway simply because it hosts the endpoint; not RDS. AgentCore Identity performs the configured exchange for the confidential middle tier.
 
@@ -816,8 +816,8 @@ G1's **Cedar** policies authorize **MCP tool invocation** from **Token A** ident
 - Emma's `Network.ServiceDesk` role permits the basic-status tool but **denies the diagnostics and ticket tools** before calling the API.
 - David's `Vendor.Analyst` role permits the vendor tool, but does **not** replace David's independent vendor OAuth authorization.
 - Oliver's `Platform.Analyst` role permits the Platform Health tool **before** Gateway uses its **shared AWS IAM role** to invoke the IAM-protected final API.
-- The Entra Automation Client's **application** role permits its **summary tool only**, never human tools.
-- G2 uses an **IAM-principal policy** for the AWS Reporter role and exposes **summary only**.
+- The Entra Service Account's **application** role permits its **summary tool only**, never human tools.
+- G2 uses an **IAM-principal policy** for the AWS Service Account role and exposes **summary only**.
 
 **Why Cedar is important for Oliver:** Platform Health validates an **AWS SigV4-signed service request** from Gateway. It does not receive Oliver's human OAuth token as its authenticated principal. Without an earlier trusted **human-specific authorization decision**, any person able to trigger that shared service role could potentially use the tool. We choose Cedar for that check.
 
@@ -825,26 +825,26 @@ G1's **Cedar** policies authorize **MCP tool invocation** from **Token A** ident
 
 **Exact claims matter:** For Entra v2 access tokens, the calling application ID is commonly `azp` (v1 `appid`). AgentCore JWT `allowedClients` checks a claim named **`client_id`**, which is **not automatically the same claim**. Our G1 Cedar policy checks the verified **`azp`** and required business/app role. Do **not** assume an AWS JWT allow-list of client IDs automatically maps to Entra's claim names. Entra JWT `roles` arrays are exposed to AgentCore Cedar through **string-valued tags**; policies must check complete role values and deny missing/wrong-type claims. We do **not** require human `chat.invoke` globally at G1, because the valid Entra app-only automation token does not have human delegated `scp`.
 
-#### 8. Non-human identities: Client Credentials, not OBO
+#### 8. Service accounts (M2M): Client Credentials, not OBO
 
-Our PoC has **two automated callers with different inbound authentication**, but both eventually use **Entra application permissions** for the same Network API summary endpoint.
+Our PoC has **two service accounts (M2M) with different inbound authentication**, but both eventually use **Entra application permissions** for the same Network API summary endpoint.
 
-- **AWS Network Health Reporter**
+- **AWS Service Account**
   - **AgentCore inbound identity:** Scheduled Lambda → IAM Runtime M → G2 **AWS_IAM/SigV4**
   - **Network API outbound credential:** AgentCore Identity OAuth **Client Credentials** for dedicated Entra app `network-health-reporter`
-  - **What the final API sees:** Reporter's Entra **application ID**, `HealthSummary.Read`, no human
+  - **What the final API sees:** AWS Service Account's Entra **application ID**, `HealthSummary.Read`, no human
 
-- **Entra Automation Client**
+- **Entra Service Account**
   - **AgentCore inbound identity:** Separate Entra service principal → application JWT → Runtime U → G1 **CUSTOM_JWT**
   - **Network API outbound credential:** Separate target's **Client Credentials** for `entra-automation-client`
-  - **What the final API sees:** Automation Client's own Entra **application ID**, `HealthSummary.Read`, no human
+  - **What the final API sees:** Entra Service Account's own Entra **application ID**, `HealthSummary.Read`, no human
 
 
 **No AD group or OBO is involved.** `HealthSummary.Read` is an Entra **application app role** defined on `enterprise-network-api` and granted separately to the two service principals. The Network API checks each application's verified client identity and its role—not just the signature of some Entra-issued JWT.
 
 **GW2 IAM inbound does not magically become OAuth outbound.** G2's Network API **OpenAPI target** has an independent **AgentCore Identity OAuth credential provider** configured as an Entra **Client Credentials client** (tenant/token endpoint, client ID, credential, Network API `/.default` resource scope). AgentCore Identity requests the **Network API-audience** app token. The confidential client secret is secured through **AWS Secrets Manager**; AgentCore Identity manages OAuth tokens through its encrypted **token vault**. The Gateway's IAM role is **not** the application secret, and neither is a human identity.
 
-**Why two gateways?** An AgentCore Gateway is configured with **one inbound authorizer type**. G1 accepts Entra JWTs; G2 accepts IAM/SigV4. We deliberately keep both to teach two **machine ingress** methods. A single G1 JWT Gateway could serve the Reporter if the Reporter instead obtained an Entra app-only JWT; G2 is a **chosen learning pattern**, not a universal requirement for service accounts. Each Gateway can have multiple targets with independent **outbound** authentication.
+**Why two gateways?** An AgentCore Gateway is configured with **one inbound authorizer type**. G1 accepts Entra JWTs; G2 accepts IAM/SigV4. We deliberately keep both to teach two **service-account ingress** methods. A single G1 JWT Gateway could serve the AWS Service Account if the AWS Service Account instead obtained an Entra app-only JWT; G2 is a **chosen learning pattern**, not a universal requirement for service accounts. Each Gateway can have multiple targets with independent **outbound** authentication.
 
 #### 9. FAQs — common IAM misunderstandings
 
@@ -859,7 +859,7 @@ Our PoC has **two automated callers with different inbound authentication**, but
 | **Why not use Token A for Network API?** | **Wrong audience.** Token B is issued specifically for Network API via OBO. |
 | **Does RLS read James's token?** | **No.** Lambda converts verified identity/entitlements into database context; RLS restricts rows. |
 | **Can Cedar alone protect the Network API?** | **No.** The final API must enforce its own rights, including when reached by another permitted client. |
-| **Can the AWS Reporter use OBO?** | **No human is signed in.** It uses Client Credentials. |
+| **Can the AWS Service Account use OBO?** | **No human is signed in.** It uses Client Credentials. |
 | **Can a valid scope still be denied?** | **Yes.** Emma's business rights or James's regional restriction can deny the operation. |
 
 **Sources:** [Microsoft OBO](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow) · [Entra app roles and AD groups](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps) · [Entra access token claims](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference) · [AWS AgentCore OBO](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/on-behalf-of-token-exchange.html) · [AWS Gateway outbound authentication](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html) · [API Gateway REST JWT authorizers](https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-jwt-authorizer.html).
