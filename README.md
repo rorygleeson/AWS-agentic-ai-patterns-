@@ -9,7 +9,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 **Why these particular examples?** We chose them because each demonstrates a different access requirement:
 
 - **Shared knowledge (RAG):** **What:** Our AI chat application retrieves approved documents from a retrieval-augmented generation (RAG) knowledge base to ground answers and reduce hallucinations. **Who:** Any human user who successfully signs in to **our AI chat application**. **Why:** Everyone uses the same approved knowledge, so no per-user document filtering is needed.
-- **Network Operations API:** **What:** Returns network asset status, diagnostics and support tickets from our enterprise database. **Who:** Signed-in users with different permissions. **Why:** The API must preserve **which person** called, because some users may read only basic status, while others may see detailed diagnostics for their permitted region.
+- **Network Operations API:** **What:** Returns network asset status and diagnostics from our enterprise database, and can create support tickets. **Who:** Signed-in users with different permissions. **Why:** The API must preserve **which person** called, because some users may read only basic status, while others may see detailed diagnostics for their permitted region.
 - **Automated network-health reporting:** **What:** A scheduled AWS workload requests an aggregate network-health report from the Network Operations API. **Who:** A non-human service account. **Why:** The workload uses IAM inside AWS, but this enterprise API accepts **Entra OAuth tokens**, not AWS IAM signatures. It therefore needs its **own Entra application token**, limited to summary-only access.
 - **External NetworkMonitor service:** **What:** Returns alerts from a different company's monitoring system. **Who:** An approved user who signs in to our AI chat application **and separately authorizes their vendor account**. **Why:** Our corporate sign-in cannot grant access to another company's user data.
 - **Platform Health API:** **What:** Returns synthetic health information from an existing internal AWS REST API. **Who:** Only an approved user of our AI chat application. **Why:** The API was built for **AWS services such as Lambda**, so it already accepts IAM-signed service requests rather than human OAuth tokens. Our AI agent must reuse that API **without changing its authentication**. Cedar therefore checks which people may use the tool before Gateway calls the API with its IAM role.
@@ -23,11 +23,11 @@ Together, they show why enterprise AI agents need different authentication and a
 | # | End system | Description | High-level access rule |
 |---|---|---|---|
 | **1** | **Knowledge Base (RAG)** | Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases. | **All human users who successfully sign in to the AI chat app** can search the same approved knowledge. |
-| **2** | **Network Operations API** | Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and reads/creates support tickets. | **Only authorized callers.** Human permissions depend on region and operation; the service account has aggregate-only access. |
+| **2** | **Network Operations API** | Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and creates support tickets. | **Only authorized callers.** Human permissions depend on region and operation; the service account has aggregate-only access. |
 | **3** | **NetworkMonitor** | Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts. | **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts. |
 | **4** | **Platform Health API** | Existing internal AWS API Gateway REST API, originally used by AWS workloads such as Lambda to read platform-health data. It uses IAM authentication rather than OAuth. | **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role. |
 
-### Network Operations API — five endpoints
+### Network Operations API — four endpoints
 
 These are the complete planned REST endpoints for our PoC. They all belong to **one Network Operations API** backed by RDS PostgreSQL:
 
@@ -35,7 +35,6 @@ These are the complete planned REST endpoints for our PoC. They all belong to **
 |---|---|---|
 | `GET /assets/{id}/status` | Basic network asset status | Signed-in users **granted Network API access**; basic fields only for limited roles |
 | `GET /assets/{id}/diagnostics` | Detailed fault and diagnostic information | Authorized engineers/admins; **permitted regions only** |
-| `GET /tickets/{id}` | Reads an existing support ticket | Authorized engineers/admins; **permitted regions only** |
 | `POST /tickets` | Creates a support ticket | Authorized engineers/admins; **permitted regions only**, with user confirmation |
 | `GET /network/health-summary` | Aggregate network-health summary | **Automated reporting service account only**; no individual asset details |
 
@@ -53,8 +52,8 @@ The application has **five human users** and **one non-human service account**.
 
 | User | Role | Systems they can access | Exact permissions |
 |---|---|---|---|
-| **Sarah** | National Admin | **RAG, Network API** | Shared knowledge; network status, diagnostics and ticket read/create in **all regions**. |
-| **James** | VIC Engineer | **RAG, Network API** | Shared knowledge; network status, diagnostics and ticket read/create for **VIC only**. |
+| **Sarah** | National Admin | **RAG, Network API** | Shared knowledge; network status, diagnostics and ticket creation in **all regions**. |
+| **James** | VIC Engineer | **RAG, Network API** | Shared knowledge; network status, diagnostics and ticket creation for **VIC only**. |
 | **Emma** | Service Desk | **RAG, Network API** | Shared knowledge; **basic asset status in all regions**. No detailed diagnostics or sensitive fields. |
 | **David** | External Analyst | **RAG, NetworkMonitor** | Shared knowledge; **his own third-party alerts**, after separate vendor authorization. |
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
@@ -62,12 +61,12 @@ The application has **five human users** and **one non-human service account**.
 
 ### Network API — exact endpoints for each caller
 
-**The Network Operations API has five endpoints, but no user can automatically call all five.** Here is the full list **by person**, so it is immediately clear what each one can—and cannot—do.
+**The Network Operations API has four endpoints, but no user can automatically call all four.** Here is the full list **by person**, so it is immediately clear what each one can—and cannot—do.
 
 | Caller | Exact Network API endpoints they are allowed to call |
 |---|---|
-| **Sarah — National Admin** | `GET /assets/{id}/status` — all regions, full permitted status<br>`GET /assets/{id}/diagnostics` — all regions<br>`GET /tickets/{id}` — all regions<br>`POST /tickets` — all regions, user confirmation required |
-| **James — VIC Engineer** | `GET /assets/{id}/status` — **VIC only**<br>`GET /assets/{id}/diagnostics` — **VIC only**<br>`GET /tickets/{id}` — **VIC only**<br>`POST /tickets` — **VIC only**, user confirmation required |
+| **Sarah — National Admin** | `GET /assets/{id}/status` — all regions, full permitted status<br>`GET /assets/{id}/diagnostics` — all regions<br>`POST /tickets` — all regions, user confirmation required |
+| **James — VIC Engineer** | `GET /assets/{id}/status` — **VIC only**<br>`GET /assets/{id}/diagnostics` — **VIC only**<br>`POST /tickets` — **VIC only**, user confirmation required |
 | **Emma — Service Desk** | `GET /assets/{id}/status` — **all regions, basic fields only** |
 | **David — External Analyst** | **None.** David uses the separate NetworkMonitor vendor service. |
 | **Oliver — Platform Analyst** | **None.** Oliver uses the separate Platform Health API. |
@@ -76,7 +75,7 @@ The application has **five human users** and **one non-human service account**.
 **Any endpoint not listed for that caller is denied.** In particular:
 
 - **Sarah and James cannot call** `GET /network/health-summary`; it is reserved for the automated Reporter.
-- **Emma cannot call** the diagnostics, ticket-read, ticket-create or summary endpoints—even though she is successfully signed into the AI application.
+- **Emma cannot call** the diagnostics, ticket-create or summary endpoints—even though she is successfully signed into the AI application.
 - **The Reporter cannot call** status, diagnostics or ticket endpoints. Its Entra **app-only token** permits the aggregate summary only.
 - **David and Oliver cannot call any Network Operations API endpoint.**
 
@@ -233,7 +232,7 @@ Now change the person:
 
 **Do app roles, groups and scopes automatically become each other? No.** A user can be in a group without having an app role; an app role does not automatically grant an OAuth scope; and a scope does not grant access to every record. We deliberately join those checks at the appropriate boundaries.
 
-The sections below show the **actual PoC names, the two access tokens, the five endpoints and exactly where each check occurs**. You can understand the example above without knowing what a JWT claim is; the claim details are included for readers implementing the design.
+The sections below show the **actual PoC names, the two access tokens, the four endpoints and exactly where each check occurs**. You can understand the example above without knowing what a JWT claim is; the claim details are included for readers implementing the design.
 
 #### The two protected APIs and their tokens
 
@@ -260,8 +259,8 @@ These names are **our PoC's proposed Entra configuration**. We assign human app 
 
 | Caller | Chat API app role (`roles` in Token A) | Entra membership relevant to Network API | Effective access |
 |---|---|---|---|
-| **Sarah** | `Network.Admin` | `Network-All-Regions` | All-region status, diagnostics, ticket read/create |
-| **James** | `Network.Engineer` | `Network-VIC-Engineers` | VIC status, diagnostics, ticket read/create |
+| **Sarah** | `Network.Admin` | `Network-All-Regions` | All-region status, diagnostics, ticket creation |
+| **James** | `Network.Engineer` | `Network-VIC-Engineers` | VIC status, diagnostics, ticket creation |
 | **Emma** | `Network.ServiceDesk` | `Network-Service-Desk` | Basic status in all regions; no diagnostics/ticket actions |
 | **David** | `Vendor.Analyst` | **No Network API entitlement** | Vendor tool only, after separate vendor OAuth |
 | **Oliver** | `Platform.Analyst` | **No Network API entitlement** | Platform Health tool only, after Cedar approval |
@@ -273,7 +272,7 @@ All five humans may use shared RAG after signing into our application. These rol
 
 **Why keep groups separate?** Regional membership is a different question from tool eligibility. For example, James may invoke a diagnostics tool, but his VIC membership still prevents NSW records from being returned.
 
-#### Which scopes protect the five Network API endpoints?
+#### Which scopes protect the four Network API endpoints?
 
 We define these **delegated OAuth scopes on the Network Operations API**. They are requested for human calls through OBO:
 
@@ -281,7 +280,6 @@ We define these **delegated OAuth scopes on the Network Operations API**. They a
 |---|---|---|
 | `GET /assets/{id}/status` | `status.read` | Region entitlement; return basic fields only for Emma |
 | `GET /assets/{id}/diagnostics` | `diagnostics.read` | Engineer/admin role and requested asset's region |
-| `GET /tickets/{id}` | `tickets.read` | Engineer/admin role and ticket's region |
 | `POST /tickets` | `tickets.write` | Engineer/admin role, region and explicit user confirmation |
 | `GET /network/health-summary` | **Not a user-delegated operation in this PoC** | Reporter application's **`HealthSummary.Read` application permission** only |
 
@@ -359,7 +357,7 @@ Think of the terms this way:
 - **AgentCore Gateway target:** The configured connection to that API, including its operation definitions and outbound authentication.
 - **MCP tool:** The action the agent sees and invokes, such as `get_diagnostics`. Gateway translates the tool call into the REST endpoint request.
 
-**One Gateway can contain several targets, and one target can expose several tools.** Our Network API has five endpoints; each is exposed as its own agent tool.
+**One Gateway can contain several targets, and one target can expose several tools.** Our Network API has four endpoints; each is exposed as its own agent tool.
 
 **Both are ordinary REST APIs.** A REST API **can** authenticate users with OAuth. The difference is how we **register the API as a target in AgentCore Gateway** and which outbound credentials that particular target type supports.
 
