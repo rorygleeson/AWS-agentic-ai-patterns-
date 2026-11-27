@@ -4,9 +4,9 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and seven callers to show when each pattern applies—and how to prevent unauthorized access.
 
-![Same AI, different access: five people and two automated services with distinct permissions for four downstream systems](docs/diagrams/agentcore-access-overview.jpg)
+![Same AI, different access: five people and two service accounts with distinct permissions for four downstream systems](docs/diagrams/agentcore-access-overview.jpg)
 
-*At a glance: five people and two automated services use the same AI platform but have different access to four systems. A tick means some access—not permission for every operation. The detailed AWS service diagram appears later.*
+*At a glance: five people and two service accounts (M2M) use the same AI platform but have different access to four systems. A tick means some access—not permission for every operation. The detailed AWS service diagram appears later.*
 
 **Why isn't one authentication pattern enough?** Because the end systems trust **different identities**: some need the signed-in person, some need an application identity, some require separate authorization from an external provider, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
 
@@ -24,7 +24,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 - **2. Network Operations API**
   - **Description:** Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and creates support tickets.
-  - **High-level access rule:** **Only authorized callers.** Human permissions depend on region and operation; the two approved automation identities have aggregate-only access.
+  - **High-level access rule:** **Only authorized callers.** Human permissions depend on region and operation; the two approved service accounts (M2M) have aggregate-only access.
 
 - **3. NetworkMonitor**
   - **Description:** Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts.
@@ -53,7 +53,7 @@ These are the complete planned REST endpoints for our PoC. They all belong to **
 
 - **`GET /network/health-summary`**
   - **What it returns or does:** Aggregate network-health summary
-  - **Access rule:** **Two approved automated identities only**; no individual asset details
+  - **Access rule:** **Two approved service accounts (M2M) only**; no individual asset details
 
 
 The Network API enforces each caller's permissions. The agent never queries RDS directly. We introduce the named people and their exact permissions next.
@@ -68,7 +68,7 @@ The Network API enforces each caller's permissions. The agent never queries RDS 
 
 ## 2. Users and their access
 
-The PoC has **five human users and two non-human service identities**. A **service account** is an identity used by an application or automated workload—not a person signing in. Here, the AWS Reporter is a scheduled Lambda using an **AWS IAM role**, while the Entra Automation Client is an application using an **Entra service principal**. Both run without a human and may request only the aggregate Network API report.
+The PoC has **five human users and two service accounts (M2M)**. A **service account** is an application or automated workload that accesses another system **without a human signing in**. The term covers different technical identities, not one special AWS or Entra account type. Here, the AWS Reporter is a scheduled Lambda using an **AWS IAM role**, while the Entra Automation Client is an application using an **Entra service principal**. Both run without a human and may request only the aggregate Network API report.
 
 - **Sarah**
   - **Role:** National Admin
@@ -122,9 +122,9 @@ The PoC has **five human users and two non-human service identities**. A **servi
 
 **Any endpoint not listed for that caller is denied.** In particular:
 
-- **Sarah and James cannot call** `GET /network/health-summary`; it is reserved for the two approved automation identities.
+- **Sarah and James cannot call** `GET /network/health-summary`; it is reserved for the two approved service accounts.
 - **Emma cannot call** the diagnostics, ticket-create or summary endpoints—even though she is successfully signed into the AI application.
-- **Neither automation identity can call** asset status, diagnostics or ticket endpoints. Each uses a **different app-only Network API token** with summary-only rights.
+- **Neither service account can call** asset status, diagnostics or ticket endpoints. Each uses a **different app-only Network API token** with summary-only rights.
 - **David and Oliver cannot call any Network Operations API endpoint.**
 
 **Same endpoint, different result:** James can call `GET /assets/{id}/diagnostics` for an asset in **VIC**, but the **identical endpoint** must deny an asset in **NSW**. Emma can call `GET /assets/{id}/status` nationally but sees **basic fields only**, not sensitive diagnostic details.
@@ -532,13 +532,13 @@ Think of the terms this way:
 - **AgentCore Gateway target:** The configured connection to that API, including its operation definitions and outbound authentication.
 - **MCP tool:** The action the agent sees and invokes, such as `get_diagnostics`. Gateway translates the tool call into the REST endpoint request.
 
-**One Gateway can contain several targets, and one target can expose several tools.** Our **one Network API** has four endpoints, but it is connected through **three Gateway target configurations**, because the human and two automated identities have distinct outbound OAuth credentials:
+**One Gateway can contain several targets, and one target can expose several tools.** Our **one Network API** has four endpoints, but it is connected through **three Gateway target configurations**, because the human users and two service accounts have distinct outbound OAuth credentials:
 
 - **G1 human OpenAPI target:** Exposes **status, diagnostics and create-ticket** tools. Gateway uses **OBO** to call the Network API as the signed-in person.
 - **G1 Entra Automation OpenAPI target:** Exposes **health-summary only** for the verified Automation Client JWT. Gateway uses that application's **Client Credentials** for the Network API.
 - **G2 AWS Reporter OpenAPI target:** Exposes **health-summary only** for the authorized IAM Runtime M role. Gateway uses the Reporter's **separate Client Credentials** for the Network API.
 
-**Three target configurations do not mean three copies of the API.** All three targets call the **same Network Operations REST API** and RDS database. We keep the human and two machine targets separate; **Cedar/tool authorization denies** both machine identities from invoking human operations. Target registration alone does not guarantee per-caller tool discovery filtering.
+**Three target configurations do not mean three copies of the API.** All three targets call the **same Network Operations REST API** and RDS database. We keep the human and two service-account targets separate; **Cedar/tool authorization denies** both service accounts from invoking human operations. Target registration alone does not guarantee per-caller tool discovery filtering.
 
 **Both are ordinary REST APIs.** A REST API **can** authenticate users with OAuth. The difference is how we **register the API as a target in AgentCore Gateway** and which outbound credentials that particular target type supports.
 
