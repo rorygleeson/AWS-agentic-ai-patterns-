@@ -1,7 +1,5 @@
 # Enterprise AI Agent — AWS AgentCore PoC
 
-**Status:** Documented architecture design; the PoC has not yet been deployed or validated end-to-end.
-
 Agentic AI introduces a difficult enterprise architecture challenge: **an agent may need to access several systems, but each system can authenticate callers differently and enforce different permissions**. Preserving a person's identity, allowing a service account to act independently, and obtaining third-party consent are not the same problem.
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and six callers to show when each pattern applies—and how to prevent unauthorized access.
