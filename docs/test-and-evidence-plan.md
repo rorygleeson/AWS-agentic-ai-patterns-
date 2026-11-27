@@ -46,8 +46,13 @@
 | T36 | AWS Reporter IAM identity | Attempt G1 invocation without a JWT | **Denied** | G1 JWT versus G2 IAM inbound |
 | T37 | Both automated callers | Request identical summary; inspect backend audit identities | Same aggregate only; two **different** app IDs and credentials | Two separate non-human callers |
 | T38 | Entra Automation Client | AI Backend token has valid signature/audience but **no** assigned `Automation.Summary.Invoke` app role | **Denied** from summary tool | Backend machine app-role enforcement, not signature alone |
-| T39 | Unapproved Entra service principal | Request AI Backend JWT and G1 summary with no approved client assignment | **Denied** at client/role authorization | G1 client allow-list and Cedar default-deny |
+| T39 | Unapproved Entra service principal | Obtain valid Entra v2 token with wrong `azp`, attempt G1 summary | **Denied** by exact `azp`/role Cedar checks | Do not mistake JWT `allowedClients`/`client_id` for Entra `azp` |
 | T40 | Human | Valid AI Backend JWT with missing `chat.invoke` delegated scope | **Denied** before human tool call | Chat API delegated-scope enforcement |
+| T41 | Unapproved caller | Direct call to G1 from outside approved Gateway VPC endpoint with an otherwise valid JWT | **Denied** by `aws:SourceVpce` restriction | Private Gateway boundary |
+| T42 | James | Direct ticket tool request without trusted backend-confirmation evidence | **Denied** by Network API | No model/client boolean can approve a write |
+| T43 | Reporter / Automation | App-only Network API token has `roles: HealthSummary.Read` but no `scp` | Summary **allowed** with approved `azp`; no human method allowed | Method-specific scope vs role |
+| T44 | User JWT | Delegated `scp` but no valid application `roles` for summary endpoint | Summary **denied** | App-only endpoint policy |
+| T45 | Entra v2 human or automation | Token has approved `azp` and expected roles but no `client_id` | Correctly evaluated by Cedar, not rejected by a false `allowedClients` mapping | Entra JWT claim compatibility |
 
 
 ## What evidence is required?
