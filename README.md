@@ -8,7 +8,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **Why these particular examples?** We chose them because each demonstrates a different access requirement:
 
-- **Shared knowledge (RAG):** Anyone who successfully signs in to the AI chat app can use **retrieval-augmented generation (RAG)** to search the same approved documents. **Why?** The documents are shared with all signed-in users, so we do not need to filter them by person.
+- **Shared knowledge (RAG):** Our AI chat application retrieves information from an approved **retrieval-augmented generation (RAG) knowledge base** to ground its answers and reduce hallucinations. **Who can access it?** Any human user who successfully signs in to **our AI chat application** can use the same shared knowledge base; we do not filter these documents by person.
 - **Network Operations API:** Sarah, James and Emma sign in, but have different permissions. **Why?** This API must know **which person** is requesting data. James, for example, can see VIC diagnostics but not NSW.
 - **Network Health Reporter service account:** This scheduled application requests an aggregate network-health report. **Why?** It runs without a human signing in, so it must use **its own application identity**, with access to the summary only.
 - **External NetworkMonitor service:** David signs in to our AI app, then separately authorizes access to his account at another company. **Why?** Our corporate sign-in does not grant access to the vendor's system. David must consent to sharing his permitted alerts.
