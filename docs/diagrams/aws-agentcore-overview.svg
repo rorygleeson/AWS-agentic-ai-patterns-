@@ -105,6 +105,7 @@
 <path d="M910 413 C943 413 943 594 979 594" class="arrow"/>
 <path d="M910 413 C943 413 943 805 979 805" class="arrow"/>
 <path d="M418 655 C464 655 460 480 520 480" class="arrow machine"/>
+<path d="M463 826 C501 826 483 420 520 420" class="arrow machine"/>
 <path d="M910 491 C958 491 958 426 979 426" class="arrow machine"/>
 <!-- People -->
 <rect x="42" y="285" width="163" height="162" rx="18" class="card"/>
@@ -127,16 +128,20 @@
 <rect x="547" y="314" width="340" height="57" rx="12" class="card"/>
 <text x="563" y="339" class="h">Runtime</text><text x="563" y="361" class="tiny">Runs the agent</text>
 <rect x="547" y="387" width="340" height="57" rx="12" class="card"/>
-<text x="563" y="412" class="h">Gateway G1</text><text x="716" y="412" class="note">Human JWT</text>
-<text x="563" y="434" class="tiny">MCP tools • optional Cedar policies</text>
+<text x="563" y="412" class="h">Gateway G1</text><text x="716" y="412" class="note">Entra JWT</text>
+<text x="563" y="434" class="tiny">Human + Entra app claims • Cedar</text>
 <rect x="547" y="459" width="340" height="63" rx="12" fill="#f5effe" stroke="#b8a1d8" stroke-width="1.8"/>
 <text x="563" y="486" class="h">Gateway G2</text><text x="717" y="486" class="note">IAM / SigV4</text>
 <text x="563" y="509" class="tiny">Reporter IAM in → Entra OAuth out</text>
-<!-- machine caller -->
+<!-- machine callers: separate AWS IAM and Entra application identities -->
 <rect x="254" y="601" width="210" height="103" rx="17" fill="#faf5ff" stroke="#c3a9df" stroke-width="2"/>
-<text x="359" y="636" class="h" text-anchor="middle">Reporter job</text>
-<text x="359" y="661" class="body" text-anchor="middle">No human login</text>
+<text x="359" y="636" class="h" text-anchor="middle">AWS Reporter</text>
+<text x="359" y="661" class="body" text-anchor="middle">Lambda workload</text>
 <text x="359" y="687" class="note" text-anchor="middle">IAM → G2</text>
+<rect x="254" y="760" width="210" height="110" rx="17" fill="#ecf4ff" stroke="#9dbddc" stroke-width="2"/>
+<text x="359" y="792" class="h" text-anchor="middle">Entra Automation</text>
+<text x="359" y="818" class="body" text-anchor="middle">Service principal</text>
+<text x="359" y="843" class="note" text-anchor="middle">OAuth JWT → G1</text>
 <!-- Four downstream systems: explicit service-to-service paths -->
 <rect x="980" y="112" width="571" height="143" rx="18" class="card"/>
 <use href="#icon_bedrock" x="1002" y="136" width="70" height="70"/>
@@ -176,6 +181,6 @@
 <rect x="1004" y="873" width="524" height="28" rx="12" class="pillgreen"/>
 <text x="1017" y="894" class="note">Gateway IAM role signs • Cedar checks user first</text>
 
-<text x="51" y="957" class="subtitle">Solid arrows: human tools via G1. Dashed purple: scheduled Reporter via G2.</text>
-<text x="51" y="989" class="tiny">API Gateway can support JWT or IAM; these are our per-API configurations. Only Network Lambda connects to RDS.</text>
+<text x="51" y="957" class="subtitle">Human JWT → G1; Entra app-only JWT → G1; AWS Reporter IAM/SigV4 → G2.</text>
+<text x="51" y="989" class="tiny">Both machine identities reach the same OAuth-protected Network API summary endpoint, with separate application credentials.</text>
 </svg>
