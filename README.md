@@ -177,40 +177,90 @@ The comparison table above is the quick reference. Here is the **reasoning behin
 - **OAuth Authorization Code:** A **person authorizes an application** to access an account, such as an external vendor account.
 - **AWS IAM:** An **AWS role** authenticates a request to an AWS-protected service.
 
-### How Entra protects the Chat API and Network API
+### How Entra roles, groups and OAuth scopes work together
 
-**First, what is the Chat API?** It is simply the AWS API Gateway endpoint our web chat calls when James sends a message: **`POST /ai/chat`**. That request goes through Lambda to AgentCore Runtime. It is **not another AI service**.
+**Three different things are involved, and they are not interchangeable:**
 
-Entra ID protects both this **Chat API** and the separate **Network Operations API**. We register them as protected APIs in Entra, alongside the browser client application. Entra issues a different access token for each:
+1. **App role — what kind of user or application is this?** We define roles for **our protected APIs** in Entra and assign them to the relevant people or service principals. A token for that API can contain a `roles` claim. Our Cedar or API rules decide what those roles permit; Entra does not automatically create our business rules.
+2. **Entra group — which data does this person belong to?** A group such as `Network-VIC-Engineers` records an employee's organisational membership. **Our Network API** maps verified group membership to VIC-only data access. A group is **not** automatically an OAuth scope or an app role.
+3. **OAuth scope — which operation may this calling application request on a user's behalf?** The Network API publishes delegated scopes such as `diagnostics.read`. An Entra **user-delegated** access token for that API contains granted scopes in `scp`. **A scope is not a regional entitlement:** having `diagnostics.read` alone does not let James see NSW records.
 
-| | Token A — Chat API (`POST /ai/chat`) | Token B — Network Operations API |
+**The simple distinction:** App role controls **which agent tools** a human is eligible to invoke; group membership controls **which records/regions** the Network API may return; OAuth scopes control **which downstream API operations** the delegated client is allowed to request. The API combines checks rather than trusting just one claim.
+
+#### The two protected APIs and their tokens
+
+**What is the Chat API?** It is the AWS API Gateway endpoint the browser calls when someone sends a message: `POST /ai/chat`. It forwards the request through Lambda to AgentCore Runtime. It is **not a second AI engine**.
+
+We register the **browser client**, **Chat API** and **Network Operations API** as separate Entra applications/resources for this design. A person signs in once; access tokens still have a **specific intended API (audience)**.
+
+| | Token A — Chat API | Token B — Network Operations API |
 |---|---|---|
-| **Issued by** | Microsoft Entra ID | Microsoft Entra ID, using OBO |
-| **Intended for (audience)** | Chat API | Network Operations API |
-| **Example permission** | James's `Network.Engineer` app role and `chat.invoke` scope | `diagnostics.read` delegated scope |
-| **Who enforces access?** | Chat API validates Token A; **Cedar (AgentCore tool-access policies)** restricts which tools James may use | **Network API** checks scope, identity and data entitlements; **PostgreSQL RLS** restricts rows |
+| **How obtained** | Browser requests an access token for `POST /ai/chat` | Trusted middle tier obtains a new token through **OBO** |
+| **Issued by** | Microsoft Entra ID | Microsoft Entra ID |
+| **Audience (`aud`)** | **Chat API** | **Network Operations API** |
+| **Example claims** | `scp: chat.invoke`; `roles: [Network.Engineer]` for James | `scp: diagnostics.read`; James's user identity |
+| **What it authorizes** | Chat API invocation and, after **Cedar** evaluation, eligible agent tools | The delegated caller's access to the **Network API**, subject to API business rules |
+| **Who checks it** | Chat API validates the token; AgentCore Gateway **G1/Cedar** evaluates its verified user claims | Network API validates this **different** token, then checks scope, identity, data entitlements and RLS |
 
-**The Network API must not accept Token A:** it was issued for a different API. OBO obtains Token B **without another sign-in** and still represents James. The two APIs enforce different rules, even though both tokens come from Entra.
+The examples show **claims we will configure**, not claims Entra automatically adds to every token. In particular, **OBO does not copy Token A's app roles or group claims into Token B**. The Network API must use claims issued **for it** or a trusted identity/entitlement lookup.
 
-**Simple rule:** Entra defines and assigns roles and issues tokens. **Our systems enforce what those roles, scopes and groups mean.**
+**Why not use Token A all the way through?** Its `aud` is the Chat API. The Network API must reject a token issued for another API. OBO gives the downstream API a correctly addressed token **still representing the same person**, without another interactive sign-in. [Microsoft's OBO specification](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow) requires the exchanged assertion to be intended for the confidential middle-tier application performing the exchange; our Entra registrations and AgentCore credential provider must be configured consistently with that requirement.
 
-For James, this is what we configure:
+#### Who gets which role and group?
 
-1. **In Entra ID:** Define the `Network.Engineer` **app role** on our Chat API app registration, then assign James that role in its Enterprise Application. Entra includes it in the access token issued for the Chat API.
-2. **In AgentCore/Cedar:** Define a rule that users with `Network.Engineer` may call the diagnostics tool. Entra does **not** create this rule for us.
-3. **In the Network API:** After OBO provides a new token for this API, validate its `diagnostics.read` scope and James's identity. Resolve and verify his `Network-VIC-Engineers` membership using trusted group object IDs from Entra token claims **or an authorized Microsoft Graph lookup** (including any group-overage case). Our API maps that group to VIC-only access. PostgreSQL RLS then restricts the actual rows.
+These names are **our PoC's proposed Entra configuration**. We assign human app roles **directly to the users** in the Chat API's Enterprise Application. We maintain group memberships independently. Only the Network API needs the network-region memberships.
 
-| Item | Plain-English purpose |
-|---|---|
-| **App role** (`Network.Engineer`) | **What kind of tools** James may use. Defined/assigned in Entra; enforced by our Cedar policy. |
-| **Entra group** (`Network-VIC-Engineers`) | **Which region's data** James may access. Membership is managed in Entra; the mapping and restriction are enforced by the Network API and database. |
-| **OAuth scope** (`diagnostics.read`) | **Which API operation** the client may request. Issued for and checked by the Network API. It is not permission to read every region. |
+| Caller | Chat API app role (`roles` in Token A) | Entra membership relevant to Network API | Effective access |
+|---|---|---|---|
+| **Sarah** | `Network.Admin` | `Network-All-Regions` | All-region status, diagnostics, ticket read/create |
+| **James** | `Network.Engineer` | `Network-VIC-Engineers` | VIC status, diagnostics, ticket read/create |
+| **Emma** | `Network.ServiceDesk` | `Network-Service-Desk` | Basic status in all regions; no diagnostics/ticket actions |
+| **David** | `Vendor.Analyst` | **No Network API entitlement** | Vendor tool only, after separate vendor OAuth |
+| **Oliver** | `Platform.Analyst` | **No Network API entitlement** | Platform Health tool only, after Cedar approval |
+| **Network Health Reporter** | **No human Chat API role or session** | **No user group** | App-only `HealthSummary.Read` permission on the **Network API** |
 
-**Example:** James asks for NSW diagnostics. He has the Engineer role and a diagnostics scope, but his group grants **VIC only**. The Network API denies the request; database RLS also prevents NSW rows being returned.
+All five humans may use shared RAG after signing into our application. These roles do **not** imply that David or Oliver can call Network API endpoints.
 
-**For our free Entra tenant:** We'll assign app roles **directly to test users**. We are **not** mapping groups automatically into app roles: group-to-enterprise-app role assignment requires Entra P1/P2. Each API must validate the claims intended for it; OBO does not automatically copy every claim from the original token. If group membership cannot be verified, deny access. The Network Health Reporter instead receives the application permission `HealthSummary.Read`, with no human user.
+**Why put the tool roles on the Chat API registration?** Token A is the verified user token that reaches human AgentCore Gateway **G1**. We want Cedar to evaluate a role claim present on **that token** before invoking a restricted MCP tool. Our actual Cedar rules grant the corresponding tools; simply defining an Entra role is not enough.
 
-Further reading: [Microsoft on app roles](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps) and [group-assignment licensing](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/assign-user-or-group-access-portal).
+**Why keep groups separate?** Regional membership is a different question from tool eligibility. For example, James may invoke a diagnostics tool, but his VIC membership still prevents NSW records from being returned.
+
+#### Which scopes protect the five Network API endpoints?
+
+We define these **delegated OAuth scopes on the Network Operations API**. They are requested for human calls through OBO:
+
+| Network API endpoint | Delegated scope required | Additional business check |
+|---|---|---|
+| `GET /assets/{id}/status` | `status.read` | Region entitlement; return basic fields only for Emma |
+| `GET /assets/{id}/diagnostics` | `diagnostics.read` | Engineer/admin role and requested asset's region |
+| `GET /tickets/{id}` | `tickets.read` | Engineer/admin role and ticket's region |
+| `POST /tickets` | `tickets.write` | Engineer/admin role, region and explicit user confirmation |
+| `GET /network/health-summary` | **Not a user-delegated operation in this PoC** | Reporter application's **`HealthSummary.Read` application permission** only |
+
+**Critical distinction:** The Reporter's `HealthSummary.Read` is an **application permission (app role)** issued in an **app-only** token's `roles` claim, **not** an `scp` delegated scope and **not** an Entra user group. A Client Credentials token represents the registered application, not a human. The API must explicitly distinguish application tokens from delegated user tokens and deny attempts to use the wrong permission type.
+
+Also, **scopes describe what the calling client may request**, not exactly what each individual employee may see. Sarah, James and Emma may participate in the same delegated client/API setup; their own roles and network entitlements still limit the result. Tool access is checked by Cedar and must also be enforced at the Network API boundary.
+
+#### Exactly where authorization is enforced
+
+| Stage | What it checks | Example |
+|---|---|---|
+| **1. Entra ID** | Authenticates person or app; issues the correct audience-specific token with granted scopes/assigned roles | James gets a Chat API token with `Network.Engineer` |
+| **2. Chat API / Lambda** | Validates the incoming access token's signature, issuer, audience, lifetime and required Chat API permission; preserves user context | Rejects a token not meant for `POST /ai/chat` |
+| **3. AgentCore Gateway G1 + Cedar** | Uses validated user claims/role to permit or deny **each MCP tool** | James may invoke diagnostics; Emma may not |
+| **4. Entra OBO** | Issues an appropriately scoped **Network API** token for the same signed-in person | Exchanges the correctly addressed Token A for Token B |
+| **5. Network Operations API** | Validates Token B and enforces operation scope, user/application identity, verified region entitlement, permitted fields and actions | Rejects James requesting an NSW diagnostic; limits Emma to basic status |
+| **6. RDS PostgreSQL** | Uses properly configured database privileges and **row-level security** as defence in depth | A query acting under James's verified VIC context cannot return NSW rows |
+
+**The database does not understand OAuth automatically.** The Network API validates the caller and sets trustworthy, request-scoped database context used by RLS policies. It must prevent callers from injecting another user's identity or region, and the database connection must not bypass RLS. For Emma, **field-level filtering is enforced by the API**; row-level security alone does not hide sensitive columns.
+
+**How group membership is verified:** The Network API may use configured Entra `groups` claims containing **group object IDs**, or perform an authorised Microsoft Graph membership lookup, including when a token signals group overage. It must not trust group names or region values supplied in a chat prompt. If membership cannot be verified, **deny**. [Microsoft guidance on groups and roles](https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles) explains the claims and overage behavior.
+
+**For our Entra free-tier PoC:** We plan to assign the human Chat API app roles directly to test users. We are **not** depending on group-based app-role assignment. Group membership is used separately for the region decisions inside our Network API. Exact token claims depend on configuring the relevant API registrations and optional claims, and must not be assumed to appear automatically.
+
+**Remember the three questions:** **Can this human use this tool?** (Cedar/app role) → **May this client call this API operation?** (delegated scope or app permission) → **May this caller see this particular record?** (verified entitlement + API rules + RLS).
+
+Further reading: [Microsoft app roles](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps), [delegated versus application permissions](https://learn.microsoft.com/en-us/troubleshoot/entra/entra-id/app-integration/application-delegated-permission-access-tokens-identity-platform), and [validate API token claims](https://learn.microsoft.com/en-us/entra/identity-platform/claims-validation).
 
 ### Why can't James use his first token for the Network API?
 
