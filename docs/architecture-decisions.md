@@ -73,8 +73,8 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-002
 
-- **Decision:** **Retain two AgentCore Gateways**: G1 `CUSTOM_JWT` for Entra-authenticated people; G2 `AWS_IAM` for the scheduled Network Health Reporter workload.
-- **Why:** We deliberately require **IAM/SigV4 inbound authentication** for the AWS Reporter Lambda/Runtime, whereas G1 requires **Entra JWT inbound** for humans. An AgentCore Gateway has one inbound `authorizerType`, so our chosen two inbound methods require separate gateways. GW2 then uses **Entra OAuth Client Credentials outbound** to the Network API's health-summary endpoint. This shows **AWS IAM inbound → enterprise OAuth outbound**, a boundary not covered by human OBO.
+- **Decision:** **Retain two AgentCore Gateways**: G1 `CUSTOM_JWT` for Entra-authenticated people **and the separate Entra Automation Client**; G2 `AWS_IAM` for the scheduled Network Health Reporter workload.
+- **Why:** We deliberately require **IAM/SigV4 inbound authentication** for the AWS Reporter Lambda/Runtime, whereas G1 requires **Entra JWT inbound** for people and the approved Entra Automation Client application. An AgentCore Gateway has one inbound `authorizerType`, so our chosen two inbound methods require separate gateways. GW2 then uses **Entra OAuth Client Credentials outbound** to the Network API's health-summary endpoint. This shows **AWS IAM inbound → enterprise OAuth outbound**, a boundary not covered by human OBO.
 - **Alternative considered:** let the Reporter obtain an Entra Client Credentials JWT to enter G1; technically possible and would remove GW2, but would **not** demonstrate IAM-inbound workload access. Another alternative, a single IAM-inbound Gateway, would lose the human JWT-inbound/Cedar identity pattern.
 - **Consequence:** two narrowly scoped gateway endpoints; G2 exposes only the report tool and does not duplicate human targets/policies. **This is a deliberate PoC learning objective, not a universal service-account requirement.**
 
@@ -111,10 +111,10 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-010
 
-- **Decision:** M2M uses Entra client credentials (2LO) and app-only `HealthSummary.Read`.
+- **Decision:** **Two distinct M2M callers** demonstrate different AgentCore ingress: AWS Reporter Lambda/Runtime enters G2 using IAM/SigV4; a **separate Entra Automation Client** enters G1 using an Entra Client Credentials JWT. Each obtains its own Network API-audience Client Credentials token with app-only `HealthSummary.Read`.
 - **Why:** No end user is involved.
 - **Alternative considered:** OBO, invalid without real user assertion.
-- **Consequence:** isolated M2M app registration and secret lifecycle.
+- **Consequence:** two separately registered, least-privileged non-human Entra applications, isolated Gateway target credentials and independent application identities in API logs. Both call the **same** existing summary endpoint; G1 Cedar must authorize the Automation Client only for that tool.
 
 ### ADR-011
 
@@ -230,7 +230,7 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 
 - **Decision:** Token A is issued for the `enterprise-ai-backend` Entra app registration. AgentCore's confidential Entra OBO credential provider uses **that same app's client ID** to request Token B for the separate `enterprise-network-api` audience.
 - **Why:** Microsoft OBO rejects a token whose audience belongs to a different application from the confidential client performing the exchange.
-- **Decision:** Keep one Network Operations backend REST API, but create **two separate OpenAPI Gateway targets**: G1 human OBO (status, diagnostics, ticket creation) and G2 Reporter Client Credentials (health-summary only).
+- **Decision:** Keep one Network Operations backend REST API, but create **three separate OpenAPI Gateway targets**: G1 human OBO (status, diagnostics, ticket creation), G1 Entra Automation Client Credentials (health-summary only), and G2 AWS Reporter Client Credentials (same health-summary endpoint, different app identity).
 - **Why:** The Gateway target's outbound credential configuration differs, while the underlying API is shared.
 - **Decision:** Use the native managed Knowledge Bases Gateway connector's actual `Retrieve` MCP tool (with its Gateway target prefix). “Search knowledge” is only the friendly use-case description.
 - **Consequence:** No additional end systems, authentication patterns or business endpoints.
