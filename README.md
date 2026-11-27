@@ -44,24 +44,27 @@ The application has **five human users** and **one non-human service account**.
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
 | **Network Health Reporter** | **Automated service account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
 
-### Where do these permissions come from?
+### Where do roles and permissions come from?
 
-**Entra groups, application roles and OAuth scopes do different jobs.** An API does not *own* an Entra group; it can check the authenticated user's group membership and apply its own rules.
+**Simple rule: Entra ID defines and assigns the role. Our systems decide what that role is allowed to do.**
 
-For this PoC we make their responsibilities explicit:
+For James, this is what we configure:
 
-| Control | Our example | Where it is enforced |
-|---|---|---|
-| **Application role** — what kind of tool the person may use | James: `Network.Engineer`; Emma: `Network.ServiceDesk` | Assigned directly to each test user in Entra; the role appears in the token issued for the AI backend. **AgentCore/Cedar** uses validated role claims to restrict tool calls. |
-| **Entra security group** — which data the person may see | James belongs to `Network-VIC-Engineers` | The **Network API** verifies James's membership using trusted Entra group IDs and maps it to a **VIC-only entitlement**. |
-| **OAuth scope** — which API operation the client can request | `diagnostics.read` in the Network API access token | The **Network API** checks the OBO token's audience and delegated scope; this **does not** automatically grant NSW access. |
-| **Database row-level security (RLS)** — which records may be returned | James can retrieve VIC rows, not NSW rows | **PostgreSQL**, using the trusted entitlement set by the Network API, not a region supplied by the user or agent. |
+1. **In Entra ID:** Define the `Network.Engineer` **app role** on our AI backend app registration, then assign James that role in its Enterprise Application. Entra includes it in the access token issued for that backend.
+2. **In AgentCore/Cedar:** Define a rule that users with `Network.Engineer` may call the diagnostics tool. Entra does **not** create this rule for us.
+3. **In the Network API:** After OBO provides a new token for this API, validate its `diagnostics.read` scope and James's identity. Check his verified Entra group `Network-VIC-Engineers`, which **our API maps to VIC-only access**. PostgreSQL RLS then restricts the actual rows.
 
-**Example — James asks for NSW diagnostics:** He is signed in, has the Engineer role and may have the `diagnostics.read` scope. But his Entra group maps to **VIC only**, so the Network API denies the NSW request and database RLS prevents NSW rows being returned.
+| Item | Plain-English purpose |
+|---|---|
+| **App role** (`Network.Engineer`) | **What kind of tools** James may use. Defined/assigned in Entra; enforced by our Cedar policy. |
+| **Entra group** (`Network-VIC-Engineers`) | **Which region's data** James may access. Membership is managed in Entra; the mapping and restriction are enforced by the Network API and database. |
+| **OAuth scope** (`diagnostics.read`) | **Which API operation** the client may request. Issued for and checked by the Network API. It is not permission to read every region. |
 
-**Our Entra Free PoC choice:** Assign application roles **directly to users**, and use security-group membership separately for regional entitlements. Assigning an Entra **group to an enterprise-app role** is another valid production approach, but requires Entra ID P1/P2. Group membership does **not** automatically become an app role or an OAuth scope. Configure and validate group claims for the Network API; if membership cannot be verified, **deny access**. The service account instead uses an **application role** (`HealthSummary.Read`) and has no human group membership.
+**Example:** James asks for NSW diagnostics. He has the Engineer role and a diagnostics scope, but his group grants **VIC only**. The Network API denies the request; database RLS also prevents NSW rows being returned.
 
-See [Microsoft's app-role guidance](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps) and [group-assignment licensing](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/assign-user-or-group-access-portal).
+**For our free Entra tenant:** We'll assign app roles **directly to test users**. We are **not** mapping groups automatically into app roles: group-to-enterprise-app role assignment requires Entra P1/P2. Each API must validate the claims intended for it; OBO does not automatically copy every claim from the original token. If group membership cannot be verified, deny access. The Network Health Reporter instead receives the application permission `HealthSummary.Read`, with no human user.
+
+Further reading: [Microsoft on app roles](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps) and [group-assignment licensing](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/assign-user-or-group-access-portal).
 
 ### Explicit restrictions
 
