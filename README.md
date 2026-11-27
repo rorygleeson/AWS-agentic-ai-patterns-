@@ -44,16 +44,18 @@ The application has **five human users** and **one non-human service account**.
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
 | **Network Health Reporter** | **Automated service account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
 
-### How Entra protects the AI app **and** the Network API
+### How Entra protects the Chat API and Network API
 
-**Entra ID is not just for signing in to the chat app.** We register **both protected APIs** in Entra, in addition to the browser client application. Entra issues a different access token for each protected API:
+**First, what is the Chat API?** It is simply the AWS API Gateway endpoint our web chat calls when James sends a message: **`POST /ai/chat`**. That request goes through Lambda to AgentCore Runtime. It is **not another AI service**.
 
-| | Token A — AI Backend API | Token B — Network Operations API |
+Entra ID protects both this **Chat API** and the separate **Network Operations API**. We register them as protected APIs in Entra, alongside the browser client application. Entra issues a different access token for each:
+
+| | Token A — Chat API (`POST /ai/chat`) | Token B — Network Operations API |
 |---|---|---|
 | **Issued by** | Microsoft Entra ID | Microsoft Entra ID, using OBO |
-| **Intended for (audience)** | Our AI backend | Our Network API |
+| **Intended for (audience)** | Chat API | Network Operations API |
 | **Example permission** | James's `Network.Engineer` app role and `chat.invoke` scope | `diagnostics.read` delegated scope |
-| **Who enforces access?** | AI backend and **Cedar** restrict which tools James may use | **Network API** checks scope, identity and data entitlements; **PostgreSQL RLS** restricts rows |
+| **Who enforces access?** | Chat API validates Token A; **Cedar** restricts which tools James may use | **Network API** checks scope, identity and data entitlements; **PostgreSQL RLS** restricts rows |
 
 **The Network API must not accept Token A:** it was issued for a different API. OBO obtains Token B **without another sign-in** and still represents James. The two APIs enforce different rules, even though both tokens come from Entra.
 
@@ -61,7 +63,7 @@ The application has **five human users** and **one non-human service account**.
 
 For James, this is what we configure:
 
-1. **In Entra ID:** Define the `Network.Engineer` **app role** on our AI backend app registration, then assign James that role in its Enterprise Application. Entra includes it in the access token issued for that backend.
+1. **In Entra ID:** Define the `Network.Engineer` **app role** on our Chat API app registration, then assign James that role in its Enterprise Application. Entra includes it in the access token issued for the Chat API.
 2. **In AgentCore/Cedar:** Define a rule that users with `Network.Engineer` may call the diagnostics tool. Entra does **not** create this rule for us.
 3. **In the Network API:** After OBO provides a new token for this API, validate its `diagnostics.read` scope and James's identity. Check his verified Entra group `Network-VIC-Engineers`, which **our API maps to VIC-only access**. PostgreSQL RLS then restricts the actual rows.
 
@@ -130,20 +132,20 @@ The same service account cannot replace every user. Some systems need to know **
 
 ### Why can't James use his first token for the Network API?
 
-James signs in **once** to our AI chat app. Entra ID gives the app an access token. James then asks: “Show me VIC diagnostics.”
+James signs in **once** to the web chat. The browser obtains **Token A for the Chat API (`POST /ai/chat`)**. James then asks: “Show me VIC diagnostics.”
 
-The Network API is a **different API**. His first token is meant for the AI app, **not** the Network API. The Network API should reject it. Otherwise, a token issued for one system could be reused to enter another.
+The Network API is a **different API**. His first token is meant for the **Chat API**, **not** the Network API. The Network API should reject it. Otherwise, a token issued for one system could be reused to enter another.
 
 **OBO (on-behalf-of) solves this without another sign-in:**
 
-1. The trusted AI backend asks Entra ID for a token **for the Network API**, on James's behalf.
+1. The trusted Chat API backend asks Entra ID for a token **for the Network API**, on James's behalf.
 2. Entra ID issues a **new token** that still identifies James, but is intended for the Network API.
 3. The Network API accepts that token only after validating it, then checks James's permissions: **VIC allowed, NSW denied**.
 
 | | First token | New OBO token |
 |---|---|---|
 | **Represents** | James | James |
-| **Intended for** | AI application | Network Operations API |
+| **Intended for** | Chat API (`POST /ai/chat`) | Network Operations API |
 | **Example permission** | `chat.invoke` | `diagnostics.read` |
 
 **Why this matters:** Each API should accept a token intended **for that API**, with the appropriate permissions. Microsoft recommends OBO when a middle-tier API calls another API on behalf of a signed-in user. See [Microsoft's guidance on APIs calling other APIs](https://learn.microsoft.com/en-us/security/zero-trust/develop/api-calls-api).
