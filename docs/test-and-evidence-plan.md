@@ -45,6 +45,9 @@
 | T35 | Entra Automation Client | Reuse its inbound AI JWT directly against Network API | **Denied** due to wrong audience | Separate JWTs for separate APIs |
 | T36 | AWS Reporter IAM identity | Attempt G1 invocation without a JWT | **Denied** | G1 JWT versus G2 IAM inbound |
 | T37 | Both automated callers | Request identical summary; inspect backend audit identities | Same aggregate only; two **different** app IDs and credentials | Two separate non-human callers |
+| T38 | Entra Automation Client | AI Backend token has valid signature/audience but **no** assigned `Automation.Summary.Invoke` app role | **Denied** from summary tool | Backend machine app-role enforcement, not signature alone |
+| T39 | Unapproved Entra service principal | Request AI Backend JWT and G1 summary with no approved client assignment | **Denied** at client/role authorization | G1 client allow-list and Cedar default-deny |
+| T40 | Human | Valid AI Backend JWT with missing `chat.invoke` delegated scope | **Denied** before human tool call | Chat API delegated-scope enforcement |
 
 
 ## What evidence is required?
