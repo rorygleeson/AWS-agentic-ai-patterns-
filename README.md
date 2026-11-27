@@ -432,13 +432,27 @@ For Emma, even a valid `diagnostics.read` scope **must not override** her Servic
 5. For automated callers, checks the approved Entra **application ID** and the `HealthSummary.Read` **app role**, then returns only aggregate health; those machines have no human AD groups.
 6. On ticket creation, checks the user's write entitlement, the asset's region and trusted user confirmation before committing a change.
 
-**Example group-to-permission mapping (our configuration, not an Entra default):**
+**Exactly which endpoint each Entra group can use (our PoC policy):**
 
-| Entra security group | Network API Lambda authorizes | Database scope |
-|---|---|---|
-| `Network-Admins` | Status, diagnostics, create ticket | All regions |
-| `Network-Engineers-VIC` | Status, diagnostics, create ticket | VIC only |
-| `Network-ServiceDesk` | Basic status only | All regions, basic fields only |
+| Network API endpoint | `Network-Admins` (Sarah) | `Network-Engineers-VIC` (James) | `Network-ServiceDesk` (Emma) |
+|---|---|---|---|
+| `GET /assets/{id}/status` | ✅ All regions | ✅ VIC only | ✅ All regions; **basic fields only** |
+| `GET /assets/{id}/diagnostics` | ✅ All regions | ✅ VIC only | ❌ Denied |
+| `POST /tickets` | ✅ All regions, after confirmation | ✅ VIC only, after confirmation | ❌ Denied |
+| `GET /network/health-summary` | ❌ Denied | ❌ Denied | ❌ Denied |
+
+**The health-summary endpoint belongs to a different caller type:** only the two approved **non-human service identities** may invoke it, using an Entra application token with the `HealthSummary.Read` role. Humans are denied, even if they have broad network-group membership.
+
+**What happens for every human endpoint request?**
+
+1. **API Gateway validates the Network API OAuth token** and the required delegated `scp` scope for the endpoint. This establishes a valid caller and permitted client operation; it does **not** decide the person's group rights.
+2. **Network API Lambda obtains the verified user identity and Entra group IDs**, then consults our group-to-endpoint/region permissions. It denies any operation the group does not permit.
+3. For an asset-specific endpoint, Lambda checks the **asset's real region** from trusted records—not just a `region=VIC` request parameter. On status responses it also enforces **basic-only fields** for Emma.
+4. **PostgreSQL RLS** independently limits rows using trusted context derived from that caller's entitlements. A permitted endpoint does **not** imply access to every asset.
+
+For example, James and Emma could both have `diagnostics.read` in their OBO tokens. API Gateway would accept the scope for both. **Lambda then permits James's VIC diagnostics and denies Emma's diagnostics** based on their different Entra group memberships. For an NSW asset, James is denied too.
+
+The group IDs are mapped to permissions in **our protected authorization configuration/entitlement data**. Entra does not configure these AWS API endpoint rules automatically. A missing or unverifiable group means **deny**, not default access.
 
 **Does this mean hardcoding Sarah, James and Emma? No.** Lambda contains reusable checks such as “does this verified caller's group permit diagnostics for this asset's region?” The **group IDs and their associated permissions** are configuration/entitlement data, not if-statements naming individual employees. Moving James into a different approved group changes his effective rights without changing the Lambda code (subject to fresh token/entitlement data). A deny-by-default result applies if group membership is absent or cannot be verified.
 
