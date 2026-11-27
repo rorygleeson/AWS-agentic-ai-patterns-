@@ -86,7 +86,7 @@ The same service account cannot replace every user. Some systems need to know **
 | **Network API:** Sarah, James and Emma have different region and action permissions. The API **must know which person** called. | **OAuth On-Behalf-Of (OBO)** with Microsoft Entra ID. | The human caller. The API enforces permissions and sensitive fields; PostgreSQL RLS restricts database rows. |
 | **Service account:** Network Health Reporter runs on a schedule with **no human to represent**. | **OAuth Client Credentials** with Microsoft Entra ID. | The application identity and its aggregate-only permission. |
 | **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). | Which vendor user authorized our application and what alerts they can access. |
-| **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it. | **IAM/SigV4:** AgentCore Gateway uses its role for the final API call. | The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation. |
+| **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it. | **IAM/SigV4 (AWS-signed service request):** AgentCore Gateway signs the final API call using its **service IAM role**, not Oliver's user credentials. | The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation. |
 
 ### Authentication terms in plain English
 
@@ -106,7 +106,7 @@ Entra ID protects both this **Chat API** and the separate **Network Operations A
 | **Issued by** | Microsoft Entra ID | Microsoft Entra ID, using OBO |
 | **Intended for (audience)** | Chat API | Network Operations API |
 | **Example permission** | James's `Network.Engineer` app role and `chat.invoke` scope | `diagnostics.read` delegated scope |
-| **Who enforces access?** | Chat API validates Token A; **Cedar** restricts which tools James may use | **Network API** checks scope, identity and data entitlements; **PostgreSQL RLS** restricts rows |
+| **Who enforces access?** | Chat API validates Token A; **Cedar (AgentCore tool-access policies)** restricts which tools James may use | **Network API** checks scope, identity and data entitlements; **PostgreSQL RLS** restricts rows |
 
 **The Network API must not accept Token A:** it was issued for a different API. OBO obtains Token B **without another sign-in** and still represents James. The two APIs enforce different rules, even though both tokens come from Entra.
 
@@ -168,6 +168,8 @@ This is **not** because the end systems use different authentication. **One Gate
 
 ### Two ways to register REST APIs as MCP (agent) tools
 
+**Model Context Protocol (MCP)** is a standard way for AI agents to discover and invoke tools. AgentCore Gateway presents our REST API operations as MCP tools.
+
 Both systems expose ordinary **REST APIs**. We deliberately register them with AgentCore Gateway in two different ways:
 
 | | Native API Gateway REST-stage target | OpenAPI-defined target |
@@ -177,7 +179,7 @@ Both systems expose ordinary **REST APIs**. We deliberately register them with A
 | **Outbound authentication** | IAM/SigV4 (or API key) | OAuth OBO for humans; OAuth Client Credentials for the service |
 | **Downstream identity** | Gateway's IAM role | Delegated human or application identity |
 
-**Why does Platform Health get its own pattern?** We intentionally chose a downstream API protected by **AWS IAM instead of OAuth**. The Network API needs the caller's identity to decide which records they may see. Platform Health needs only a trusted AWS role to read synthetic health data—provided the agent first verifies that **Oliver is allowed to use the tool**. It demonstrates the important distinction between **authorizing a human to invoke a tool** and **authenticating the tool's service identity at the final API**.
+**Why does Platform Health get its own pattern?** We intentionally chose a downstream API protected by **AWS IAM instead of OAuth**. In this example, **SigV4 means the Gateway signs the request with its AWS service role**, not Oliver's Entra credentials. The Network API needs the caller's identity to decide which records they may see. Platform Health needs only a trusted AWS role to read synthetic health data—provided the agent first verifies that **Oliver is allowed to use the tool**. It demonstrates the important distinction between **authorizing a human to invoke a tool** and **authenticating the tool's service identity at the final API**.
 
 **Why the difference?** It's a limitation of the **AgentCore target type**, not REST itself. The native AWS API Gateway stage target supports IAM and API-key outbound authentication **but not OAuth**. An **OpenAPI target supports OAuth** through AgentCore's separately configured outbound credential provider—even if the actual REST API is hosted on AWS API Gateway. **The OpenAPI file describes the API; it doesn't provide OAuth or run another service.**
 
