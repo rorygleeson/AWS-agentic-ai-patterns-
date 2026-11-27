@@ -60,23 +60,29 @@ The application has **five human users** and **one non-human service account**.
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
 | **Network Health Reporter** | **Automated service account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
 
-### Network API — which users can call which endpoint?
+### Network API — exact endpoints for each caller
 
-**This is one REST API with five endpoints, but each endpoint has different access rules.** Signing into the AI chat app does **not** give everyone access to every endpoint.
+**The Network Operations API has five endpoints, but no user can automatically call all five.** Here is the full list **by person**, so it is immediately clear what each one can—and cannot—do.
 
-| Network API endpoint | Who can use it? | Who cannot? |
-|---|---|---|
-| `GET /assets/{id}/status` | **Sarah:** all regions, full permitted status. **James:** VIC only. **Emma:** all regions, basic fields only. | David, Oliver, Reporter |
-| `GET /assets/{id}/diagnostics` | **Sarah:** all regions. **James:** VIC only. | Emma, David, Oliver, Reporter |
-| `GET /tickets/{id}` | **Sarah:** all regions. **James:** VIC only. | Emma, David, Oliver, Reporter |
-| `POST /tickets` | **Sarah:** all regions. **James:** VIC only. Both require confirmation before creation. | Emma, David, Oliver, Reporter |
-| `GET /network/health-summary` | **Network Health Reporter service account only.** Returns aggregates, not individual assets. | Sarah, James, Emma, David, Oliver |
+| Caller | Exact Network API endpoints they are allowed to call |
+|---|---|
+| **Sarah — National Admin** | `GET /assets/{id}/status` — all regions, full permitted status<br>`GET /assets/{id}/diagnostics` — all regions<br>`GET /tickets/{id}` — all regions<br>`POST /tickets` — all regions, user confirmation required |
+| **James — VIC Engineer** | `GET /assets/{id}/status` — **VIC only**<br>`GET /assets/{id}/diagnostics` — **VIC only**<br>`GET /tickets/{id}` — **VIC only**<br>`POST /tickets` — **VIC only**, user confirmation required |
+| **Emma — Service Desk** | `GET /assets/{id}/status` — **all regions, basic fields only** |
+| **David — External Analyst** | **None.** David uses the separate NetworkMonitor vendor service. |
+| **Oliver — Platform Analyst** | **None.** Oliver uses the separate Platform Health API. |
+| **Network Health Reporter — service account** | `GET /network/health-summary` — **aggregate summary only**; no individual assets, diagnostics or tickets |
 
-**A simple example:** James can call the diagnostics endpoint for a **VIC** asset, but the **same endpoint** must deny him diagnostics for an **NSW** asset. Emma can call the **status** endpoint but cannot call **diagnostics** at all. The Reporter can call **health-summary** but cannot call the human endpoints.
+**Any endpoint not listed for that caller is denied.** In particular:
 
-**How are these rules enforced?** Cedar decides which **agent tools** a signed-in human may invoke. The **Network API** independently verifies the correct OAuth token, permitted endpoint and caller's regional/field permissions; **PostgreSQL row-level security** adds protection over stored records. The service account uses an **app-only OAuth token**, not a human token. Details follow in the authentication-pattern sections.
+- **Sarah and James cannot call** `GET /network/health-summary`; it is reserved for the automated Reporter.
+- **Emma cannot call** the diagnostics, ticket-read, ticket-create or summary endpoints—even though she is successfully signed into the AI application.
+- **The Reporter cannot call** status, diagnostics or ticket endpoints. Its Entra **app-only token** permits the aggregate summary only.
+- **David and Oliver cannot call any Network Operations API endpoint.**
 
-**David and Oliver have no access to any Network Operations API endpoint.** They use different end systems described above.
+**Same endpoint, different result:** James can call `GET /assets/{id}/diagnostics` for an asset in **VIC**, but the **identical endpoint** must deny an asset in **NSW**. Emma can call `GET /assets/{id}/status` nationally but sees **basic fields only**, not sensitive diagnostic details.
+
+**Where are these permissions enforced?** Cedar checks whether a signed-in human may invoke the corresponding **agent tool**. The **Network API** then checks its OAuth token, endpoint permission and verified region/field entitlement; **PostgreSQL RLS** protects the underlying rows. A successful chat sign-in is never sufficient by itself.
 
 ### Explicit restrictions
 
