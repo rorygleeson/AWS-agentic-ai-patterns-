@@ -46,29 +46,7 @@ The Network API enforces each caller's permissions. The agent never queries RDS 
 - Is accessed **only through the Network Operations API**, never directly by the AI agent.
 - Uses database permissions and **row-level security (RLS)** to restrict which rows a caller can see or change.
 
-#### How does RLS know which signed-in user's data to return?
-
-**RLS does not read an OAuth token. The Network API connects the user's OAuth identity to the database rules.**
-
-Imagine James asks our AI application: **“Show me diagnostics for asset 123.”** That asset is in NSW, but James is a VIC engineer.
-
-1. **James signs in** using Microsoft Entra ID.
-2. **OBO obtains a new OAuth access token for the Network API**, still representing James. It is not a generic token for the AI agent.
-3. **The Network API validates the token** and identifies James using trusted token claims. It then verifies his `Network-VIC-Engineers` membership with Entra claims or an authorised identity lookup.
-4. **The Network API establishes trusted database context for this request:** James may access **VIC** data, not NSW. It does not accept a region merely because the user or AI agent supplied it in a prompt.
-5. **PostgreSQL applies its RLS policy** to the database query using that verified context. It excludes any row outside James's permitted region.
-6. **The API returns only authorized data** to the agent, which uses it to answer James.
-
-| Caller | Verified access from Entra and API rules | What RLS allows |
-|---|---|---|
-| **Sarah** | National Admin, all-region entitlement | Rows in all permitted regions |
-| **James** | Engineer, VIC-only entitlement | **VIC rows only** |
-| **Emma** | Service Desk, nationwide basic status | Status rows nationally; **the API** removes sensitive fields |
-| **Network Health Reporter** | Application-only permission for the aggregate endpoint | Only the approved summary operation; it does not gain human row access |
-
-**The crucial distinction:** OAuth/OBO tells the Network API **who is calling**. Verified Entra groups and our API rules determine **which data that caller may access**. The API conveys that trusted restriction to PostgreSQL, and **RLS enforces it against actual database rows**.
-
-This is a deliberate additional security boundary. An AI agent asking for NSW data cannot override James's VIC entitlement. **RLS filters rows, not individual columns**: Emma's basic-only response is also restricted by the Network API. The database context must be isolated for each request, and the API's database role must not bypass RLS.
+**How does RLS know the user's permissions?** PostgreSQL does **not** read OAuth tokens. The Network API verifies the caller and passes trusted access restrictions to the database. We explain the full James example in [How OAuth connects to PostgreSQL RLS](#how-oauth-connects-to-postgresql-rls).
 
 ## 2. Users and their access
 
@@ -126,6 +104,29 @@ The application has **five human users** and **one non-human service account**.
 The access rules above lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** One system can use more than one pattern: the **Network Operations API** uses OBO for Sarah, James and Emma, but **OAuth Client Credentials** for the Network Health Reporter service account.
 
 The examples below show why **the identity reaching the end system matters**.
+
+### Authentication terms in plain English
+
+- **OAuth OBO (On-Behalf-Of):** The backend obtains a new API-specific token **representing the signed-in user**.
+- **OAuth Client Credentials:** An **application** gets a token for itself, without a human.
+- **OAuth Authorization Code:** A **person authorizes an application** to access an account, such as an external vendor account.
+- **AWS IAM:** An **AWS role** authenticates a request to an AWS-protected service.
+
+### AgentCore components in everyday language
+
+Before following the examples, here are the AWS parts:
+
+| Term | Meaning in this PoC |
+|---|---|
+| **AI chat application** | The web page where a person signs in and types a question. |
+| **Chat API and Lambda** | The application backend receiving that question and passing the authenticated request to the agent. |
+| **AgentCore Runtime** | Where our AI agent runs and decides which tool to request. |
+| **AgentCore Gateway** | The controlled entry point for invoking agent tools. **G1** serves signed-in humans using Entra tokens; **G2** serves the automated Reporter using AWS IAM. |
+| **MCP tool** | A named action the agent can invoke, such as `get_diagnostics` or `create_ticket`. |
+| **Gateway target** | Configuration connecting an MCP tool to an existing backend API. It is **not** another API or running service. |
+| **Cedar** | The policy language we use at Gateway to decide whether a caller may invoke a tool. It does not retrieve data or issue OAuth tokens. |
+
+The journey is straightforward: **a caller asks → the agent selects a tool → Gateway checks and invokes it → the final system checks access and returns the result**. Different patterns change which identity the final system receives.
 
 ### One API, different permissions
 
@@ -224,13 +225,6 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 **So why keep this example?** It demonstrates a real enterprise requirement the others do not show together: **a restricted human-triggered tool that calls an IAM-protected REST API using the AgentCore native API Gateway stage target**. This is an **authorization and integration pattern**, not a new authentication protocol.
 
 **The rule to remember:** **Cedar authorizes the human; IAM authenticates the service.**
-
-### Authentication terms in plain English
-
-- **OAuth OBO (On-Behalf-Of):** The backend obtains a new API-specific token **representing the signed-in user**.
-- **OAuth Client Credentials:** An **application** gets a token for itself, without a human.
-- **OAuth Authorization Code:** A **person authorizes an application** to access an account, such as an external vendor account.
-- **AWS IAM:** An **AWS role** authenticates a request to an AWS-protected service.
 
 ### Why use Cedar if we already have OAuth?
 
@@ -384,6 +378,30 @@ Also, **scopes describe what the calling client may request**, not exactly what 
 **Remember the three questions:** **Can this human use this tool?** (Cedar/app role) → **May this client call this API operation?** (delegated scope or app permission) → **May this caller see this particular record?** (verified entitlement + API rules + RLS).
 
 Further reading: [Microsoft app roles](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps), [delegated versus application permissions](https://learn.microsoft.com/en-us/troubleshoot/entra/entra-id/app-integration/application-delegated-permission-access-tokens-identity-platform), and [validate API token claims](https://learn.microsoft.com/en-us/entra/identity-platform/claims-validation).
+
+### How OAuth connects to PostgreSQL RLS
+
+**RLS does not read an OAuth token. The Network API connects the user's OAuth identity to the database rules.**
+
+Imagine James asks our AI application: **“Show me diagnostics for asset 123.”** That asset is in NSW, but James is a VIC engineer.
+
+1. **James signs in** using Microsoft Entra ID.
+2. **OBO obtains a new OAuth access token for the Network API**, still representing James. It is not a generic token for the AI agent.
+3. **The Network API validates the token** and identifies James using trusted token claims. It then verifies his `Network-VIC-Engineers` membership with Entra claims or an authorised identity lookup.
+4. **The Network API establishes trusted database context for this request:** James may access **VIC** data, not NSW. It does not accept a region merely because the user or AI agent supplied it in a prompt.
+5. **PostgreSQL applies its RLS policy** to the database query using that verified context. It excludes any row outside James's permitted region.
+6. **The API returns only authorized data** to the agent, which uses it to answer James.
+
+| Caller | Verified access from Entra and API rules | What RLS allows |
+|---|---|---|
+| **Sarah** | National Admin, all-region entitlement | Rows in all permitted regions |
+| **James** | Engineer, VIC-only entitlement | **VIC rows only** |
+| **Emma** | Service Desk, nationwide basic status | Status rows nationally; **the API** removes sensitive fields |
+| **Network Health Reporter** | Application-only permission for the aggregate endpoint | Only the approved summary operation; it does not gain human row access |
+
+**The crucial distinction:** OAuth/OBO tells the Network API **who is calling**. Verified Entra groups and our API rules determine **which data that caller may access**. The API conveys that trusted restriction to PostgreSQL, and **RLS enforces it against actual database rows**.
+
+This is a deliberate additional security boundary. An AI agent asking for NSW data cannot override James's VIC entitlement. **RLS filters rows, not individual columns**: Emma's basic-only response is also restricted by the Network API. The database context must be isolated for each request, and the API's database role must not bypass RLS.
 
 ### Why can't James use his first token for the Network API?
 
