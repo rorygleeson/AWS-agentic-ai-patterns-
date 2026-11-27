@@ -126,7 +126,7 @@ Before following the examples, here are the AWS parts:
 | **AI chat application** | The web page where a person signs in and types a question. |
 | **Chat API and Lambda** | The application backend receiving that question and passing the authenticated request to the agent. |
 | **AgentCore Runtime** | Where our AI agent runs and decides which tool to request. |
-| **Amazon Bedrock AgentCore Gateway** | The controlled entry point for invoking agent tools. **G1** accepts Entra JWTs from signed-in humans **and the separately authorized Entra Automation Client**; **G2** accepts IAM/SigV4 from the AWS Reporter. **G1** also accepts the separate Entra Automation Client's **application JWT**, in addition to human JWTs. |
+| **Amazon Bedrock AgentCore Gateway** | The controlled entry point for invoking agent tools. **G1** accepts Entra JWTs from signed-in humans **and the separately authorized Entra Automation Client**; **G2** accepts IAM/SigV4 from the AWS Reporter. |
 | **MCP tool** | A named action the agent can invoke, such as `get_diagnostics` or `create_ticket`. |
 | **Gateway target** | Configuration connecting an MCP tool to an existing backend API. It is **not** another API or running service. |
 | **Cedar** | The policy language we use at Gateway to decide whether a caller may invoke a tool. It does not retrieve data or issue OAuth tokens. |
@@ -342,6 +342,19 @@ The examples show **claims we will configure**, not claims Entra automatically a
 
 **Why not use Token A all the way through?** Its `aud` is the Chat API. The Network API must reject a token issued for another API. OBO gives the downstream API a correctly addressed token **still representing the same person**, without another interactive sign-in. [Microsoft's OBO specification](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow) requires the exchanged assertion to be intended for the confidential middle-tier application performing the exchange; our Entra registrations and AgentCore credential provider must be configured consistently with that requirement.
 
+#### The Entra Automation Client's two permissions — exactly where they are defined
+
+The machine caller must be authorized **twice**, because it calls **two different APIs**. These are permissions we deliberately configure, not rights that Entra or AgentCore creates automatically:
+
+| Boundary | Entra API registration and permission | What checks it |
+|---|---|---|
+| **Entra Automation Client → AI Backend / Runtime U / G1** | Define `Automation.Summary.Invoke` as an **application app role** on `enterprise-ai-backend` (allowed member type: **Applications**). Assign it to the `entra-automation-client` service principal and grant admin consent. Its Client Credentials token has **AI Backend audience**, `roles: [Automation.Summary.Invoke]`, and **no delegated `scp: chat.invoke`**. | Entra issues the app-only token; the AI Backend/Runtime/G1 validate issuer, signature, audience and approved client; **G1 Cedar** grants only the summary MCP tool. |
+| **G1 → Network Operations API** | Define `HealthSummary.Read` as an **application app role** on `enterprise-network-api`. Assign it to the **same** `entra-automation-client` application and grant admin consent. The G1 summary target has a **separate Entra OAuth Client Credentials credential provider** configured for the Network API audience. | The Network API validates the new application token's audience, client identity and `roles: [HealthSummary.Read]`; its Lambda permits **only** `GET /network/health-summary`. |
+
+**G1 JWT configuration for humans and machines:** Configure a tenant-specific Entra discovery URL, the **AI Backend audience**, and an explicit allow-list containing the approved clients (`enterprise-ai-web` for humans and `entra-automation-client` for machines). **Do not configure a gateway-wide required `chat.invoke` scope**, because app-only Client Credentials tokens carry application roles in `roles`, not that human delegated scope in `scp`. Instead, enforce the two kinds of caller **separately**: the Chat API requires `chat.invoke` for human requests; Cedar requires a verified human business role for human tools, or the exact automation app identity **and** `Automation.Summary.Invoke` for the machine summary tool. The backend and Gateway must deny missing, unapproved or wrong-type claims. Runtime U applies the same trusted issuer/audience/client restrictions; it does not assume all valid AI Backend tokens are equally privileged.
+
+**Why not just accept the machine's JWT because it was signed by Entra?** A valid signature proves who issued a token; it does **not** prove the application may invoke our summary tool. The dedicated backend application role is the missing permission. If the application is removed from the role assignment, the API must not accept it merely because it can still obtain some token for that audience. Microsoft notes that app-only tokens **can be issued without a `roles` claim** unless resource assignment and role checks are enforced. See [Microsoft Client Credentials permissions](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow), [Entra app-role assignment](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps) and [AgentCore JWT authorizer rules](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html).
+
 #### Who gets which role and group?
 
 These names are **our PoC's proposed Entra configuration**. We assign human app roles **directly to the users** in the Chat API's Enterprise Application. We maintain group memberships independently. Only the Network API needs the network-region memberships.
@@ -354,7 +367,7 @@ These names are **our PoC's proposed Entra configuration**. We assign human app 
 | **David** | `Vendor.Analyst` | **No Network API entitlement** | Vendor tool only, after separate vendor OAuth |
 | **Oliver** | `Platform.Analyst` | **No Network API entitlement** | Platform Health tool only, after Cedar approval |
 | **AWS Network Health Reporter** | No human role; IAM into G2 | No user group | Its own `HealthSummary.Read` app permission on Network API |
-| **Entra Automation Client** | No human role; app-only JWT into G1 | No user group | Its own `HealthSummary.Read` app permission on Network API |
+| **Entra Automation Client** | AI Backend **application** role `Automation.Summary.Invoke` (not a human role) | No user group | G1 summary tool only; separate `HealthSummary.Read` application permission on Network API |
 
 All five humans may use shared RAG after signing into our application. These roles do **not** imply that David or Oliver can call Network API endpoints.
 
@@ -451,7 +464,7 @@ The **Token A / Token B** comparison above shows the different audiences and per
 
 We also agreed on two separate AgentCore entry paths:
 
-- **G1 — Entra JWT Gateway:** accepts five human users **and** the separate Entra Automation Client. Cedar distinguishes the Entra application's token from human tokens and grants only its report tool.
+- **G1 — Entra JWT Gateway:** accepts five human users **and** the separate Entra Automation Client. Human access requires `chat.invoke` and the relevant assigned business role; the machine instead requires its assigned AI Backend **application role** `Automation.Summary.Invoke` and the exact approved client ID. Cedar distinguishes the two and grants the machine only its report tool.
 - **G2 — AWS IAM Gateway:** accepts IAM/SigV4 requests from the separate AWS Reporter Runtime M.
 
 **Why is GW2 necessary in *our chosen design*?** The Network Health Reporter is a scheduled AWS workload. Its Lambda and AgentCore Runtime use **AWS IAM roles**, and we deliberately want the Reporter to authenticate **into AgentCore Gateway using IAM/SigV4**—without pretending to be a human or obtaining an Entra JWT just to enter Gateway. G1 accepts **Entra OAuth JWTs**, from authorized humans and the separately registered Entra Automation Client. AgentCore Gateway has **one inbound authorizer type per Gateway**; therefore **these two chosen inbound methods cannot share a single Gateway**. GW2 is required *because we chose IAM inbound for this AWS workload*, not because all service accounts require their own Gateway.
