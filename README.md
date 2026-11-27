@@ -6,7 +6,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and six callers to show when each pattern applies—and how to prevent unauthorized access.
 
-**Why isn't one authentication pattern enough?** Because the end systems trust **different identities**: some need the signed-in person, some need an application identity, some require a separate vendor's consent, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
+**Why isn't one authentication pattern enough?** Because the end systems trust **different identities**: some need the signed-in person, some need an application identity, some require separate authorization from an external provider, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
 
 **Why these particular examples?** We chose them because each demonstrates a different access requirement:
 
@@ -17,6 +17,8 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 - **Platform Health API:** **What:** Returns synthetic AI platform-health information. **Who:** A signed-in user explicitly authorized to invoke this tool. **Why:** The downstream API trusts the **Gateway's AWS IAM service role**, not that user's OAuth token, so tool access must be checked **before** the role makes the call.
 
 Together, they show why enterprise AI agents need different authentication and authorization patterns.
+
+**Cognito simulation note:** Cognito supports OAuth Authorization Code and custom API scopes. Its managed login does not by itself demonstrate a separate, explicit consent screen like every real-world SaaS provider; this PoC demonstrates **independent vendor sign-in and delegated access**, not the visual consent experience.
 
 **The key idea:** Signing in to the chat app is only the start. **Every connected system must still enforce its own access rules.**
 
@@ -98,14 +100,14 @@ The **Network API** is the clearest example of why identity matters:
 
 **Same API, different results:** the system uses each caller's identity and permissions to decide what can be returned.
 
-The same service account cannot replace every user. Some systems need to know **which person** made the request, some only **which application**, and the external vendor needs **separate user consent**.
+The same service account cannot replace every user. Some systems need to know **which person** made the request, some only **which application**, and the external vendor needs **a separate user-authorized OAuth grant**.
 
 | Why this pattern is needed | Authentication approach | What the downstream system knows |
 |---|---|---|
 | **Shared RAG:** Everyone signed into the AI app sees the same approved knowledge, so there is no need for per-user document access. | **Application sign-in + AWS IAM** for knowledge retrieval. | The AWS service identity, not individual document permissions. |
 | **Network API:** Sarah, James and Emma have different region and action permissions. The API **must know which person** called. | **OAuth On-Behalf-Of (OBO)** with Microsoft Entra ID. | The human caller. The API enforces permissions and sensitive fields; PostgreSQL RLS restricts database rows. |
 | **Service account:** Network Health Reporter runs on a schedule with **no human to represent**. | **OAuth Client Credentials** with Microsoft Entra ID. | The application identity and its aggregate-only permission. |
-| **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor sign-in/consent, and the resulting vendor credential is bound to his authenticated session. | Which vendor user authorized our application and what alerts they can access. |
+| **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor OAuth sign-in/authorization, and the resulting vendor credential is bound to his authenticated session. | Which vendor user authorized our application and what alerts they can access. |
 | **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it. | **IAM/SigV4 (AWS-signed service request):** AgentCore Gateway signs the final API call using its **service IAM role**, not Oliver's user credentials. | The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation. |
 
 ### Authentication terms in plain English
