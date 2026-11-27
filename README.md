@@ -108,7 +108,49 @@ The same service account cannot replace every user. Some systems need to know **
 | **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor OAuth sign-in/authorization, and the resulting vendor credential is bound to his authenticated session. | Which vendor user authorized our application and what alerts they can access. |
 | **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it. | **IAM/SigV4 (AWS-signed service request):** AgentCore Gateway signs the final API call using its **service IAM role**, not Oliver's user credentials. | The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation. |
 
-**Cognito simulation note:** Cognito supports OAuth Authorization Code and custom API scopes. Its managed login does not by itself demonstrate a separate, explicit consent screen like every real-world SaaS provider; this PoC demonstrates **independent vendor sign-in and delegated access**, not the visual consent experience.
+### Five patterns, explained through user journeys
+
+The comparison table above is the quick reference. Here is the **reasoning behind each choice**, starting with what someone is trying to do.
+
+#### Pattern 1 — Shared knowledge (RAG)
+
+- **What does the user want?** Sarah, James, Emma, David or Oliver asks our AI chat application a question, and the agent searches the same approved troubleshooting documents to help ground its answer.
+- **Why isn't the initial sign-in enough on its own?** Signing in allows the person to use **our AI application**; it does not mean their browser should receive direct credentials to the AWS knowledge base. The agent must still authenticate when retrieving documents.
+- **What solves it?** The backend agent retrieves the shared RAG content using its **approved AWS service identity**. All five signed-in humans have the same knowledge access, so this example deliberately **does not** apply individual document filtering or a separate user OAuth exchange. Unauthenticated people cannot access the chat application, and the knowledge base is not exposed as a public endpoint.
+
+**Why a distinct pattern?** It demonstrates a shared resource where the downstream service trusts the **application's AWS identity**, while access to the application is restricted to signed-in humans. RAG helps ground responses and reduce hallucinations; it cannot guarantee that every answer is correct.
+
+#### Pattern 2 — Human identity preserved with Entra OBO
+
+- **What does the user want?** James asks the agent for VIC diagnostics. Sarah can request diagnostics nationally; Emma may see basic status but not detailed diagnostics.
+- **Why isn't the initial token enough?** Their original Entra access token was issued for our **Chat API**, not the separate **Network Operations API**. The Network API must not accept a token intended for another audience. A shared service-account token would also hide which person is asking.
+- **What solves it?** The Chat API validates the user token and our trusted flow preserves it through Lambda, AgentCore Runtime and human Gateway **G1**. AgentCore Gateway/Identity uses **OBO** to obtain a **new Network API token** representing that same person. The Network API validates the new token and applies scopes, verified entitlements and PostgreSQL row-level security. James gets VIC records, not NSW records.
+
+**Why a distinct pattern?** The final API must make decisions based on the **actual human's identity**. OBO supplies the appropriately scoped, downstream-audience token without asking James to sign in again. OBO does **not** grant new regional permissions or replace API authorization.
+
+#### Pattern 3 — Automated service using OAuth Client Credentials
+
+- **What does the caller want?** Network Health Reporter runs on a schedule and asks the **same Network Operations API** for an aggregate health summary.
+- **Why doesn't human OBO fit?** Nobody is signed in. There is **no human access token or person to represent**, so an OBO exchange is inappropriate.
+- **What solves it?** The scheduled AWS workload invokes machine Runtime **M** and Gateway **G2** using approved **AWS IAM** permissions. For the final Network API call, the configured Entra OAuth provider obtains an **application-only token using Client Credentials**. The Network API sees the Reporter application's identity and allows only `GET /network/health-summary`.
+
+**Why a distinct pattern?** It separates an **automated application's permissions** from human permissions. Notice the two different hops: **IAM authenticates the AWS workload into G2; OAuth Client Credentials authenticates the application to the Network API.**
+
+#### Pattern 4 — Independent authorization at an external vendor
+
+- **What does the user want?** David asks our AI chat application to retrieve his alerts from **NetworkMonitor**, a simulated service owned by another company.
+- **Why isn't his corporate sign-in enough?** Entra authenticates David to **our** application, but it cannot independently grant access to his account and alerts in **NetworkMonitor's** identity system. An Entra OBO token for our Network API is not a NetworkMonitor token.
+- **What solves it?** After David is authorized to use the vendor tool, he separately completes **NetworkMonitor's OAuth Authorization Code flow**. AgentCore's vendor OAuth credential provider obtains and associates a vendor-issued token with the authenticated David, then uses it to call `GET /alerts`. NetworkMonitor validates that token and returns only data permitted to that vendor account.
+
+**Why a distinct pattern?** The vendor controls **its own accounts and authorization**. This is the same broad arrangement used when an enterprise AI assistant connects to an independently protected SaaS account. Our Cognito simulation supports the Authorization Code flow and custom API scopes, demonstrating the separate OAuth boundary. Cognito's managed login does not itself provide every vendor-style consent-screen experience.
+
+#### Pattern 5 — AWS IAM service-role authentication (SigV4)
+
+- **What does the user want?** Oliver asks the AI agent for synthetic **Platform Health** information.
+- **Why isn't Oliver's OAuth token used at the final API?** This API is deliberately configured to accept **AWS IAM-signed requests**, not an Entra bearer token. It authenticates the service making the call, so it would not automatically know whether Oliver was allowed to request the information.
+- **What solves it?** Oliver signs in to our app; **G1's Cedar policy first authorizes Oliver** to invoke the platform-health tool. AgentCore Gateway then calls the native API Gateway REST-stage target using **SigV4 with its own IAM service role**. The final API authenticates and authorizes that AWS role. Other users are denied tool access before the service role can be used on their behalf.
+
+**Why a distinct pattern?** The final system trusts an **AWS service identity**, not a delegated human identity. We therefore enforce **human-to-tool permission at Gateway** and **service-to-API permission with IAM**. We never claim the final API receives Oliver's personal OAuth identity.
 
 ### Authentication terms in plain English
 
