@@ -1,5 +1,7 @@
 # Enterprise AI Agent — AWS AgentCore PoC
 
+**Status:** Documented architecture design; the PoC has not yet been deployed or validated end-to-end.
+
 Agentic AI introduces a difficult enterprise architecture challenge: **an agent may need to access several systems, but each system can authenticate callers differently and enforce different permissions**. Preserving a person's identity, allowing a service account to act independently, and obtaining third-party consent are not the same problem.
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and six callers to show when each pattern applies—and how to prevent unauthorized access.
@@ -103,7 +105,7 @@ The same service account cannot replace every user. Some systems need to know **
 | **Shared RAG:** Everyone signed into the AI app sees the same approved knowledge, so there is no need for per-user document access. | **Application sign-in + AWS IAM** for knowledge retrieval. | The AWS service identity, not individual document permissions. |
 | **Network API:** Sarah, James and Emma have different region and action permissions. The API **must know which person** called. | **OAuth On-Behalf-Of (OBO)** with Microsoft Entra ID. | The human caller. The API enforces permissions and sensitive fields; PostgreSQL RLS restricts database rows. |
 | **Service account:** Network Health Reporter runs on a schedule with **no human to represent**. | **OAuth Client Credentials** with Microsoft Entra ID. | The application identity and its aggregate-only permission. |
-| **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). | Which vendor user authorized our application and what alerts they can access. |
+| **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor sign-in/consent, and the resulting vendor credential is bound to his authenticated session. | Which vendor user authorized our application and what alerts they can access. |
 | **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it. | **IAM/SigV4 (AWS-signed service request):** AgentCore Gateway signs the final API call using its **service IAM role**, not Oliver's user credentials. | The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation. |
 
 ### Authentication terms in plain English
@@ -134,7 +136,7 @@ For James, this is what we configure:
 
 1. **In Entra ID:** Define the `Network.Engineer` **app role** on our Chat API app registration, then assign James that role in its Enterprise Application. Entra includes it in the access token issued for the Chat API.
 2. **In AgentCore/Cedar:** Define a rule that users with `Network.Engineer` may call the diagnostics tool. Entra does **not** create this rule for us.
-3. **In the Network API:** After OBO provides a new token for this API, validate its `diagnostics.read` scope and James's identity. Check his verified Entra group `Network-VIC-Engineers`, which **our API maps to VIC-only access**. PostgreSQL RLS then restricts the actual rows.
+3. **In the Network API:** After OBO provides a new token for this API, validate its `diagnostics.read` scope and James's identity. Resolve and verify his `Network-VIC-Engineers` membership using trusted group object IDs from Entra token claims **or an authorized Microsoft Graph lookup** (including any group-overage case). Our API maps that group to VIC-only access. PostgreSQL RLS then restricts the actual rows.
 
 | Item | Plain-English purpose |
 |---|---|
@@ -156,9 +158,9 @@ The Network API is a **different API**. His first token is meant for the **Chat 
 
 **OBO (on-behalf-of) solves this without another sign-in:**
 
-1. The trusted Chat API backend asks Entra ID for a token **for the Network API**, on James's behalf.
-2. Entra ID issues a **new token** that still identifies James, but is intended for the Network API.
-3. The Network API accepts that token only after validating it, then checks James's permissions: **VIC allowed, NSW denied**.
+1. The Chat API validates **Token A** and forwards that same validated bearer token through Lambda to JWT-protected AgentCore Runtime and human Gateway G1. Runtime must explicitly propagate the bearer token to G1; **Lambda's IAM role is not a substitute for James's identity**.
+2. The Network API's OpenAPI target uses **AgentCore Gateway/Identity's configured Entra OAuth credential provider** to exchange Token A for **Token B** using OBO. The credential provider's confidential Entra client must be authorized to redeem Token A (its `aud` must match that client/API registration), and delegated access to the Network API must be consented.
+3. Entra issues Token B, which still identifies James but has the **Network API audience**. The Network API validates it and checks his permissions: **VIC allowed, NSW denied**.
 
 The **Token A / Token B** comparison above shows the different audiences and permissions.
 
