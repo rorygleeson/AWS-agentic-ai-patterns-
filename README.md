@@ -44,7 +44,31 @@ The Network API enforces each caller's permissions. The agent never queries RDS 
 
 - Stores network assets, diagnostics, tickets and access entitlements.
 - Is accessed **only through the Network Operations API**, never directly by the AI agent.
-- Uses database permissions and **row-level security (RLS)** to restrict records.
+- Uses database permissions and **row-level security (RLS)** to restrict which rows a caller can see or change.
+
+#### How does RLS know which signed-in user's data to return?
+
+**RLS does not read an OAuth token. The Network API connects the user's OAuth identity to the database rules.**
+
+Imagine James asks our AI application: **“Show me diagnostics for asset 123.”** That asset is in NSW, but James is a VIC engineer.
+
+1. **James signs in** using Microsoft Entra ID.
+2. **OBO obtains a new OAuth access token for the Network API**, still representing James. It is not a generic token for the AI agent.
+3. **The Network API validates the token** and identifies James using trusted token claims. It then verifies his `Network-VIC-Engineers` membership with Entra claims or an authorised identity lookup.
+4. **The Network API establishes trusted database context for this request:** James may access **VIC** data, not NSW. It does not accept a region merely because the user or AI agent supplied it in a prompt.
+5. **PostgreSQL applies its RLS policy** to the database query using that verified context. It excludes any row outside James's permitted region.
+6. **The API returns only authorized data** to the agent, which uses it to answer James.
+
+| Caller | Verified access from Entra and API rules | What RLS allows |
+|---|---|---|
+| **Sarah** | National Admin, all-region entitlement | Rows in all permitted regions |
+| **James** | Engineer, VIC-only entitlement | **VIC rows only** |
+| **Emma** | Service Desk, nationwide basic status | Status rows nationally; **the API** removes sensitive fields |
+| **Network Health Reporter** | Application-only permission for the aggregate endpoint | Only the approved summary operation; it does not gain human row access |
+
+**The crucial distinction:** OAuth/OBO tells the Network API **who is calling**. Verified Entra groups and our API rules determine **which data that caller may access**. The API conveys that trusted restriction to PostgreSQL, and **RLS enforces it against actual database rows**.
+
+This is a deliberate additional security boundary. An AI agent asking for NSW data cannot override James's VIC entitlement. **RLS filters rows, not individual columns**: Emma's basic-only response is also restricted by the Network API. The database context must be isolated for each request, and the API's database role must not bypass RLS.
 
 ## 2. Users and their access
 
