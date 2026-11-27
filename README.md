@@ -226,18 +226,23 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 
 **The rule to remember:** **Cedar authorizes the human; IAM authenticates the service.**
 
-### Why use Cedar if we already have OAuth?
+### When and why should we use Cedar?
 
-**Short answer: Cedar is an optional extra check at the agent-tool boundary. It is not needed because OAuth has lost the user's identity.** We use it in this PoC to show how an architect can centrally control which tools the agent is allowed to invoke.
+**What is Cedar?** It is a way to write rules such as: **“Only Engineers may invoke the diagnostics tool”** or **“Only Oliver may invoke the Platform Health tool.”** AgentCore Gateway evaluates those rules **before calling the tool**.
 
-An **OAuth token** is evidence about a caller and their granted permissions. **The token itself does not block a tool**: an application, Cedar policy or downstream API must read the verified claims and make an authorization decision.
+**Is Cedar always required? No.** A properly secured downstream API can make its own authorization decisions using a verified OAuth token. We use Cedar when we want an **additional, centrally managed check on agent tool access**. That is different from losing user identity: **Cedar does not preserve identity or issue OAuth tokens.**
 
-There are two different situations in our design:
+**When is it useful—and when can we leave it out?**
 
-| Our example | Without Cedar | Why we choose Cedar |
+| Situation | Cedar decision in our PoC | Why? |
 |---|---|---|
-| **Emma requests network diagnostics (OBO)** | The agent could call the diagnostics tool, OBO would preserve Emma's identity, and the **Network API would deny** her. This can be secure on its own. | Cedar **denies the tool earlier**, before the Network API call. This is an **optional additional safeguard**; the Network API must still enforce its permissions. |
-| **Oliver requests Platform Health (IAM)** | The API sees **Gateway's AWS IAM role**, not Oliver's Entra identity. It cannot decide whether Oliver, Emma or James is the permitted employee. | Cedar checks **Oliver's user permission first**, then Gateway uses its IAM role. **Some upstream user-specific authorization is essential**; Cedar is our chosen way to provide it. |
+| **Shared RAG: everyone signed into our chat app has the same access** | **No special per-user Cedar policy needed.** | No user-specific document restrictions to enforce at this tool. The AWS knowledge service still authenticates the agent's service role. |
+| **Network API: OBO carries the real user to an API that enforces their permissions** | **Optional extra protection; we choose to use it.** | Cedar can deny Emma's diagnostics **tool call early**. Even without Cedar, the Network API must independently reject the unauthorized request. |
+| **Platform Health: the final API sees only Gateway's IAM role** | **An upstream user-permission check is essential; we choose Cedar.** | The final API cannot tell Oliver from Emma by looking at the IAM role. Cedar permits Oliver's tool call and denies everyone else **before the same service role is used**. An equivalent correctly enforced application-side check could also provide this protection. |
+
+**The decision rule:** If the final API **knows the user and enforces their permissions**, Cedar can add defence in depth. If the final API **only knows a shared service identity**, make sure **some trusted component authorizes the human first**; Cedar is our selected control in that case.
+
+An **OAuth access token** contains signed information about a caller and permissions. **The token cannot enforce a rule by itself**: a component must validate the token and make an allow/deny decision. Cedar performs that job for **agent tool calls**; our Network API performs it for **downstream API requests and data**.
 
 #### Three simple examples
 
