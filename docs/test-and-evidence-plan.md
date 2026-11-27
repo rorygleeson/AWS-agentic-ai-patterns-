@@ -40,6 +40,12 @@
 | T30 | Reporter | Network API summary | Downstream audit shows app ID/`roles`, **not** employee `oid`/`scp` | 2LO subject |
 | T31 | David | Vendor revocation and retry | Vendor data access ceases | Token revocation |
 | T32 | Emma/James | SQL context attempted in tool args; pooled request after another user | No broadened rows; context isolated | RLS session safety |
+| T33 | Entra Automation Client | Invoke G1 using AI-backend-audience Client Credentials JWT, request summary | Allowed; aggregate only | Non-human JWT inbound |
+| T34 | Entra Automation Client | Attempt human status/diagnostics/ticket/RAG/Platform tools | **Denied** at G1 | App-only Cedar permission |
+| T35 | Entra Automation Client | Reuse its inbound AI JWT directly against Network API | **Denied** due to wrong audience | Separate JWTs for separate APIs |
+| T36 | AWS Reporter IAM identity | Attempt G1 invocation without a JWT | **Denied** | G1 JWT versus G2 IAM inbound |
+| T37 | Both automated callers | Request identical summary; inspect backend audit identities | Same aggregate only; two **different** app IDs and credentials | Two separate non-human callers |
+
 
 ## What evidence is required?
 
@@ -62,11 +68,11 @@ For native stage T28, specifically show the **change in identity**: Oliver autho
 | P01 SSO | T01–T05, T24 |
 | P02 Lambda propagation | T23, T25–T26, T29 |
 | P03 OBO | T06–T13, T29 |
-| P04 2LO | T19–T20, T30 |
+| P04 Client Credentials | T19–T20, T30, T33–T37 |
 | P05 3LO | T14–T16, T31 |
 | P06 Native REST stage | T17–T18, T28 |
 | P07 OpenAPI OAuth REST | T06–T13, T29 |
-| P08 G1 JWT/Cedar | T08, T10, T18, T22 |
+| P08 G1 JWT/Cedar | T08, T10, T18, T22, T33–T35 |
 | P09 G2 IAM/Cedar | T19–T21, T27 |
 | P10 API + RLS | T06–T13, T32 |
 | P11 Shared RAG | T01–T05 |
