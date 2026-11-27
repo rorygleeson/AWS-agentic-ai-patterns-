@@ -8,11 +8,11 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **Why these particular examples?** We chose them because each demonstrates a different access requirement:
 
-- **Shared knowledge (RAG):** Our AI chat application retrieves information from an approved **retrieval-augmented generation (RAG) knowledge base** to ground its answers and reduce hallucinations. **Who can access it?** Any human user who successfully signs in to **our AI chat application** can use the same shared knowledge base; we do not filter these documents by person.
-- **Network Operations API:** Sarah, James and Emma sign in, but have different permissions. **Why?** This API must know **which person** is requesting data. James, for example, can see VIC diagnostics but not NSW.
-- **Network Health Reporter service account:** This scheduled application requests an aggregate network-health report. **Why?** It runs without a human signing in, so it must use **its own application identity**, with access to the summary only.
-- **External NetworkMonitor service:** David signs in to our AI app, then separately authorizes access to his account at another company. **Why?** Our corporate sign-in does not grant access to the vendor's system. David must consent to sharing his permitted alerts.
-- **Platform Health API:** Oliver signs in to the AI app and is the only human allowed to use this tool. **Why?** The API accepts a request authenticated by an **AWS IAM role**, not Oliver's user token. We must check Oliver's permission **before** the Gateway uses that role.
+- **Shared knowledge (RAG):** **What:** Our AI chat application retrieves approved documents from a retrieval-augmented generation (RAG) knowledge base to ground answers and reduce hallucinations. **Who:** Any human user who successfully signs in to **our AI chat application**. **Why this access pattern:** Everyone uses the same approved knowledge, so no per-user document filtering is needed.
+- **Network Operations API:** **What:** Returns network asset status, diagnostics and support tickets from our enterprise database. **Who:** Sarah, James and Emma, each with different permissions. **Why:** The API must know **which person** called—James may retrieve VIC diagnostics, not NSW.
+- **Network Health Reporter service account:** **What:** Requests an aggregate network-health report from the Network Operations API. **Who:** An automated service, not a human user. **Why:** It runs without anyone signing in, so it uses **its own application identity** and receives summary-only access.
+- **External NetworkMonitor service:** **What:** Returns alerts from a different company's monitoring system. **Who:** David, after signing in to our AI chat application **and separately authorizing his vendor account**. **Why:** Our corporate sign-in cannot authorize access to another company's user data.
+- **Platform Health API:** **What:** Returns synthetic AI platform-health information. **Who:** Oliver, after signing in to our AI chat application and being authorized to use the tool. **Why:** The downstream API trusts the **Gateway's AWS IAM service role**, not Oliver's OAuth token, so we must check his tool permission **before** the role makes the call.
 
 Together, they show why enterprise AI agents need different authentication and authorization patterns.
 
