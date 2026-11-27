@@ -469,6 +469,34 @@ The main tutorial above explains the architecture and the business story. These 
 | **OAuth delegated scope** | Network API → App registration → Expose an API | What the AI backend client is permitted to request *on a user's behalf* | Network REST API JWT authorizer at the endpoint |
 | **OBO** (On-Behalf-Of flow) | Configured through the AI Backend confidential Entra registration and AgentCore Identity credential provider | How a new API-specific **user** access token is obtained | Entra issues Token B; Network API validates it |
 
+#### Exactly which AD groups must we create?
+
+**Only three AD groups are required for this PoC's Network API.** All three are normal **Microsoft Entra ID security groups** created under **Entra ID → Groups → New group → Security**. There is **no special “API Gateway AD group” and no “OBO-enabled group.”** These are proposed display names; when created, each gets a unique Entra **Object ID**.
+
+| AD group display name to create | Human member | What the Network API allows | Why it exists |
+|---|---|---|---|
+| `Network-Admins` | Sarah | Asset status, diagnostics and ticket creation in all regions | National administrator business entitlements |
+| `Network-Engineers-VIC` | James | Asset status, diagnostics and ticket creation for **VIC** | Regional business entitlements |
+| `Network-ServiceDesk` | Emma | **Basic asset status** in all regions; no diagnostics or ticket creation | Limited service-desk business entitlements |
+
+**No Network API AD group is needed for David or Oliver.** They have app roles for **different agent tools**, but no Network API entitlement. The **AWS Reporter** and **Entra Automation Client** are non-human workloads: they use AWS IAM or Entra application identities and **application permissions**, not these human AD groups.
+
+**Where do these groups connect to the Network API?** Entra stores the actual membership. We configure the **Network API Entra app registration** to emit appropriate group IDs in its access tokens (or let Lambda securely look up membership). In RDS, the protected `group_entitlements` table maps those **group object IDs**, not names supplied by a caller, to allowed endpoints, regions and operations. **The Network API Lambda performs that mapping.** AWS API Gateway itself only needs the Entra issuer/audience and endpoint OAuth scope configuration; it does not receive a registered copy of the AD groups.
+
+#### How OBO actually works — in everyday language
+
+**Imagine James presents his staff ID at our AI application's door.** The AI backend cannot show that ID to every other company or API and expect it to work. Instead, **the AI backend asks Entra for a different access pass specifically for the Network API, still naming James**. That new pass is the **OBO access token**.
+
+- **Token A:** Entra issues James a token for our **AI Backend API** when he signs in to the chat application.
+- **Who asks for OBO?** The **confidential AI backend's AgentCore Identity OAuth credential provider**, using its registered backend **client identity and credential** and James's Token A. **Not James's AD group.**
+- **What must be configured?** The **AI Backend** and **Network API** are separate Entra app registrations. The Network API exposes delegated scopes such as `diagnostics.read`; the AI Backend has the required **delegated API permission and consent** to request them. Entra validates that Token A is intended for that confidential middle tier.
+- **Token B:** Entra returns an access token with **Network API audience**, identifying **James**, containing the granted delegated scope.
+- **Who decides access?** API Gateway validates Token B and the scope. Network API Lambda checks James's AD group against its own authorization mapping, and RLS restricts rows.
+
+**Can any of the three groups “use OBO”?** OBO is **not a property assigned to an AD group**. Sarah, James and Emma can all participate in OBO **if the application and delegated permission setup allows it**. Their groups only determine **what the Network API will let them do after the token is issued**. Even Emma could have a valid `diagnostics.read` token and still be denied diagnostics because of her group rights.
+
+**Does an app role automatically become a scope?** No. `Network.Engineer` is an **AI Backend app role** used for Cedar tools; `diagnostics.read` is a **Network API delegated OAuth scope**. They are created in different places and checked by different services. Our PoC assigns human app roles **directly to users** and AD group memberships **separately**. An alternative would be to assign an Entra group to an app role, but we deliberately do not rely on that for this tutorial.
+
 **Is the group connected to AWS API Gateway or a special group type? No.** `Network-Engineers-VIC` is an ordinary Entra **security group** (what we're calling an AD group). The name is a proposed human-readable **display name**; Entra assigns a unique **group object ID**. We configure the Network API token to include group IDs or use an authorized membership lookup, then Lambda maps the verified group ID to permissions stored in RDS. No group is registered with API Gateway.
 
 **Which AD group can issue an OBO token? None.** **Entra ID issues the token**, not an AD group. The confidential `enterprise-ai-backend` application requests OBO using a valid incoming user token **whose audience is that backend**, its own client credentials, and the delegated permissions/consent configured for `enterprise-network-api`. Sarah, James and Emma can all be represented by an OBO token if those conditions are met. Membership in a network AD group does **not** initiate OBO or automatically grant its OAuth scopes.
