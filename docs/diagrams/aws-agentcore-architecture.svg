@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 1060" role="img" aria-label="AWS icon architecture diagram: human Entra JWT through AWS API Gateway, Lambda, AgentCore Runtime U and human Gateway G1 to four end systems; AWS Reporter scheduled IAM Runtime M and G2, plus separate Entra Automation Client JWT to G1 to aggregate Network API.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 1060" role="img" aria-label="AWS icon architecture diagram: human Entra JWT through AWS API Gateway, Lambda, AgentCore Runtime U and human Gateway G1 to four end systems; AWS Service Account scheduled IAM Runtime M and G2, plus separate Entra Service Account JWT to G1 to aggregate Network API.">
 <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#536981" stroke-width="1.5"/></marker><symbol id="icon_agentcore" viewBox="0 0 80 80">
 <g clip-path="url(#agentcore_clip0_211_73)">
 <rect width="80" height="80" fill="#01A88D"/>
@@ -113,7 +113,7 @@
 <path d="M713 427 V479" class="arrow"/>
 <text x="44" y="473" class="desc">G1: Human OBO assets/tickets; app-only summary; vendor 3LO; platform IAM.</text>
 <rect x="20" y="599" width="1380" height="193" rx="16" fill="#fff7ea" stroke="#efd4a5"/>
-<text x="40" y="630" class="section">AWS Reporter — IAM Runtime M / Gateway G2 AWS_IAM</text>
+<text x="40" y="630" class="section">AWS Service Account — IAM Runtime M / Gateway G2 AWS_IAM</text>
 <g><rect x="38" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_eventbridge" x="50" y="682" width="48" height="48"/><text x="106" y="697" class="label">EventBridge</text><text x="106" y="719" class="small">Scheduled report</text></g>
 <g><rect x="310" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_lambda" x="322" y="682" width="48" height="48"/><text x="378" y="697" class="label">Reporter Lambda</text><text x="378" y="719" class="small">IAM invoke role</text></g>
 <g><rect x="582" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_agentcore" x="594" y="682" width="48" height="48"/><text x="650" y="697" class="label">Runtime M</text><text x="650" y="719" class="small">IAM-only agent</text></g>
@@ -126,7 +126,7 @@
 <text x="39" y="860" class="desc">James → OpenAPI → Entra OBO → Network API knows James → RLS enforces VIC only.</text>
 <text x="39" y="886" class="desc">Oliver → native API Gateway REST stage → IAM/SigV4 → Platform API knows Gateway execution role (Cedar checked Oliver first).</text>
 <rect x="20" y="923" width="1380" height="118" rx="13" fill="#eaf4ff" stroke="#94b8da"/>
-<text x="40" y="956" class="section">Separate Entra Automation Client — no human, no AWS IAM inbound</text>
+<text x="40" y="956" class="section">Separate Entra Service Account — no human, no AWS IAM inbound</text>
 <text x="40" y="987" class="desc">Entra service principal → app-only JWT → Runtime U / G1 → app-only OpenAPI summary target</text>
 <text x="40" y="1017" class="desc">→ new Network API OAuth token (same app, different audience) → existing health-summary endpoint and RDS</text>
 </svg>
