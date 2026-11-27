@@ -93,9 +93,9 @@ Token D: Cognito-issued vendor access token, **NetworkMonitor API** audience, ve
 
 ## 6. Data contract and RLS enforcement
 
-The Network REST API native JWT authorizer validates a downstream audience-specific JWT; it resolves `(tid, oid)` for a human or validated service app identity for Reporter. It obtains effective permissions from protected `principals` and `principal_entitlements` tables, then opens a transaction and sets request-local DB context.
+The Network REST API native JWT authorizer validates a downstream audience-specific JWT; it resolves `(tid, oid)` for a human or validated service app identity for Reporter. It verifies Entra security-group membership (from trustworthy token group object IDs or an authorized lookup), maps those IDs to permitted operations and regions using the protected RDS `group_entitlements` table, then opens a transaction and sets request-local DB context. Entra is authoritative for **membership**; RDS is authoritative for this PoC's **business permission mapping**.
 
-Tables: `assets(asset_id, region, basic_status, ...)`; `diagnostics(..., asset_id, region, restricted_payload)`; `tickets(..., region, ...)`; `principals(...)`; `principal_entitlements(principal_id, permission, region)`.
+Tables: `assets(asset_id, region, basic_status, ...)`; `diagnostics(..., asset_id, region, restricted_payload)`; `tickets(..., region, ...)`; `principals(...)`; `group_entitlements(group_object_id, permission, region)`.
 
 RLS checks trusted principal entitlements, not a client-requested `region`. Enable/force RLS and ensure runtime DB roles are not owners or `BYPASSRLS`; transaction-local settings prevent cross-request bleed in pooled connections. Parameterized queries and restricted database privileges remain mandatory; SQL injection would undermine application-supplied session context. Emma's restricted **fields** additionally require a basic-status DTO—RLS is not a field-redaction feature.
 
@@ -114,7 +114,7 @@ Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHE
 | G1 | `get_network_health_summary` | Separate Network OpenAPI target; **Entra Automation Client** Client Credentials | Only this verified Entra automation app, summary-only |
 | G2 | `get_network_health_summary` | Network OpenAPI target, Entra application token 2LO | Runtime M role + aggregate-only service permission |
 
-**There are three separate OpenAPI Gateway target configurations for one backend API:** G1 exposes three human operations via **OBO** plus a separate Automation Client **Client Credentials** summary target; G2 exposes the same summary operation with the **AWS Reporter's own Client Credentials**. Each target has isolated outbound credentials. Each operation is a distinct MCP tool with its own authorization decision. The same Network Operations API and RDS database serve both Gateway targets. The Platform Health REST API remains a separate **native API Gateway stage** target using IAM.
+**There are three separate OpenAPI Gateway target configurations for one backend API:** G1 exposes three human operations via **OBO** plus a separate Automation Client **Client Credentials** summary target; G2 exposes the same summary operation with the **AWS Reporter's own Client Credentials**. Each target has isolated outbound credentials. Each operation is a distinct MCP tool with its own authorization decision. The same Network Operations API and RDS database serve both Gateway targets. The Platform Health REST API remains a separate **native API Gateway stage** target using IAM. The native target requires an **API Gateway public endpoint type** even though the methods require **AWS_IAM/SigV4** authorization; this is not anonymous public access, and private integrations may sit behind API Gateway.
 
 ## 8. Session, audit and network controls
 
