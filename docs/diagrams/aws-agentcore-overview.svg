@@ -157,8 +157,8 @@
 <text x="1237" y="431" class="tiny" text-anchor="middle">Lambda</text>
 <text x="1431" y="431" class="tiny" text-anchor="middle">RDS PostgreSQL</text>
 <rect x="1004" y="445" width="524" height="41" rx="12" class="pill"/>
-<text x="1017" y="462" class="note">Auth: Entra OAuth • human OBO or app-only token</text>
-<text x="1017" y="481" class="tiny">Network API checks users, roles and database access</text>
+<text x="1017" y="462" class="note">API Gateway auth: Entra OAuth JWT (OBO / app-only)</text>
+<text x="1017" y="481" class="tiny">JWT authorizer validates token; Lambda checks access; RDS applies RLS</text>
 
 <rect x="980" y="521" width="571" height="164" rx="18" class="card"/>
 <use href="#icon_cognito" x="1002" y="548" width="73" height="73"/>
@@ -172,10 +172,10 @@
 <text x="1002" y="767" class="body">Existing internal AWS-protected API</text>
 <use href="#icon_apigw" x="1019" y="780" width="70" height="70"/>
 <text x="1107" y="810" class="body">API Gateway REST API</text>
-<text x="1107" y="840" class="tiny">Mock response: synthetic platform health</text>
+<text x="1107" y="840" class="tiny">IAM/SigV4 only • mock health response</text>
 <rect x="1004" y="873" width="524" height="28" rx="12" class="pillgreen"/>
-<text x="1017" y="894" class="note">Auth: IAM/SigV4 • Cedar checks user before call</text>
+<text x="1017" y="894" class="note">Gateway IAM role signs • Cedar checks user first</text>
 
 <text x="51" y="957" class="subtitle">Solid arrows: human tools via G1. Dashed purple: scheduled Reporter via G2.</text>
-<text x="51" y="989" class="tiny">Each final REST API authenticates the caller it receives; RDS is accessed only by the Network API's Lambda.</text>
+<text x="51" y="989" class="tiny">API Gateway can support JWT or IAM; these are our per-API configurations. Only Network Lambda connects to RDS.</text>
 </svg>
