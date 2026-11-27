@@ -40,12 +40,12 @@
 | T30 | Reporter | Network API summary | Downstream audit shows app ID/`roles`, **not** employee `oid`/`scp` | 2LO subject |
 | T31 | David | Vendor revocation and retry | Vendor data access ceases | Token revocation |
 | T32 | Emma/James | SQL context attempted in tool args; pooled request after another user | No broadened rows; context isolated | RLS session safety |
-| T33 | Entra Automation Client | Invoke G1 using AI-backend-audience Client Credentials JWT, request summary | Allowed; aggregate only | Non-human JWT inbound |
-| T34 | Entra Automation Client | Attempt human status/diagnostics/ticket/RAG/Platform tools | **Denied** at G1 | App-only Cedar permission |
-| T35 | Entra Automation Client | Reuse its inbound AI JWT directly against Network API | **Denied** due to wrong audience | Separate JWTs for separate APIs |
-| T36 | AWS Reporter IAM identity | Attempt G1 invocation without a JWT | **Denied** | G1 JWT versus G2 IAM inbound |
+| T33 | Entra Service Account | Invoke G1 using AI-backend-audience Client Credentials JWT, request summary | Allowed; aggregate only | Non-human JWT inbound |
+| T34 | Entra Service Account | Attempt human status/diagnostics/ticket/RAG/Platform tools | **Denied** at G1 | App-only Cedar permission |
+| T35 | Entra Service Account | Reuse its inbound AI JWT directly against Network API | **Denied** due to wrong audience | Separate JWTs for separate APIs |
+| T36 | AWS Service Account IAM identity | Attempt G1 invocation without a JWT | **Denied** | G1 JWT versus G2 IAM inbound |
 | T37 | Both automated callers | Request identical summary; inspect backend audit identities | Same aggregate only; two **different** app IDs and credentials | Two separate non-human callers |
-| T38 | Entra Automation Client | AI Backend token has valid signature/audience but **no** assigned `Automation.Summary.Invoke` app role | **Denied** from summary tool | Backend machine app-role enforcement, not signature alone |
+| T38 | Entra Service Account | AI Backend token has valid signature/audience but **no** assigned `Automation.Summary.Invoke` app role | **Denied** from summary tool | Backend machine app-role enforcement, not signature alone |
 | T39 | Unapproved Entra service principal | Obtain valid Entra v2 token with wrong `azp`, attempt G1 summary | **Denied** by exact `azp`/role Cedar checks | Do not mistake JWT `allowedClients`/`client_id` for Entra `azp` |
 | T40 | Human | Valid AI Backend JWT with missing `chat.invoke` delegated scope | **Denied** before human tool call | Chat API delegated-scope enforcement |
 | T41 | Unapproved caller | Direct call to G1 from outside approved Gateway VPC endpoint with an otherwise valid JWT | **Denied** by `aws:SourceVpce` restriction | Private Gateway boundary |
