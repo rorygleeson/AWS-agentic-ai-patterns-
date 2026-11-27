@@ -73,10 +73,10 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-002
 
-- **Decision:** Two AgentCore Gateways: G1 `CUSTOM_JWT`, G2 `AWS_IAM`.
-- **Why:** A Gateway has one inbound `authorizerType`; cannot assume both modes on one gateway.
-- **Alternative considered:** shared IAM gateway drops caller-level JWT security.
-- **Consequence:** two gateway endpoints/policy bundles.
+- **Decision:** **Retain two AgentCore Gateways**: G1 `CUSTOM_JWT` for Entra-authenticated people; G2 `AWS_IAM` for the scheduled Network Health Reporter workload.
+- **Why:** We deliberately require **IAM/SigV4 inbound authentication** for the AWS Reporter Lambda/Runtime, whereas G1 requires **Entra JWT inbound** for humans. An AgentCore Gateway has one inbound `authorizerType`, so our chosen two inbound methods require separate gateways. GW2 then uses **Entra OAuth Client Credentials outbound** to the Network API's health-summary endpoint. This shows **AWS IAM inbound → enterprise OAuth outbound**, a boundary not covered by human OBO.
+- **Alternative considered:** let the Reporter obtain an Entra Client Credentials JWT to enter G1; technically possible and would remove GW2, but would **not** demonstrate IAM-inbound workload access. Another alternative, a single IAM-inbound Gateway, would lose the human JWT-inbound/Cedar identity pattern.
+- **Consequence:** two narrowly scoped gateway endpoints; G2 exposes only the report tool and does not duplicate human targets/policies. **This is a deliberate PoC learning objective, not a universal service-account requirement.**
 
 ### ADR-007
 
