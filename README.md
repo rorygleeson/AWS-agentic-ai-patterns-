@@ -6,27 +6,9 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **Why isn't one authentication pattern enough?** Because the end systems trust **different identities**: some need the signed-in person, some need an application identity, some require separate authorization from an external provider, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
 
-**Why these particular examples?** We chose them because each demonstrates a different access requirement:
+**How to read this guide:** First meet the four end systems, then the seven callers and exactly what each may access. Next, see the AWS architecture and understand **why each connection requires a different identity or authorization method**. The technical explanations that follow cover OBO, application tokens, IAM/SigV4, Cedar, scopes and database row-level security.
 
-- **Shared knowledge (RAG):** **What:** Our AI chat application retrieves approved documents from a retrieval-augmented generation (RAG) knowledge base to ground answers and reduce hallucinations. **Who:** Any human user who successfully signs in to **our AI chat application**. **Why:** Everyone uses the same approved knowledge, so no per-user document filtering is needed.
-- **Network Operations API:** **What:** Returns network asset status and diagnostics from our enterprise database, and can create support tickets. **Who:** Signed-in users with different permissions. **Why:** The API must preserve **which person** called, because some users may read only basic status, while others may see detailed diagnostics for their permitted region.
-- **Automated network-health reporting:** **What:** A scheduled AWS workload requests an aggregate network-health report from the Network Operations API. **Who:** Two distinct non-human callers: an AWS Reporter Lambda using IAM to enter G2, and an Entra Automation Client using an OAuth application token to enter G1. **Why:** Both need application-only access to the OAuth-protected Network API, but their **inbound authentication to AgentCore differs**. Neither represents a human.
-- **External NetworkMonitor service:** **What:** Returns alerts from a different company's monitoring system. **Who:** An approved user who signs in to our AI chat application **and separately authorizes their vendor account**. **Why:** Our corporate sign-in cannot grant access to another company's user data.
-- **Platform Health API:** **What:** Returns synthetic health information from an existing internal AWS REST API. **Who:** Only an approved user of our AI chat application. **Why:** The API was built for **AWS services such as Lambda**, so it already accepts IAM-signed service requests rather than human OAuth tokens. Our AI agent must reuse that API **without changing its authentication**. Cedar therefore checks which people may use the tool before Gateway calls the API with its IAM role.
-
-Together, they show why enterprise AI agents need different authentication and authorization patterns.
-
-**The key idea:** Signing in to the chat app is only the start. **Every connected system must still enforce its own access rules.**
-
-## Architecture overview
-
-The diagram shows the **whole PoC at a glance**. Employees use our AI chat app; the agent uses AgentCore to reach four downstream systems. Each system has a different authentication requirement. The AWS Reporter enters IAM-protected G2, while a separate Entra Automation Client enters JWT-protected G1. Neither involves a human.
-
-![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview.svg)
-
-**Read the notes on the four right-hand systems:** shared RAG uses AWS IAM; Network Operations uses Entra OAuth (human OBO or application-only); the external vendor requires its **own** OAuth authorization; and Platform Health accepts IAM-signed requests after the user's tool permission is checked.
-
-The detailed architecture diagram remains near the end for readers who want to see more of the individual AWS components.
+**The key idea:** Successfully signing into our AI chat application does **not** automatically grant access to every connected system. Each final API must still authenticate the caller it receives and enforce the appropriate permissions.
 
 ## 1. End systems
 
@@ -74,7 +56,7 @@ The PoC has **five human users and two separate non-human callers**. They authen
 
 ### Network API — exact endpoints for each caller
 
-**The Network Operations API has four endpoints, but no user can automatically call all four.** Here is the full list **by person**, so it is immediately clear what each one can—and cannot—do.
+**The Network Operations API has four endpoints, but no caller automatically gets all four.** Here is exactly what each human or automated application may invoke.
 
 | Caller | Exact Network API endpoints they are allowed to call |
 |---|---|
@@ -95,7 +77,7 @@ The PoC has **five human users and two separate non-human callers**. They authen
 
 **Same endpoint, different result:** James can call `GET /assets/{id}/diagnostics` for an asset in **VIC**, but the **identical endpoint** must deny an asset in **NSW**. Emma can call `GET /assets/{id}/status` nationally but sees **basic fields only**, not sensitive diagnostic details.
 
-**Where are these permissions enforced?** Cedar checks whether a signed-in human may invoke the corresponding **agent tool**. The **Network API** then checks its OAuth token, endpoint permission and verified region/field entitlement; **PostgreSQL RLS** protects the underlying rows. A successful chat sign-in is never sufficient by itself.
+**Where are these permissions enforced?** Cedar checks whether a verified **human or application identity** may invoke a particular **agent tool**. The **Network API** then checks its OAuth token, endpoint permission and verified region/field entitlement; **PostgreSQL RLS** protects the underlying rows. A successful chat sign-in is never sufficient by itself.
 
 ### Explicit restrictions
 
@@ -111,6 +93,16 @@ The PoC has **five human users and two separate non-human callers**. They authen
 
 **Default rule:** A successful sign-in allows a human to use the AI chat app and shared RAG. Every other system requires its own authorization. If access is not explicitly listed above, it is denied. Ticket creation additionally requires explicit confirmation.
 
+
+## Architecture overview
+
+The diagram shows the **whole PoC at a glance**. Employees use our AI chat app; the agent uses AgentCore to reach four downstream systems. Each system has a different authentication requirement. The AWS Reporter enters IAM-protected G2, while a separate Entra Automation Client enters JWT-protected G1. Neither involves a human.
+
+![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview.svg)
+
+**Read the notes on the four right-hand systems:** shared RAG uses AWS IAM; Network Operations uses Entra OAuth (human OBO or application-only); the external vendor requires its **own** OAuth authorization; and Platform Health accepts IAM-signed requests after the user's tool permission is checked.
+
+The detailed architecture diagram remains near the end for readers who want to see more of the individual AWS components.
 
 ## 3. How these requirements lead to authentication patterns
 
@@ -169,9 +161,9 @@ An application identity cannot replace an individual user. Some systems need to 
 | **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor OAuth sign-in/authorization, and the resulting vendor credential is bound to his authenticated session. | Which vendor user authorized our application and what alerts they can access. |
 | **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it. | **IAM/SigV4 (AWS-signed service request):** AgentCore Gateway signs the final API call using its **service IAM role**, not Oliver's user credentials. | The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation. |
 
-### Five patterns, explained through user journeys
+### Five downstream access patterns and two machine entry methods
 
-**Why these patterns when the Network API has four endpoints?** An **endpoint** is an action exposed by an API; a **pattern** is how a caller proves its identity and gets permission to perform that action. The same OBO pattern covers the three human Network API endpoints, while the fourth endpoint uses a service-account token. Our other patterns demonstrate shared RAG, an external vendor account and an existing IAM-protected API. **We are not creating a separate pattern for every endpoint.**
+**Why five downstream patterns and two machine entry methods?** An **endpoint** is an action exposed by an API; a **pattern** is how a caller proves its identity and gets permission to perform that action. The same OBO pattern covers the three human Network API endpoints, while the fourth endpoint uses a service-account token. Our other patterns demonstrate shared RAG, an external vendor account and an existing IAM-protected API. **We are not creating a separate pattern for every endpoint.**
 
 The comparison table above is the quick reference. Here is the **reasoning behind each choice**, starting with what someone is trying to do.
 
