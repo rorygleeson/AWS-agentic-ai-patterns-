@@ -11,7 +11,7 @@
 </defs>
 </symbol>
 <symbol id="icon_bedrock" viewBox="0 0 80 80">
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-Bedrock_64</title>
     <g id="bedrock_Icon-Architecture/64/Arch_Amazon-Bedrock_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="bedrock_Icon-Architecture-BG/64/Machine-Learning" fill="#01A88D">
@@ -23,7 +23,7 @@
     </g>
 </symbol>
 <symbol id="icon_lambda" viewBox="0 0 80 80">
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_AWS-Lambda_64</title>
     <g id="lambda_Icon-Architecture/64/Arch_AWS-Lambda_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="lambda_Icon-Architecture-BG/64/Compute" fill="#ED7100">
@@ -33,7 +33,7 @@
     </g>
 </symbol>
 <symbol id="icon_rds" viewBox="0 0 80 80">
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-RDS_64</title>
     <g id="rds_Icon-Architecture/64/Arch_Amazon-RDS_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="rds_Icon-Architecture-BG/64/Database" fill="#C925D1">
@@ -53,7 +53,7 @@
 </g>
 </symbol>
 <symbol id="icon_eventbridge" viewBox="0 0 80 80">
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-EventBridge_64</title>
     <g id="eventbridge_Icon-Architecture/64/Arch_Amazon-EventBridge_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="eventbridge_Icon-Architecture-BG/64/Application-Integration" fill="#E7157B">
@@ -63,7 +63,7 @@
     </g>
 </symbol>
 <symbol id="icon_cognito" viewBox="0 0 80 80">
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-Cognito_64</title>
     <g id="cognito_Icon-Architecture/64/Arch_Amazon-Cognito_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="cognito_Icon-Architecture-BG/64/Security-Identity-Compliance" fill="#DD344C">
@@ -73,7 +73,7 @@
     </g>
 </symbol>
 <symbol id="icon_s3" viewBox="0 0 80 80">
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-Simple-Storage-Service_64</title>
     <g id="s3_Icon-Architecture/64/Arch_Amazon-Simple-Storage-Service_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="s3_Icon-Architecture-BG/64/Storage" fill="#7AA116">
