@@ -12,7 +12,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 - **Network Operations API:** **What:** Returns network asset status, diagnostics and support tickets from our enterprise database. **Who:** Signed-in users with different permissions. **Why:** The API must preserve **which person** called, because some users may read only basic status, while others may see detailed diagnostics for their permitted region.
 - **Automated network-health reporting:** **What:** Requests an aggregate network-health report from the Network Operations API. **Who:** A service account running automatically, without a human signing in. **Why:** It uses **its own application identity**, with summary-only access rather than a person's permissions.
 - **External NetworkMonitor service:** **What:** Returns alerts from a different company's monitoring system. **Who:** An approved user who signs in to our AI chat application **and separately authorizes their vendor account**. **Why:** Our corporate sign-in cannot grant access to another company's user data.
-- **Platform Health API:** **What:** Returns synthetic AI platform-health information from an AWS-protected REST API. **Who:** Only an approved user of our AI chat application. **Why:** This API accepts an **AWS IAM-signed service request**, not the person's Entra token. Because the API only recognizes the service role, AgentCore must first check **which person is allowed to use that role-backed tool**. This differs from shared RAG, which every signed-in user can search.
+- **Platform Health API:** **What:** Returns synthetic health information from an existing internal AWS REST API. **Who:** Only an approved user of our AI chat application. **Why:** The API was built for **AWS services such as Lambda**, so it already accepts IAM-signed service requests rather than human OAuth tokens. Our AI agent must reuse that API **without changing its authentication**. Cedar therefore checks which people may use the tool before Gateway calls the API with its IAM role.
 
 Together, they show why enterprise AI agents need different authentication and authorization patterns.
 
@@ -25,7 +25,7 @@ Together, they show why enterprise AI agents need different authentication and a
 | **1** | **Knowledge Base (RAG)** | Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases. | **All human users who successfully sign in to the AI chat app** can search the same approved knowledge. |
 | **2** | **Network Operations API** | Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and reads/creates support tickets. | **Only authorized callers.** Human permissions depend on region and operation; the service account has aggregate-only access. |
 | **3** | **NetworkMonitor** | Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts. | **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts. |
-| **4** | **Platform Health API** | AWS API Gateway REST API returning synthetic AI platform-health information. | **Only users explicitly granted access to this tool.** The downstream API authenticates the Gateway's IAM role. |
+| **4** | **Platform Health API** | Existing internal AWS API Gateway REST API, originally used by AWS workloads such as Lambda to read platform-health data. It uses IAM authentication rather than OAuth. | **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role. |
 
 ### Network Operations API — five endpoints
 
@@ -142,10 +142,12 @@ The comparison table above is the quick reference. Here is the **reasoning behin
 
 **Why a distinct pattern?** The vendor controls **its own accounts and authorization**. This is the same broad arrangement used when an enterprise AI assistant connects to an independently protected SaaS account. Our Cognito simulation supports the Authorization Code flow and custom API scopes, demonstrating the separate OAuth boundary. Cognito's managed login does not itself provide every vendor-style consent-screen experience.
 
-#### Pattern 5 — A restricted human tool backed by an AWS IAM role
+#### Pattern 5 — Reusing an existing IAM-protected enterprise API
 
-- **What does the user want?** Oliver asks our AI agent: “Is the AI platform healthy?” The answer comes from the **Platform Health REST API**, which is protected by AWS IAM.
-- **Why can't we just send Oliver's token?** This API is configured for **IAM/SigV4**, not OAuth. It doesn't know who Oliver is; it only recognizes the **AWS role** signing the request. If everyone could invoke the agent's Platform Health tool, the same role could retrieve the result for everyone—even users who should not have access.
+**Why does this API use IAM in the first place?** Imagine the Platform Health API was built years ago for internal AWS workloads. A Lambda function checks platform health by calling an AWS API Gateway REST endpoint using its IAM execution role. That is a normal AWS service-to-service design: the API trusts approved **AWS roles**, not interactive employees. It has no reason to integrate with Entra just to serve those existing workloads. API Gateway can support other authentication methods; **IAM is a deliberate choice for this example**, not a limitation of REST.
+
+- **What does the user want?** Oliver now asks our **new AI application**: “Is the AI platform healthy?” We want to reuse that existing Platform Health API **without rebuilding its authentication**.
+- **Why can't we just send Oliver's token?** His Entra token is an **OAuth** token, while this existing API expects **IAM/SigV4**. The API doesn't know who Oliver is; it recognizes the **AWS role** signing the request. If everyone could invoke the agent's Platform Health tool, the same role could retrieve results for users who should not have access.
 - **What solves it?** Oliver signs in to our AI application. Before any API call, **G1 uses Cedar to check that Oliver is allowed to invoke the tool**. Only then does AgentCore Gateway use its **IAM service role** to sign the request to the native API Gateway REST-stage target. The Platform Health API validates the IAM signature and role permissions. Sarah, James, Emma and David are denied **at the tool boundary**, before Gateway can use that role for their request.
 
 **Why can't we simply reuse one of the earlier patterns?**
