@@ -225,3 +225,12 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 - **Why:** Ticket read duplicates the human OBO + region-restricted read path already demonstrated by diagnostics. Ticket **creation** remains because it demonstrates a materially different **state-changing action**, explicit human confirmation, idempotency and write-specific authorization.
 - **Impact:** The Network API still tests different tools and result filtering, regional RLS, human OBO, app-only OAuth, and authorized writes. One Network API target exposes four tools. The delegated scope for ticket creation is `tickets.write`; no ticket-read scope is needed.
 - **Supersedes in part:** The five-endpoint inventory in the earlier API consolidation ADR. That ADR's decision to keep **one API and one Entra API audience** remains unchanged.
+
+## ADR — Pin Entra OBO client identity and separate Gateway target credentials
+
+- **Decision:** Token A is issued for the `enterprise-ai-backend` Entra app registration. AgentCore's confidential Entra OBO credential provider uses **that same app's client ID** to request Token B for the separate `enterprise-network-api` audience.
+- **Why:** Microsoft OBO rejects a token whose audience belongs to a different application from the confidential client performing the exchange.
+- **Decision:** Keep one Network Operations backend REST API, but create **two separate OpenAPI Gateway targets**: G1 human OBO (status, diagnostics, ticket creation) and G2 Reporter Client Credentials (health-summary only).
+- **Why:** The Gateway target's outbound credential configuration differs, while the underlying API is shared.
+- **Decision:** Use the native managed Knowledge Bases Gateway connector's actual `Retrieve` MCP tool (with its Gateway target prefix). “Search knowledge” is only the friendly use-case description.
+- **Consequence:** No additional end systems, authentication patterns or business endpoints.
