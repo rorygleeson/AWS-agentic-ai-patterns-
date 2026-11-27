@@ -218,3 +218,10 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 - [AWS API Gateway → Lambda → AgentCore sample](https://github.com/aws-samples/sample-expose-agentcore-via-api-gateway)
 - [Microsoft Entra OBO](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow)
 - [PostgreSQL row-level security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+
+## ADR — Reduce duplicate Network API read endpoints while retaining authorized writes
+
+- **Decision:** Remove `GET /tickets/{id}` from the PoC. Keep four Network Operations API endpoints: `GET /assets/{id}/status`, `GET /assets/{id}/diagnostics`, `POST /tickets`, and `GET /network/health-summary`.
+- **Why:** Ticket read duplicates the human OBO + region-restricted read path already demonstrated by diagnostics. Ticket **creation** remains because it demonstrates a materially different **state-changing action**, explicit human confirmation, idempotency and write-specific authorization.
+- **Impact:** The Network API still tests different tools and result filtering, regional RLS, human OBO, app-only OAuth, and authorized writes. One Network API target exposes four tools. The delegated scope for ticket creation is `tickets.write`; no ticket-read scope is needed.
+- **Supersedes in part:** The five-endpoint inventory in the earlier API consolidation ADR. That ADR's decision to keep **one API and one Entra API audience** remains unchanged.
