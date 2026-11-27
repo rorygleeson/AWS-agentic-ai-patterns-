@@ -42,7 +42,7 @@ The Network API enforces each caller's permissions. The agent never queries RDS 
 
 ## 2. Users and their access
 
-The PoC has **five human users and two separate non-human callers**. They authenticate into AgentCore differently, but both can request only the aggregate Network API report.
+The PoC has **five human users and two non-human service identities**. A **service account** is an identity used by an application or automated workload—not a person signing in. Here, the AWS Reporter is a scheduled Lambda using an **AWS IAM role**, while the Entra Automation Client is an application using an **Entra service principal**. Both run without a human and may request only the aggregate Network API report.
 
 | User | Role | Systems they can access | Exact permissions |
 |---|---|---|---|
@@ -51,8 +51,8 @@ The PoC has **five human users and two separate non-human callers**. They authen
 | **Emma** | Service Desk | **RAG, Network API** | Shared knowledge; **basic asset status in all regions**. No detailed diagnostics or sensitive fields. |
 | **David** | External Analyst | **RAG, NetworkMonitor** | Shared knowledge; **his own third-party alerts**, after separate vendor authorization. |
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
-| **AWS Network Health Reporter** | **Scheduled Lambda with IAM role** | **Network API** | Aggregate health only; **IAM/SigV4 into G2**, then its own Entra OAuth application token to the API. |
-| **Entra Automation Client** | **Separate Entra service principal** | **Network API** | Aggregate health only; **Entra Client Credentials JWT into G1**, then its own Network API OAuth application token. |
+| **AWS Network Health Reporter (non-human AWS workload)** | **Scheduled Lambda using an AWS IAM role; no human signs in** | **Network API** | Aggregate health only; **IAM/SigV4 into G2**, then its own Entra OAuth application token to the API. |
+| **Entra Automation Client (non-human service account)** | **Entra application/service principal; no human signs in** | **Network API** | Aggregate health only; **Entra Client Credentials JWT into G1**, then its own Network API OAuth application token. |
 
 ### Network API — exact endpoints for each caller
 
