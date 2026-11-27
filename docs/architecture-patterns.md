@@ -9,11 +9,11 @@
 | P01 | Corporate SSO and JWT | Entra human JWT | All five human users |
 | P02 | Identity-preserving Lambda ingress | Original Entra JWT forwarded | Chat requests |
 | P03 | Entra on-behalf-of (OBO) | User delegated token for downstream audience | James, Sarah, Emma (permitted operations) |
-| P04 | OAuth 2-legged client credentials (2LO) | Application identity, no human | Scheduled reporter |
+| P04 | OAuth Client Credentials for non-human callers | Separate application identities; no human | AWS Reporter and Entra Automation Client |
 | P05 | OAuth 3-legged consent (3LO) | Vendor user consent and vendor token | David |
 | P06 | Native API Gateway REST stage MCP target | Gateway IAM/SigV4 identity downstream | Oliver |
 | P07 | OpenAPI-defined REST MCP target | OAuth token downstream | Network API (including ticket operations) |
-| P08 | JWT-inbound Gateway with Cedar | Human subject, role and arguments | G1 |
+| P08 | JWT-inbound Gateway with Cedar | Human **or machine** JWT claims, distinct allow-lists | G1 |
 | P09 | IAM-inbound Gateway with Cedar | Runtime M IAM role | G2 |
 | P10 | Downstream API authorization and PostgreSQL RLS | Validated Entra human/app claims | Network API |
 | P11 | Shared managed knowledge retrieval | Gateway/connector service identity | All human users |
@@ -64,6 +64,8 @@ Entra issues an **app-only** Network API access token. The service's `roles` cla
 
 **Important distinction:** G2's IAM caller is **Runtime M execution role**, because it is the runtime—not the upstream Reporter Lambda—calling the Gateway.
 
+**Second, independent non-human caller — Entra Automation Client:** Unlike the AWS Reporter, this separate registered Entra application obtains an **AI-backend-audience application JWT** via Client Credentials and enters **Runtime U → G1** with that JWT. G1 validates its application identity and Cedar permits only the **health-summary tool** on a separate OpenAPI target. That target obtains a **new, Network API-audience Client Credentials token** for the *same* Entra Automation Client app, which holds `HealthSummary.Read`. Neither JWT is a human token, and the AI-backend JWT cannot be substituted for the Network API token. The two machines use the **same downstream summary REST endpoint**, but G1 and G2 demonstrate **different inbound authentication**. No additional end system or endpoint.
+
 ## P05 — Independent vendor 3LO
 
 **Situation:** David asks “Show my vendor alerts.” The external fictitious **NetworkMonitor SaaS** uses its own Cognito-backed OAuth authorization server and its own vendor user permissions. It is not the corporate Entra authorization server.
@@ -92,8 +94,8 @@ The native stage target's supported outbound modes do **not** include OAuth. An 
 
 Each AgentCore Gateway selects **one** inbound `authorizerType` at creation, so do not assume mixed JWT and IAM on one Gateway.
 
-- **G1 Human:** `CUSTOM_JWT`; accepts validated Entra human JWT; Cedar authorization checks human role, resource and tool arguments. Exposes human-only tools.
-- **G2 Automation:** `AWS_IAM`; accepts Runtime M role; Cedar restricts to `get_network_health_summary`. Exposes *no* duplicated human tools.
+- **G1 Entra JWT:** `CUSTOM_JWT`; accepts validated **human or Entra Automation Client application JWTs**. Cedar distinguishes their identities: humans receive assigned tools; the app can access only its **dedicated summary tool**.
+- **G2 IAM AWS Reporter:** `AWS_IAM`; accepts Runtime M role; Cedar restricts to `get_network_health_summary`. Exposes *no* duplicated human tools.
 
 Outbound credential providers are configured **per target**, independently of the inbound Gateway choice. This is why G1 can have RAG IAM, OpenAPI OBO, vendor 3LO, and native stage IAM targets together.
 
@@ -118,7 +120,7 @@ Every human may search the same non-sensitive reference corpus (S3-managed knowl
 
 ## P12 — Runtime ingress as a security boundary
 
-Runtime U (human JWT-only) is separate from Runtime M (service IAM-only). Lambda and scheduler clients reach their respective runtime; a narrow resource policy and private path guard access. Distinguish AWS **invocation permission** from the application **end-user authentication and authorization** context.
+Runtime U (Entra JWT-only, accepting humans and the approved Automation Client app) is separate from Runtime M (AWS Reporter IAM-only). Lambda and scheduler clients reach their respective runtime; a narrow resource policy and private path guard access. Distinguish AWS **invocation permission** from the application **end-user authentication and authorization** context.
 
 ## P13 — Safe ticket write
 
