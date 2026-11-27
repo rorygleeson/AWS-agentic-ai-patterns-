@@ -190,15 +190,17 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 - **Decision:** Merge the previously separate Ticket Management API into the **Network Operations API**. The Network API hosts asset status, diagnostics, ticket read/create and aggregate-health endpoints, all backed by the same RDS database.
 - **Why:** The separate Ticket API did not demonstrate a new authentication pattern: both enterprise human paths used Entra OBO and user-specific authorization. A single API makes endpoint-, region-, read/write- and app-only permission differences easier to teach.
 - **Alternative considered:** Keep separate Network and Ticket APIs with separate Entra audiences. This adds deployment and token-registration complexity without supporting a distinct core use case.
-- **Consequence:** One Entra Network API resource/audience with delegated `asset.read`, `diagnostics.read`, `ticket.read`, `ticket.create`, plus the app-only `HealthSummary.Read` permission. Each operation remains a separate MCP tool. The native AWS API Gateway REST-stage vs OpenAPI registration comparison **still exists** through Platform Health vs Network Operations.
+- **Historical consequence (superseded by the endpoint-reduction ADR below):** One Entra Network API resource/audience originally listed delegated `asset.read`, `diagnostics.read`, `ticket.read`, `ticket.create`, plus app-only `HealthSummary.Read` permission. Each operation remains a separate MCP tool. The native AWS API Gateway REST-stage vs OpenAPI registration comparison **still exists** through Platform Health vs Network Operations.
 - **Supersedes:** The separate-Ticket-API assumption in earlier drafts; all other identity and authorization decisions remain in force.
+
+**Current contract after the endpoint-reduction decision:** Four endpoints only: `GET /assets/{id}/status` (`status.read`), `GET /assets/{id}/diagnostics` (`diagnostics.read`), `POST /tickets` (`tickets.write`), and `GET /network/health-summary` (`HealthSummary.Read` app-only). There is **no ticket-read endpoint or `ticket.read` scope**. The historical text above is retained to show the decision sequence, not the current API configuration.
 
 ## Design invariants
 
 These statements connect the decisions without duplicating their rationale:
 
 - A user's identity comes from a **validated token**, never the prompt, HTTP JSON `userId`, or Lambda IAM role.
-- G1 accepts **human JWT**, G2 accepts **machine IAM**; each Gateway has one inbound authorizer. A target's outbound credentials are configured separately.
+- G1 accepts **Entra JWTs for five humans and the explicitly approved Entra Automation Client application**; G2 accepts **machine IAM/SigV4** from Runtime M. Each Gateway has one inbound authorizer type. A target's outbound credentials are configured separately.
 - The **OpenAPI + OBO** REST path preserves James's delegated identity; the **native API Gateway REST stage + IAM** path deliberately uses the Gateway execution role after Cedar authorizes Oliver.
 - OAuth **2LO** is app-only; OAuth **3LO** is independent vendor-user consent; **OBO** preserves a corporate user's delegated identity. Do not collapse them.
 - Downstream APIs re-authorize and RDS applies RLS; Cedar alone is insufficient.
@@ -225,6 +227,14 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 - **Why:** Ticket read duplicates the human OBO + region-restricted read path already demonstrated by diagnostics. Ticket **creation** remains because it demonstrates a materially different **state-changing action**, explicit human confirmation, idempotency and write-specific authorization.
 - **Impact:** The Network API still tests different tools and result filtering, regional RLS, human OBO, app-only OAuth, and authorized writes. One Network API target exposes four tools. The delegated scope for ticket creation is `tickets.write`; no ticket-read scope is needed.
 - **Supersedes in part:** The five-endpoint inventory in the earlier API consolidation ADR. That ADR's decision to keep **one API and one Entra API audience** remains unchanged.
+
+## ADR — Distinguish human scopes from machine application roles at G1
+
+- **Decision:** On `enterprise-ai-backend`, keep delegated `chat.invoke` for signed-in humans and define a separate **Applications-only** app role `Automation.Summary.Invoke` for the Entra Automation Client. Assign that role directly to the service principal and grant admin consent. Assign its **different** Network API app role `HealthSummary.Read` independently.
+- **Why:** The AI Backend and Network API are different audiences and permissions. App-only Entra Client Credentials tokens use `roles`, not delegated `scp`. Gateway-wide enforcement of human `chat.invoke` would reject the valid machine; accepting every correctly signed backend token without a required machine permission could authorize the wrong app.
+- **Decision:** Runtime U and G1 use the correct tenant discovery URL, AI Backend audience and approved-client restrictions. Do **not** impose human `chat.invoke` as a G1-wide `allowedScopes` value. The Chat API validates that scope for human requests; G1 Cedar permits human tools only for verified assigned human roles and the summary tool only for the exact automation app ID with `Automation.Summary.Invoke`. Reject missing/wrong-type roles and all other tool access. G2 remains IAM-only for the AWS Reporter.
+- **Why:** JWT validity authenticates a principal; an explicit permission authorizes an operation. Per-target outbound credentials are independent of this inbound check.
+- **References:** [AWS JWT inbound rules](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html), [Microsoft app-only roles](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow).
 
 ## ADR — Pin Entra OBO client identity and separate Gateway target credentials
 
