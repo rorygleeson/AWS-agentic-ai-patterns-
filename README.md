@@ -318,6 +318,8 @@ The sections below show the **actual PoC names, the two access tokens, the four 
 
 We register the **browser client**, **Chat API** and **Network Operations API** as separate Entra applications/resources for this design. A person signs in once; access tokens still have a **specific intended API (audience)**.
 
+**The important OBO configuration (without jargon):** We use **one Entra application registration called `enterprise-ai-backend`** for two jobs: it represents the **Chat API** that Token A is issued for, and it is the **confidential client** AgentCore's Entra OAuth credential provider uses to request Token B. These must refer to **the same registered backend application**. The browser uses a **different** registration, `enterprise-ai-web`. The Network API has its **own** registration. This is required because Microsoft will not let one application exchange a token intended for another application.
+
 | | Token A — Chat API | Token B — Network Operations API |
 |---|---|---|
 | **How obtained** | Browser requests an access token for `POST /ai/chat` | Trusted middle tier obtains a new token through **OBO** |
@@ -459,7 +461,12 @@ Think of the terms this way:
 - **AgentCore Gateway target:** The configured connection to that API, including its operation definitions and outbound authentication.
 - **MCP tool:** The action the agent sees and invokes, such as `get_diagnostics`. Gateway translates the tool call into the REST endpoint request.
 
-**One Gateway can contain several targets, and one target can expose several tools.** Our Network API has four endpoints; each is exposed as its own agent tool.
+**One Gateway can contain several targets, and one target can expose several tools.** Our **one Network API** has four endpoints, but it is connected through **two Gateway targets**, because humans and the Reporter use different outbound OAuth methods:
+
+- **G1 human OpenAPI target:** Exposes **status, diagnostics and create-ticket** tools. Gateway uses **OBO** to call the Network API as the signed-in person.
+- **G2 Reporter OpenAPI target:** Exposes **health-summary only**. Gateway uses the Reporter's **Client Credentials** application token.
+
+**Two target configurations do not mean two copies of the API.** Both targets call the **same Network Operations REST API** and RDS database. We keep the tools separate so the Reporter cannot discover or invoke the human operations.
 
 **Both are ordinary REST APIs.** A REST API **can** authenticate users with OAuth. The difference is how we **register the API as a target in AgentCore Gateway** and which outbound credentials that particular target type supports.
 
