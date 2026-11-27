@@ -65,7 +65,7 @@ The **Entra Automation Client** is a **different non-human caller** from AWS Rep
 
 **G2: AWS IAM.** One `get_network_health_summary` tool, one small role-restricted policy, limited Gateway execution role and 2LO target provider. There is no copy of all human Cedar rules in G2.
 
-The API/Gateway and Runtime must not share unrestricted public bypasses: the human Runtime resource policy restricts OAuth invocation to the approved VPC; the VPC endpoint security group allows the designated application path. Backend APIs also require their own valid target-audience token or AWS IAM signature.
+The API/Gateway and Runtime must not share unrestricted public bypasses. Runtime U is reached over its approved private ingress and separately constrained to the trusted Chat API/Lambda and approved automation route. **G1 itself is private**: Runtime U calls the AgentCore Gateway interface VPC endpoint, and a Gateway resource policy or organization resource control policy restricts G1 by `aws:SourceVpce`. Valid Entra JWTs alone must not permit a direct public G1 bypass. G2 restricts inbound IAM callers to Runtime M's role. Backend APIs independently require their own audience-specific token or AWS IAM signature.
 
 ## 5. Entra, token and authorization contracts
 
@@ -81,7 +81,7 @@ The API/Gateway and Runtime must not share unrestricted public bypasses: the hum
 
 Token A (human): Entra issuer, **AI Backend API** audience, `chat.invoke` in `scp`, user `tid` + `oid` + `sub`, and directly assigned business-role claim(s). The backend checks the delegated scope.
 
-Token A-M (Entra Automation Client): same **AI Backend API audience**, but an **app-only** Client Credentials token with `roles: [Automation.Summary.Invoke]`, approved client application identity, and **no human `scp`**. Neither the browser nor the automation client borrows the other's role. AgentCore Runtime U and G1 validate tenant, audience and allowed client; G1 Cedar authorizes human tools from human claims and summary-only for the approved automation app role. Avoid G1-wide `allowedScopes: [chat.invoke]` as it would exclude app-only tokens. A valid AI Backend token without its appropriate delegated scope or assigned application role is not enough.
+Token A-M (Entra Automation Client): same **AI Backend API audience**, but an **app-only** Client Credentials token with `roles: [Automation.Summary.Invoke]`, approved client application identity, and **no human `scp`**. Neither the browser nor the automation client borrows the other's role. Runtime U and G1 validate issuer and audience; G1 Cedar checks the exact **Entra v2 `azp` client application ID** plus the appropriate delegated human permission or machine app role. AgentCore JWT `allowedClients` checks `client_id` and must **not** be used as if it checked Entra `azp`. Runtime U ingress is independently private/restricted. Avoid G1-wide `allowedScopes: [chat.invoke]` as it would exclude app-only tokens. A valid AI Backend token without its appropriate delegated scope or assigned application role is not enough.
 
 Token B: issued via Entra OBO, **Network API** audience, the original user's delegated identity, narrow Network scopes. Ticket calls use the same Network API audience with the `tickets.write` delegated scope. The OBO assertion must have the audience of the confidential backend client performing the exchange.
 
@@ -99,7 +99,7 @@ Tables: `assets(asset_id, region, basic_status, ...)`; `diagnostics(..., asset_i
 
 RLS checks trusted principal entitlements, not a client-requested `region`. Enable/force RLS and ensure runtime DB roles are not owners or `BYPASSRLS`; transaction-local settings prevent cross-request bleed in pooled connections. Parameterized queries and restricted database privileges remain mandatory; SQL injection would undermine application-supplied session context. Emma's restricted **fields** additionally require a basic-status DTO—RLS is not a field-redaction feature.
 
-Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHECK`-equivalent write controls, an idempotency key and auditable response.
+Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHECK`-equivalent write controls and an auditable response. **The Network API checks a confirmation assertion issued by the trusted application/backend and bound to the authenticated user and proposed ticket**, not a user-supplied `confirmed: true` or an agent's text. An idempotency key is useful for safe retries but does **not** establish authorization or confirmation.
 
 ## 7. AgentCore MCP/tool inventory
 
