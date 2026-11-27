@@ -121,12 +121,14 @@ Before following the examples, here are the AWS parts:
 | **AI chat application** | The web page where a person signs in and types a question. |
 | **Chat API and Lambda** | The application backend receiving that question and passing the authenticated request to the agent. |
 | **AgentCore Runtime** | Where our AI agent runs and decides which tool to request. |
-| **AgentCore Gateway** | The controlled entry point for invoking agent tools. **G1** serves signed-in humans using Entra tokens; **G2** serves the automated Reporter using AWS IAM. |
+| **Amazon Bedrock AgentCore Gateway** | The controlled entry point for invoking agent tools. **G1** serves signed-in humans using Entra tokens; **G2** serves the automated Reporter using AWS IAM. |
 | **MCP tool** | A named action the agent can invoke, such as `get_diagnostics` or `create_ticket`. |
 | **Gateway target** | Configuration connecting an MCP tool to an existing backend API. It is **not** another API or running service. |
 | **Cedar** | The policy language we use at Gateway to decide whether a caller may invoke a tool. It does not retrieve data or issue OAuth tokens. |
 
 The journey is straightforward: **a caller asks → the agent selects a tool → Gateway checks and invokes it → the final system checks access and returns the result**. Different patterns change which identity the final system receives.
+
+**Two different AWS services have “Gateway” in their names:** **Amazon API Gateway** is the REST API front door (for example, `POST /ai/chat` or our Platform Health REST API). **AgentCore Gateway** is the MCP tool-access layer used by the AI agent. They serve different purposes even when both appear in the same flow.
 
 ### One API, different permissions
 
@@ -402,7 +404,7 @@ Imagine James asks our AI application: **“Show me diagnostics for asset 123.�
 | **Sarah** | National Admin, all-region entitlement | Rows in all permitted regions |
 | **James** | Engineer, VIC-only entitlement | **VIC rows only** |
 | **Emma** | Service Desk, nationwide basic status | Status rows nationally; **the API** removes sensitive fields |
-| **Network Health Reporter** | Application-only permission for the aggregate endpoint | Only the approved summary operation; it does not gain human row access |
+| **Network Health Reporter** | App-only OAuth permission for health summary | **Not a human regional-RLS example**; the API exposes only an aggregate response |
 
 **The crucial distinction:** OAuth/OBO tells the Network API **who is calling**. Verified Entra groups and our API rules determine **which data that caller may access**. The API conveys that trusted restriction to PostgreSQL, and **RLS enforces it against actual database rows**.
 
