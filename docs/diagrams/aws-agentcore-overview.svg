@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 850" role="img" aria-label="High-level AgentCore PoC architecture: humans sign into AI chat app, AgentCore Runtime and Gateway invoke four downstream systems: shared RAG with IAM, Network Operations API with Entra OBO and machine OAuth, external vendor with separate OAuth, Platform Health API with SigV4 IAM. Automated reporter enters through IAM.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1020" role="img" aria-label="High-level AgentCore PoC architecture: humans sign into AI chat app, AgentCore Runtime and Gateway invoke four downstream systems: shared RAG with IAM, Network Operations API with Entra OBO and machine OAuth, external vendor with separate OAuth, Platform Health API with SigV4 IAM. Automated reporter enters through IAM.">
 <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#536981" stroke-width="1.5"/></marker><symbol id="icon_agentcore" viewBox="0 0 80 80">
 <g clip-path="url(#agentcore_clip0_211_73)">
 <rect width="80" height="80" fill="#01A88D"/>
@@ -94,18 +94,18 @@
 .machine{stroke:#8a69be;stroke-dasharray:9 6}
 .pill{fill:#eaf3ff;stroke:#b5d0ef;stroke-width:1.4}.pillgreen{fill:#e8f7f1;stroke:#a4ddc4;stroke-width:1.4}
 </style>
-<rect width="1600" height="850" class="bg"/>
+<rect width="1600" height="1020" class="bg"/>
 <text x="48" y="52" class="title">AWS AgentCore — four downstream systems, different security requirements</text>
 <text x="48" y="85" class="subtitle">One AI application; each connected system decides which identity and permissions it accepts.</text>
 <!-- Connecting arrows first so cards mask endpoints -->
 <path d="M204 364 H254" class="arrow"/>
 <path d="M462 364 H520" class="arrow"/>
-<path d="M910 413 C943 413 943 171 979 171" class="arrow"/>
-<path d="M910 413 C943 413 943 347 979 347" class="arrow"/>
-<path d="M910 413 C943 413 943 524 979 524" class="arrow"/>
-<path d="M910 413 C943 413 943 701 979 701" class="arrow"/>
+<path d="M910 413 C943 413 943 180 979 180" class="arrow"/>
+<path d="M910 413 C943 413 943 384 979 384" class="arrow"/>
+<path d="M910 413 C943 413 943 594 979 594" class="arrow"/>
+<path d="M910 413 C943 413 943 805 979 805" class="arrow"/>
 <path d="M418 655 C464 655 460 480 520 480" class="arrow machine"/>
-<path d="M910 491 C960 491 960 380 979 380" class="arrow machine"/>
+<path d="M910 491 C958 491 958 426 979 426" class="arrow machine"/>
 <!-- People -->
 <rect x="42" y="285" width="163" height="162" rx="18" class="card"/>
 <circle cx="123" cy="331" r="23" fill="#557ca5"/>
@@ -137,34 +137,45 @@
 <text x="359" y="636" class="h" text-anchor="middle">Reporter job</text>
 <text x="359" y="661" class="body" text-anchor="middle">No human login</text>
 <text x="359" y="687" class="note" text-anchor="middle">IAM → G2</text>
-<!-- Targets -->
-<rect x="980" y="112" width="571" height="130" rx="18" class="card"/>
-<use href="#icon_bedrock" x="1002" y="129" width="69" height="69"/>
-<text x="1088" y="149" class="h">1. Shared knowledge (RAG)</text>
-<text x="1088" y="177" class="body">Amazon Bedrock Knowledge Bases</text>
-<rect x="1088" y="193" width="421" height="33" rx="12" class="pillgreen"/>
-<text x="1102" y="215" class="note">Auth: AWS service IAM • same docs for all</text>
-<rect x="980" y="275" width="571" height="152" rx="18" class="card"/>
-<use href="#icon_apigw" x="1002" y="294" width="66" height="66"/>
-<text x="1088" y="312" class="h">2. Network Operations REST API</text>
-<text x="1088" y="339" class="body">API Gateway → Lambda → RDS PostgreSQL</text>
-<use href="#icon_lambda" x="1492" y="293" width="39" height="39"/>
-<use href="#icon_rds" x="1492" y="336" width="39" height="39"/>
-<rect x="1088" y="353" width="421" height="58" rx="12" class="pill"/>
-<text x="1102" y="375" class="note">Human: Entra OAuth OBO → user permissions</text>
-<text x="1102" y="397" class="note">Reporter: app-only OAuth → summary only</text>
-<rect x="980" y="456" width="571" height="135" rx="18" class="card"/>
-<use href="#icon_cognito" x="1002" y="474" width="68" height="68"/>
-<text x="1088" y="494" class="h">3. External NetworkMonitor</text>
-<text x="1088" y="522" class="body">Simulated third-party SaaS</text>
-<rect x="1088" y="542" width="421" height="35" rx="12" class="pillgreen"/>
-<text x="1102" y="565" class="note">Auth: vendor OAuth • separate user approval</text>
-<rect x="980" y="629" width="571" height="136" rx="18" class="card"/>
-<use href="#icon_apigw" x="1002" y="648" width="68" height="68"/>
-<text x="1088" y="667" class="h">4. Platform Health REST API</text>
-<text x="1088" y="695" class="body">Existing internal API Gateway → Lambda</text>
-<rect x="1088" y="715" width="421" height="34" rx="12" class="pillgreen"/>
-<text x="1102" y="738" class="note">Auth: IAM/SigV4 • Cedar checks person first</text>
-<text x="51" y="793" class="subtitle">Read this left to right. G1 uses the human's JWT. G2 uses the report job's IAM identity.</text>
-<text x="51" y="824" class="tiny">The final systems enforce their own permissions. AgentCore Gateway target credentials differ by destination.</text>
+<!-- Four downstream systems: explicit service-to-service paths -->
+<rect x="980" y="112" width="571" height="143" rx="18" class="card"/>
+<use href="#icon_bedrock" x="1002" y="136" width="70" height="70"/>
+<text x="1088" y="152" class="h">1. Shared knowledge (RAG)</text>
+<text x="1088" y="182" class="body">Amazon Bedrock Knowledge Bases</text>
+<rect x="1088" y="204" width="421" height="35" rx="12" class="pillgreen"/>
+<text x="1102" y="228" class="note">Auth: AWS IAM service role • shared documents</text>
+
+<rect x="980" y="277" width="571" height="222" rx="18" class="card"/>
+<text x="1002" y="307" class="h">2. Network Operations REST API</text>
+<text x="1002" y="333" class="body">Four endpoints • same backend for people and Reporter</text>
+<use href="#icon_apigw" x="1033" y="346" width="62" height="62"/>
+<path d="M1110 378 H1198" class="arrow"/>
+<use href="#icon_lambda" x="1206" y="346" width="62" height="62"/>
+<path d="M1281 378 H1392" class="arrow"/>
+<use href="#icon_rds" x="1400" y="346" width="62" height="62"/>
+<text x="1064" y="431" class="tiny" text-anchor="middle">API Gateway</text>
+<text x="1237" y="431" class="tiny" text-anchor="middle">Lambda</text>
+<text x="1431" y="431" class="tiny" text-anchor="middle">RDS PostgreSQL</text>
+<rect x="1004" y="445" width="524" height="41" rx="12" class="pill"/>
+<text x="1017" y="462" class="note">Auth: Entra OAuth • human OBO or app-only token</text>
+<text x="1017" y="481" class="tiny">Network API checks users, roles and database access</text>
+
+<rect x="980" y="521" width="571" height="164" rx="18" class="card"/>
+<use href="#icon_cognito" x="1002" y="548" width="73" height="73"/>
+<text x="1090" y="555" class="h">3. External NetworkMonitor</text>
+<text x="1090" y="586" class="body">Simulated separate company's monitoring SaaS</text>
+<rect x="1090" y="620" width="421" height="41" rx="12" class="pillgreen"/>
+<text x="1103" y="646" class="note">Auth: its own vendor OAuth (Cognito simulation)</text>
+
+<rect x="980" y="705" width="571" height="204" rx="18" class="card"/>
+<text x="1002" y="738" class="h">4. Platform Health REST API</text>
+<text x="1002" y="767" class="body">Existing internal AWS-protected API</text>
+<use href="#icon_apigw" x="1019" y="780" width="70" height="70"/>
+<text x="1107" y="810" class="body">API Gateway REST API</text>
+<text x="1107" y="840" class="tiny">Mock response: synthetic platform health</text>
+<rect x="1004" y="873" width="524" height="28" rx="12" class="pillgreen"/>
+<text x="1017" y="894" class="note">Auth: IAM/SigV4 • Cedar checks user before call</text>
+
+<text x="51" y="957" class="subtitle">Solid arrows: human tools via G1. Dashed purple: scheduled Reporter via G2.</text>
+<text x="51" y="989" class="tiny">Each final REST API authenticates the caller it receives; RDS is accessed only by the Network API's Lambda.</text>
 </svg>
