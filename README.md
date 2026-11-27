@@ -8,11 +8,11 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **Why these particular examples?** We chose them because each demonstrates a different access requirement:
 
-- **Shared knowledge (RAG):** **What:** Our AI chat application retrieves approved documents from a retrieval-augmented generation (RAG) knowledge base to ground answers and reduce hallucinations. **Who:** Any human user who successfully signs in to **our AI chat application**. **Why this access pattern:** Everyone uses the same approved knowledge, so no per-user document filtering is needed.
-- **Network Operations API:** **What:** Returns network asset status, diagnostics and support tickets from our enterprise database. **Who:** Sarah, James and Emma, each with different permissions. **Why:** The API must know **which person** called—James may retrieve VIC diagnostics, not NSW.
-- **Network Health Reporter service account:** **What:** Requests an aggregate network-health report from the Network Operations API. **Who:** An automated service, not a human user. **Why:** It runs without anyone signing in, so it uses **its own application identity** and receives summary-only access.
-- **External NetworkMonitor service:** **What:** Returns alerts from a different company's monitoring system. **Who:** David, after signing in to our AI chat application **and separately authorizing his vendor account**. **Why:** Our corporate sign-in cannot authorize access to another company's user data.
-- **Platform Health API:** **What:** Returns synthetic AI platform-health information. **Who:** Oliver, after signing in to our AI chat application and being authorized to use the tool. **Why:** The downstream API trusts the **Gateway's AWS IAM service role**, not Oliver's OAuth token, so we must check his tool permission **before** the role makes the call.
+- **Shared knowledge (RAG):** **What:** Our AI chat application retrieves approved documents from a retrieval-augmented generation (RAG) knowledge base to ground answers and reduce hallucinations. **Who:** Any human user who successfully signs in to **our AI chat application**. **Why:** Everyone uses the same approved knowledge, so no per-user document filtering is needed.
+- **Network Operations API:** **What:** Returns network asset status, diagnostics and support tickets from our enterprise database. **Who:** Signed-in users with different permissions. **Why:** The API must preserve **which person** called, because some users may read only basic status, while others may see detailed diagnostics for their permitted region.
+- **Automated network-health reporting:** **What:** Requests an aggregate network-health report from the Network Operations API. **Who:** A service account running automatically, without a human signing in. **Why:** It uses **its own application identity**, with summary-only access rather than a person's permissions.
+- **External NetworkMonitor service:** **What:** Returns alerts from a different company's monitoring system. **Who:** An approved user who signs in to our AI chat application **and separately authorizes their vendor account**. **Why:** Our corporate sign-in cannot grant access to another company's user data.
+- **Platform Health API:** **What:** Returns synthetic AI platform-health information. **Who:** A signed-in user explicitly authorized to invoke this tool. **Why:** The downstream API trusts the **Gateway's AWS IAM service role**, not that user's OAuth token, so tool access must be checked **before** the role makes the call.
 
 Together, they show why enterprise AI agents need different authentication and authorization patterns.
 
@@ -26,6 +26,20 @@ Together, they show why enterprise AI agents need different authentication and a
 | **2** | **Network Operations API** | Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and reads/creates support tickets. | **Only authorized callers.** Human permissions depend on region and operation; the service account has aggregate-only access. |
 | **3** | **NetworkMonitor** | Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts. | **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts. |
 | **4** | **Platform Health API** | AWS API Gateway REST API returning synthetic AI platform-health information. | **Only users explicitly granted access to this tool.** The downstream API authenticates the Gateway's IAM role. |
+
+### Network Operations API — five endpoints
+
+These are the complete planned REST endpoints for our PoC. They all belong to **one Network Operations API** backed by RDS PostgreSQL:
+
+| Endpoint | What it returns or does | Access rule |
+|---|---|---|
+| `GET /assets/{id}/status` | Basic network asset status | Authorized signed-in users; basic fields only for limited roles |
+| `GET /assets/{id}/diagnostics` | Detailed fault and diagnostic information | Authorized engineers/admins; **permitted regions only** |
+| `GET /tickets/{id}` | Reads an existing support ticket | Authorized engineers/admins; **permitted regions only** |
+| `POST /tickets` | Creates a support ticket | Authorized engineers/admins; **permitted regions only**, with user confirmation |
+| `GET /network/health-summary` | Aggregate network-health summary | **Automated reporting service account only**; no individual asset details |
+
+The Network API enforces each caller's permissions. The agent never queries RDS directly. We introduce the named people and their exact permissions next.
 
 ### Supporting database — Amazon RDS PostgreSQL
 
