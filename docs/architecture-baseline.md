@@ -72,14 +72,16 @@ The API/Gateway and Runtime must not share unrestricted public bypasses: the hum
 ### App registrations
 
 1. `enterprise-ai-web`: public browser client, authorization-code + PKCE, granted `chat.invoke`.
-2. `enterprise-ai-backend`: protected logical AI API, exposes `chat.invoke`, confidential client performing OBO, audience for Token A.
+2. `enterprise-ai-backend`: protected logical AI API, exposes human delegated scope `chat.invoke` **and a separate application role `Automation.Summary.Invoke` (Applications only)**; confidential client performing OBO, audience for Token A.
    - **Same application ID, two uses:** AgentCore's **Microsoft Entra OBO credential provider** must use this **same `enterprise-ai-backend` client ID** and its confidential client credentials. Token A is issued for this backend app's valid audience. Do **not** create a separate OBO client with a different ID; Microsoft rejects the exchange when the assertion's audience belongs to a different application.
 3. `enterprise-network-api`: one Network API resource, delegated scopes `status.read`, `diagnostics.read`, `tickets.write`, and application role `HealthSummary.Read`.
 4. `network-health-reporter`: confidential service application granted **application** `HealthSummary.Read` only.
-5. `entra-automation-client`: **separate** confidential service principal; obtains an app-only JWT for AI backend/G1, and its own app-only Network API token with `HealthSummary.Read` using a separate audience.
+5. `entra-automation-client`: **separate** confidential service principal. Assign and admin-consent the AI Backend **application** role `Automation.Summary.Invoke` and the separate Network API **application** role `HealthSummary.Read`. It requests a Client Credentials access token for **each distinct audience** using each resource's `/.default`; never reuses the AI Backend JWT against the Network API. The G1 summary target has the application's separate outbound credential provider.
 6. NetworkMonitor Cognito: separate vendor authorization server/resource, client and `alerts.read` user consent.
 
-Token A: Entra issuer, **AI Backend API** audience, `chat.invoke` in `scp`, user `tid` + `oid` + `sub`, and directly assigned business-role claim(s). JWT authorizers require valid signature/expiry/issuer/audience and appropriate scope.
+Token A (human): Entra issuer, **AI Backend API** audience, `chat.invoke` in `scp`, user `tid` + `oid` + `sub`, and directly assigned business-role claim(s). The backend checks the delegated scope.
+
+Token A-M (Entra Automation Client): same **AI Backend API audience**, but an **app-only** Client Credentials token with `roles: [Automation.Summary.Invoke]`, approved client application identity, and **no human `scp`**. Neither the browser nor the automation client borrows the other's role. AgentCore Runtime U and G1 validate tenant, audience and allowed client; G1 Cedar authorizes human tools from human claims and summary-only for the approved automation app role. Avoid G1-wide `allowedScopes: [chat.invoke]` as it would exclude app-only tokens. A valid AI Backend token without its appropriate delegated scope or assigned application role is not enough.
 
 Token B: issued via Entra OBO, **Network API** audience, the original user's delegated identity, narrow Network scopes. Ticket calls use the same Network API audience with the `tickets.write` delegated scope. The OBO assertion must have the audience of the confidential backend client performing the exchange.
 
