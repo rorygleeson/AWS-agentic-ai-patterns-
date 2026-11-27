@@ -18,8 +18,6 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 Together, they show why enterprise AI agents need different authentication and authorization patterns.
 
-**Cognito simulation note:** Cognito supports OAuth Authorization Code and custom API scopes. Its managed login does not by itself demonstrate a separate, explicit consent screen like every real-world SaaS provider; this PoC demonstrates **independent vendor sign-in and delegated access**, not the visual consent experience.
-
 **The key idea:** Signing in to the chat app is only the start. **Every connected system must still enforce its own access rules.**
 
 ## 1. End systems
@@ -109,6 +107,8 @@ The same service account cannot replace every user. Some systems need to know **
 | **Service account:** Network Health Reporter runs on a schedule with **no human to represent**. | **OAuth Client Credentials** with Microsoft Entra ID. | The application identity and its aggregate-only permission. |
 | **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor OAuth sign-in/authorization, and the resulting vendor credential is bound to his authenticated session. | Which vendor user authorized our application and what alerts they can access. |
 | **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it. | **IAM/SigV4 (AWS-signed service request):** AgentCore Gateway signs the final API call using its **service IAM role**, not Oliver's user credentials. | The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation. |
+
+**Cognito simulation note:** Cognito supports OAuth Authorization Code and custom API scopes. Its managed login does not by itself demonstrate a separate, explicit consent screen like every real-world SaaS provider; this PoC demonstrates **independent vendor sign-in and delegated access**, not the visual consent experience.
 
 ### Authentication terms in plain English
 
