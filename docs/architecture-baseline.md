@@ -93,7 +93,7 @@ Token D: Cognito-issued vendor access token, **NetworkMonitor API** audience, ve
 
 ## 6. Data contract and RLS enforcement
 
-The Network REST API Lambda authorizer validates a downstream audience-specific JWT (the native API Gateway JWT authorizer is for HTTP APIs); it resolves `(tid, oid)` for a human or validated service app identity for Reporter. It obtains effective permissions from protected `principals` and `principal_entitlements` tables, then opens a transaction and sets request-local DB context.
+The Network REST API native JWT authorizer validates a downstream audience-specific JWT; it resolves `(tid, oid)` for a human or validated service app identity for Reporter. It obtains effective permissions from protected `principals` and `principal_entitlements` tables, then opens a transaction and sets request-local DB context.
 
 Tables: `assets(asset_id, region, basic_status, ...)`; `diagnostics(..., asset_id, region, restricted_payload)`; `tickets(..., region, ...)`; `principals(...)`; `principal_entitlements(principal_id, permission, region)`.
 
