@@ -179,13 +179,39 @@ The comparison table above is the quick reference. Here is the **reasoning behin
 
 ### How Entra roles, groups and OAuth scopes work together
 
-**Three different things are involved, and they are not interchangeable:**
+Let's start with the problem, **without assuming any Microsoft identity knowledge**.
 
-1. **App role — what kind of user or application is this?** We define roles for **our protected APIs** in Entra and assign them to the relevant people or service principals. A token for that API can contain a `roles` claim. Our Cedar or API rules decide what those roles permit; Entra does not automatically create our business rules.
-2. **Entra group — which data does this person belong to?** A group such as `Network-VIC-Engineers` records an employee's organisational membership. **Our Network API** maps verified group membership to VIC-only data access. A group is **not** automatically an OAuth scope or an app role.
-3. **OAuth scope — which operation may this calling application request on a user's behalf?** The Network API publishes delegated scopes such as `diagnostics.read`. An Entra **user-delegated** access token for that API contains granted scopes in `scp`. **A scope is not a regional entitlement:** having `diagnostics.read` alone does not let James see NSW records.
+**James signs in to our AI chat application and asks: “Show me the diagnostics for this NSW network asset.”**
 
-**The simple distinction:** App role controls **which agent tools** a human is eligible to invoke; group membership controls **which records/regions** the Network API may return; OAuth scopes control **which downstream API operations** the delegated client is allowed to request. The API combines checks rather than trusting just one claim.
+Being signed in does **not** mean he can see everything. We need to answer three separate questions:
+
+| Question | Simple answer for James | What makes the decision? |
+|---|---|---|
+| **1. Is he allowed to use the diagnostics tool?** | **Yes.** James is an engineer. | His **app role**, checked by **Cedar** |
+| **2. Is this API call permitted?** | **Yes.** Our AI application has permission to request diagnostics on James's behalf. | The **OAuth scope**, checked by the **Network API** |
+| **3. Can he see this particular NSW record?** | **No.** James belongs to the VIC engineering team. | His verified **Entra group/region entitlement**, checked by the **Network API** and backed by database rules |
+
+**Final result: Access denied.** The first two checks passed, but the third did not. That is the whole reason we need all three concepts.
+
+Now change the person:
+
+- **Sarah**, a national administrator: tool allowed, API operation allowed, NSW region allowed → **gets NSW diagnostics**.
+- **Emma**, service desk: she can request **basic status**, but her role does **not** allow the diagnostics tool → **denied before the diagnostic API is called**.
+- **Network Health Reporter**, an automated program: nobody signs in. It has its **own application permission** for the aggregate report only → **gets the summary, not individual diagnostics**.
+
+#### What are Entra, a token, a role, a group and a scope?
+
+- **Microsoft Entra ID** is our corporate identity system. It knows who employees are and which roles or groups have been assigned.
+- **An access token** is a digitally signed message from Entra that the application sends to an API. Think of it as **proof of identity and specific permissions**, intended for **one particular API**. The receiving API verifies it; it must not blindly trust it.
+- **An app role** is a label **we define**, such as `Network.Engineer`. We assign it to James in Entra. In **our design**, Cedar uses that verified label to decide whether James can use a diagnostics tool.
+- **An Entra group** is a list of members, such as `Network-VIC-Engineers`. Our Network API knows that membership in this group means **VIC records only**. Entra stores the membership; **our code defines and enforces what VIC-only means**.
+- **An OAuth scope** is permission for a **client application to call a particular protected API operation on behalf of a user**. Our Network API defines `diagnostics.read`; Entra can issue that permission in the token the client requests for the Network API. **The scope does not make James a national administrator.**
+
+**Where do we set these up?** In **Entra**, we register the APIs, define app roles and OAuth scopes, assign roles and maintain groups. In **AWS**, we configure Cedar tool rules and write Network API checks for scopes, users, groups and data. **Neither Entra nor AWS magically knows our business rules. We configure them.**
+
+**Do app roles, groups and scopes automatically become each other? No.** A user can be in a group without having an app role; an app role does not automatically grant an OAuth scope; and a scope does not grant access to every record. We deliberately join those checks at the appropriate boundaries.
+
+The sections below show the **actual PoC names, the two access tokens, the five endpoints and exactly where each check occurs**. You can understand the example above without knowing what a JWT claim is; the claim details are included for readers implementing the design.
 
 #### The two protected APIs and their tokens
 
