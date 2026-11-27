@@ -29,7 +29,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
   - **High-level access rule:** **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts.
 
 - **4. Platform Health API**
-  - **Description:** Existing internal-use AWS API Gateway REST API, originally used by AWS workloads such as Lambda to read platform-health data. It uses IAM authentication rather than OAuth. **For the native AgentCore REST-stage target, the API has a public endpoint type but requires IAM/SigV4 authorization**; it is not an unauthenticated public API.
+  - **Description:** Existing internal monitoring REST API that returns operational health information about an enterprise platform or service. AWS workloads such as Lambda already call it through Amazon API Gateway using **IAM/SigV4**, not OAuth. **For the native AgentCore REST-stage target, the API has a public endpoint type but requires IAM/SigV4 authorization**; it is not an unauthenticated public API.
   - **High-level access rule:** **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role.
 
 
@@ -305,7 +305,7 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 
 **Why does this API use IAM in the first place?** Imagine the Platform Health API was built years ago for internal AWS workloads. A Lambda function checks platform health by calling an AWS API Gateway REST endpoint using its IAM execution role. That is a normal AWS service-to-service design: the API trusts approved **AWS roles**, not interactive employees. It has no reason to integrate with Entra just to serve those existing workloads. API Gateway can support other authentication methods; **IAM is a deliberate choice for this example**, not a limitation of REST.
 
-- **What does the user want?** Oliver now asks our **new AI application**: “Is the AI platform healthy?” We want to reuse that existing Platform Health API **without rebuilding its authentication**.
+- **What does the user want?** Oliver now asks our **new AI application**: “Is our internal platform healthy?” We want to reuse that existing Platform Health API **without rebuilding its authentication**.
 - **Why can't we just send Oliver's token?** His Entra token is an **OAuth** token, while this existing API expects **IAM/SigV4**. The API doesn't know who Oliver is; it recognizes the **AWS role** signing the request. If everyone could invoke the agent's Platform Health tool, the same role could retrieve results for users who should not have access.
 - **What solves it?** Oliver signs in to our AI application. Before any API call, **G1 uses Cedar to check that Oliver is allowed to invoke the tool**. Only then does AgentCore Gateway use its **IAM service role** to sign the request to the native API Gateway REST-stage target. The Platform Health API validates the IAM signature and role permissions. Sarah, James, Emma and David are denied **at the tool boundary**, before Gateway can use that role for their request.
 
