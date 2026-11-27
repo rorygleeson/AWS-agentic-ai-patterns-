@@ -87,7 +87,7 @@
 <style>.heading{font:700 24px Arial,sans-serif;fill:#1f3047}.section{font:700 18px Arial,sans-serif;fill:#344b69}.label{font:700 15px Arial,sans-serif;fill:#25364f}.small{font:12px Arial,sans-serif;fill:#4d5d73}.desc{font:14px Arial,sans-serif;fill:#384b66}.arrow{fill:none;stroke:#536981;stroke-width:2.2;marker-end:url(#arrow)}.auth{font:700 12px Arial,sans-serif;fill:#41536b}</style>
 <rect width="1420" height="925" fill="#fff"/>
 <text x="30" y="40" class="heading">Enterprise GenAI PoC — AWS AgentCore identity and tool access</text>
-<text x="31" y="67" class="desc">Five named human roles + one M2M reporter · separate JWT/IAM trust boundaries · per-target outbound credentials</text>
+<text x="31" y="67" class="desc">Five human users + two non-human callers · JWT/IAM trust boundaries · per-target outbound credentials</text>
 <rect x="20" y="85" width="1380" height="495" rx="16" fill="#eff5fe" stroke="#d3e0f1"/>
 <text x="40" y="117" class="section">Human flow — Microsoft Entra JWT / AgentCore Gateway G1 CUSTOM_JWT</text>
 <g><rect x="38" y="145" width="190" height="82" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><circle cx="74" cy="185" r="23" fill="#e5eaf1" stroke="#8a9aae"/><text x="74" y="190" font-size="17" text-anchor="middle" fill="#39475f">ID</text><text x="106" y="176" class="label">Corporate users</text><text x="106" y="198" class="small">Sarah, James, Emma</text></g>
