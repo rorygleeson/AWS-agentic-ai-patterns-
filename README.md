@@ -148,13 +148,15 @@ The comparison table above is the quick reference. Here is the **reasoning behin
 - **Why can't we just send Oliver's token?** This API is configured for **IAM/SigV4**, not OAuth. It doesn't know who Oliver is; it only recognizes the **AWS role** signing the request. If everyone could invoke the agent's Platform Health tool, the same role could retrieve the result for everyone—even users who should not have access.
 - **What solves it?** Oliver signs in to our AI application. Before any API call, **G1 uses Cedar to check that Oliver is allowed to invoke the tool**. Only then does AgentCore Gateway use its **IAM service role** to sign the request to the native API Gateway REST-stage target. The Platform Health API validates the IAM signature and role permissions. Sarah, James, Emma and David are denied **at the tool boundary**, before Gateway can use that role for their request.
 
-**Why is this different from our other examples?**
+**Why can't we simply reuse one of the earlier patterns?**
 
-- **Compared with OBO:** The Network API receives James's **personal delegated token** and can make a user-specific decision. Platform Health receives **only Gateway's IAM role**; it cannot enforce Oliver's identity itself.
-- **Compared with the service account:** The Reporter is an **automated caller** that uses app-only OAuth to reach the Network API. Oliver is a **human** whose tool invocation is checked with Cedar; the **final API call is IAM**, not OAuth.
-- **Compared with shared RAG:** Both use AWS service credentials downstream. But **every signed-in user may use shared RAG**, whereas **only Oliver may use the Platform Health tool**. That restricted access is precisely what Cedar demonstrates here.
+- **OBO won't work for this final API.** OBO creates a delegated **OAuth** token identifying James or Oliver. Platform Health is deliberately **IAM-only**, so it expects a **SigV4-signed AWS request**, not that token.
+- **The Reporter's Client Credentials pattern won't work for this final API either.** That pattern obtains an **OAuth application token** for the Network API. Platform Health does not accept OAuth tokens, and Oliver's request is initiated by a **human**, not a scheduled reporting service.
+- **Shared RAG is the closest match, but it doesn't demonstrate the restriction we need.** Both RAG and Platform Health can use AWS service identity. In RAG, **every signed-in human** may retrieve shared documents. Here **only Oliver** may invoke the IAM-backed Platform Health tool. Because the downstream API sees Gateway's service role rather than Oliver, **Cedar must enforce Oliver's permission before the call**.
 
-**The key lesson:** This isn't a new authentication protocol. It is a distinct **authorization and integration pattern**: **authorize the human at AgentCore Gateway, then authenticate the service to an IAM-protected API**. IAM authenticates the service; Cedar protects access to that service on behalf of users.
+**So why keep this example?** It demonstrates a real enterprise requirement the others do not show together: **a restricted human-triggered tool that calls an IAM-protected REST API using the AgentCore native API Gateway stage target**. This is an **authorization and integration pattern**, not a new authentication protocol.
+
+**The rule to remember:** **Cedar authorizes the human; IAM authenticates the service.**
 
 ### Authentication terms in plain English
 
