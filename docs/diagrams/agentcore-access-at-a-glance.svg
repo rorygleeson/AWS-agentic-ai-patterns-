@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="836" viewBox="0 0 560 836" role="img" aria-labelledby="title desc">
+<title id="title">AgentCore connects callers to four systems with different authorization requirements</title>
+<desc id="desc">Human users enter through the AI chat app. Non-human workloads invoke AgentCore through authenticated interfaces. AgentCore routes authorized tool calls to shared RAG, Network Operations API, external vendor NetworkMonitor, and Platform Health API. Each destination checks a different identity.</desc>
+<rect width="560" height="836" rx="20" fill="#f7f9fc"/>
+<text x="280" y="42" text-anchor="middle" font-size="23" font-weight="700" font-family="Arial,sans-serif" fill="#142d48">One AI agent, different access rules</text>
+<rect x="25" y="68" width="244" height="86" rx="12" fill="#fff" stroke="#b1c2d5" stroke-width="2"/>
+<text x="147" y="104" text-anchor="middle" font-size="21" font-weight="700" font-family="Arial,sans-serif" fill="#142d48">Human users</text>
+<text x="147" y="134" text-anchor="middle" font-size="17" font-family="Arial,sans-serif" fill="#49627b">AI chat app</text>
+<rect x="291" y="68" width="244" height="86" rx="12" fill="#fff" stroke="#b1c2d5" stroke-width="2"/>
+<text x="413" y="104" text-anchor="middle" font-size="21" font-weight="700" font-family="Arial,sans-serif" fill="#142d48">Automations</text>
+<text x="413" y="134" text-anchor="middle" font-size="17" font-family="Arial,sans-serif" fill="#49627b">AWS / Entra identity</text>
+<path d="M147 155 V184 H280 M413 155 V184 H280 V211" fill="none" stroke="#58738e" stroke-width="3" stroke-linejoin="round"/>
+<path d="M271 201 L280 213 L289 201" fill="none" stroke="#58738e" stroke-width="3" stroke-linecap="round"/>
+<rect x="72" y="215" width="416" height="90" rx="14" fill="#e6f4f5" stroke="#129c9c" stroke-width="2.5"/>
+<text x="280" y="249" text-anchor="middle" font-size="24" font-weight="700" font-family="Arial,sans-serif" fill="#10464c">Amazon Bedrock AgentCore</text>
+<text x="280" y="278" text-anchor="middle" font-size="17" font-family="Arial,sans-serif" fill="#285b60">Agent, tools and access checks</text>
+<path d="M280 305 V340" stroke="#58738e" stroke-width="3" fill="none"/>
+<path d="M271 330 L280 342 L289 330" fill="none" stroke="#58738e" stroke-width="3" stroke-linecap="round"/>
+<text x="280" y="371" text-anchor="middle" font-size="18" font-weight="700" font-family="Arial,sans-serif" fill="#3f5b74">Four downstream systems</text>
+<rect x="25" y="393" width="510" height="91" rx="12" fill="#fff" stroke="#85b7a8" stroke-width="2"/>
+<rect x="25" y="393" width="11" height="91" rx="5" fill="#159b7d"/>
+<text x="52" y="429" font-size="22" font-weight="700" font-family="Arial,sans-serif" fill="#142d48">1. Shared knowledge (RAG)</text>
+<text x="52" y="459" font-size="17" font-family="Arial,sans-serif" fill="#3f5b74">Same approved documents for all signed-in users</text>
+<rect x="25" y="498" width="510" height="91" rx="12" fill="#fff" stroke="#9cb6dc" stroke-width="2"/>
+<rect x="25" y="498" width="11" height="91" rx="5" fill="#477ed0"/>
+<text x="52" y="534" font-size="22" font-weight="700" font-family="Arial,sans-serif" fill="#142d48">2. Network Operations API</text>
+<text x="52" y="564" font-size="17" font-family="Arial,sans-serif" fill="#3f5b74">Entra OAuth: user or service permissions</text>
+<rect x="25" y="603" width="510" height="91" rx="12" fill="#fff" stroke="#d7b5c5" stroke-width="2"/>
+<rect x="25" y="603" width="11" height="91" rx="5" fill="#b95a81"/>
+<text x="52" y="639" font-size="22" font-weight="700" font-family="Arial,sans-serif" fill="#142d48">3. External NetworkMonitor</text>
+<text x="52" y="669" font-size="17" font-family="Arial,sans-serif" fill="#3f5b74">Separate vendor OAuth approval</text>
+<rect x="25" y="708" width="510" height="91" rx="12" fill="#fff" stroke="#b6a7dc" stroke-width="2"/>
+<rect x="25" y="708" width="11" height="91" rx="5" fill="#8a65bf"/>
+<text x="52" y="744" font-size="22" font-weight="700" font-family="Arial,sans-serif" fill="#142d48">4. Platform Health API</text>
+<text x="52" y="774" font-size="17" font-family="Arial,sans-serif" fill="#3f5b74">IAM/SigV4 role; user tool access checked first</text>
+<text x="280" y="826" text-anchor="middle" font-size="14" font-family="Arial,sans-serif" fill="#60778d">Conceptual overview — detailed AWS architecture appears below</text>
+</svg>
