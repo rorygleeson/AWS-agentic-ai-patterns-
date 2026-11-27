@@ -101,13 +101,13 @@ Outbound credential providers are configured **per target**, independently of th
 
 **Cedar is not copied blindly:** define common principles/templates once, but apply distinct policy sets to distinct principal types and tool inventories.
 
-**One JWT boundary, two caller types:** G1 serves delegated human JWTs and the approved Entra Automation Client app-only JWT. Do not require human `chat.invoke` as a gateway-wide JWT `allowedScopes` rule, because an app-only token has an application `roles` claim rather than a human `scp` claim. Constrain issuer, audience and approved clients at Runtime U/G1; have the Chat API check the human `chat.invoke` delegated scope, and Cedar enforce the exact human-versus-application claim rules before any tool invocation. Assign the automation app the backend role explicitly and deny role-less app-only tokens. The downstream Network API independently checks `HealthSummary.Read` on its own audience token. See [AWS inbound JWT configuration](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html) and [Microsoft app-only permission enforcement](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow).
+**One JWT boundary, two caller types:** G1 serves delegated human JWTs and the approved Entra Automation Client app-only JWT. Do not require human `chat.invoke` as a gateway-wide JWT `allowedScopes` rule, because an app-only token has an application `roles` claim rather than a human `scp` claim. Constrain issuer/audience at Runtime U and G1, and the trusted Runtime ingress to approved paths. For **Entra v2** tokens, the client ID is **`azp`**, whereas AgentCore's `allowedClients` expects **`client_id`**, so do not configure an apparent Entra client allow-list using that unsupported claim mapping. **G1 Cedar** checks exact `azp` IDs and the required verified human role or automation application role; the Chat API checks human `chat.invoke` before Runtime ingress. Assign the automation app the backend role explicitly and deny role-less app-only tokens. The downstream Network API independently checks `HealthSummary.Read` on its own audience token. See [AWS inbound JWT configuration](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html) and [Microsoft app-only permission enforcement](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow).
 
 ## P10 — API enforcement and RDS row-level security
 
-Gateway's Cedar decision protects **tool invocation**; the downstream API must separately check the OAuth token. For each request:
+Gateway's Cedar decision protects **tool invocation**; the downstream API must separately check the OAuth token. **Cedar receives Entra JWT `roles` arrays as serialized principal-tag strings**, so policies must match **complete quoted role names** (and fail closed on missing claims), not approximate substrings. The Entra v2 `azp` claim identifies the client application and must match the actual approved client ID. For each request:
 
-1. Verify signature, issuer, audience, expiry; distinguish delegated `scp` from app `roles`.
+1. Verify signature, issuer, audience, expiry; distinguish delegated `scp` from app `roles`. The API Gateway JWT authorizer requires the appropriate `scp` scope on each **human** method but **no delegated scope** on the app-only health-summary method; its Lambda checks the exact approved `azp` and `HealthSummary.Read` app role.
 2. Map immutable Entra `tid/oid` or service app ID to an internal entitlement record.
 3. Derive authorized regions and operations from server-side policy, not prompt arguments.
 4. Use parameterized SQL and a transaction-scoped, server-set PostgreSQL principal context.
@@ -122,11 +122,11 @@ Every human may search the same non-sensitive reference corpus (S3-managed knowl
 
 ## P12 — Runtime ingress as a security boundary
 
-Runtime U (Entra JWT-only, accepting humans and the approved Automation Client app) is separate from Runtime M (AWS Reporter IAM-only). Lambda and scheduler clients reach their respective runtime; a narrow resource policy and private path guard access. Distinguish AWS **invocation permission** from the application **end-user authentication and authorization** context.
+Runtime U (Entra JWT-only, accepting humans and the approved Automation Client app) is separate from Runtime M (AWS Reporter IAM-only). Lambda and scheduler clients reach their respective runtime; a narrow resource policy and private path guard access. **G1 must also be restricted to Runtime U's approved Gateway PrivateLink endpoint** using a resource/organization policy with `aws:SourceVpce`; JWT validity and Cedar permissions by themselves do not guarantee the approved chat path was followed. Distinguish AWS **invocation permission** from the application **end-user authentication and authorization** context.
 
 ## P13 — Safe ticket write
 
-`create_ticket` requires Sarah or James, appropriate asset/region entitlement, explicit user confirmation, a server-issued idempotency key, payload validation and downstream scoped OBO. Emma is denied. A model's text alone cannot commit a write.
+`create_ticket` requires Sarah or James, appropriate asset/region entitlement, explicit user confirmation **proved by a trusted backend-issued assertion checked at the Network API**, payload validation and downstream scoped OBO. A user/model-supplied confirmation flag cannot substitute for that proof; a server-issued idempotency key only helps with retries. Emma is denied. A model's text alone cannot commit a write.
 
 ## P14 — End-to-end audit
 
