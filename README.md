@@ -419,6 +419,40 @@ For Emma, even a valid `diagnostics.read` scope **must not override** her Servic
 
 **In one sentence:** **OAuth scope permits the client to request an API operation; verified user identity plus business entitlements decide what that person may actually do or see.**
 
+#### Why the Network API Lambda is important — and why we chose it
+
+**Our chosen design is: Entra groups + API Gateway JWT authorization + Network API Lambda + PostgreSQL RLS.** We are **not** adding a second API-level Cedar engine or a separate Lambda authorizer for group rules in this PoC. AgentCore G1 still uses Cedar to protect **MCP tools**; this is a different boundary.
+
+**What exactly does the Network API Lambda do?**
+
+1. Receives the request **only after API Gateway validates the Entra access token and the method's delegated scope**. It uses the identity claims passed through the trusted integration, not an unverified user ID supplied by the agent.
+2. Determines the human's Entra **security group memberships** from verified group object IDs in the Network API token, or an authorized lookup when group claims are not available. For the PoC, we explicitly map those IDs to business entitlements; an AD group name by itself has no automatic meaning to AWS.
+3. Checks the **requested operation** and the **requested asset's actual region** against those entitlements. A user cannot broaden access by changing an asset ID, region parameter, prompt or tool argument. The API also limits which *fields* it returns to Service Desk users.
+4. Queries PostgreSQL using a **trusted per-request security context** so RLS independently restricts data rows. Lambda doesn't give the database the raw OAuth token and expect RLS to understand it.
+5. For automated callers, checks the approved Entra **application ID** and the `HealthSummary.Read` **app role**, then returns only aggregate health; those machines have no human AD groups.
+6. On ticket creation, checks the user's write entitlement, the asset's region and trusted user confirmation before committing a change.
+
+**Example group-to-permission mapping (our configuration, not an Entra default):**
+
+| Entra security group | Network API Lambda authorizes | Database scope |
+|---|---|---|
+| `Network-Admins` | Status, diagnostics, create ticket | All regions |
+| `Network-Engineers-VIC` | Status, diagnostics, create ticket | VIC only |
+| `Network-ServiceDesk` | Basic status only | All regions, basic fields only |
+
+**Does this mean hardcoding Sarah, James and Emma? No.** Lambda contains reusable checks such as “does this verified caller's group permit diagnostics for this asset's region?” The **group IDs and their associated permissions** are configuration/entitlement data, not if-statements naming individual employees. Moving James into a different approved group changes his effective rights without changing the Lambda code (subject to fresh token/entitlement data). A deny-by-default result applies if group membership is absent or cannot be verified.
+
+**Other valid options — and why we did not select them:**
+
+| Option | How it works | Why not our baseline? |
+|---|---|---|
+| **Selected: business checks in Network API Lambda** | API Gateway checks OAuth scopes; Lambda maps verified Entra groups to operation/region/field permissions; RLS filters rows | **Smallest understandable design** with one existing business Lambda and no extra authorization service |
+| Separate **API Gateway Lambda authorizer** | A dedicated authorizer checks group-based endpoint access before the business Lambda | Useful for reuse across APIs, but adds another Lambda and still does not replace record-level and field-level controls |
+| **Amazon Verified Permissions (Cedar) at API level** | API authorizer evaluates centrally managed Cedar policies based on the caller and operation | Strong option for many APIs/shared policy management, but adds a policy store and another authorization boundary; our PoC already demonstrates Cedar at AgentCore Gateway |
+| **Only API Gateway OAuth scopes** | API Gateway checks `scp` on each method | **Insufficient** when James and Emma have identical scopes but different business rights; scopes do not enforce asset regions or permitted fields |
+
+**Bottom line:** **Entra tells us who belongs to which group. API Gateway checks the OAuth scope. Network API Lambda interprets the group's business entitlements. PostgreSQL RLS protects the actual rows.** Cedar at G1 remains useful for early agent-tool authorization, but **it is not required to enforce Network API group permissions**.
+
 #### Exactly where authorization is enforced
 
 | Stage | What it checks | Example |
