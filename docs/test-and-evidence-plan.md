@@ -2,7 +2,7 @@
 
 **Status: Planned, not executed.** Every test below is a design acceptance criterion. Positive tests alone are insufficient: inspect the **actual downstream principal**, response and denial as well as the agent's text.
 
-**Consolidated API design:** Asset status, diagnostics, ticket read/create and aggregate health are endpoints of the **same Network Operations REST API** backed by RDS. Each endpoint remains a separately authorized MCP tool; ticket writes are not a new end system.
+**Consolidated API design:** Asset status, diagnostics, ticket creation and aggregate health are endpoints of the **same Network Operations REST API** backed by RDS. Each endpoint remains a separately authorized MCP tool; ticket writes are not a new end system.
 
 ## Personas and system-access tests
 
