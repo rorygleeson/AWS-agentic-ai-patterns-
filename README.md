@@ -12,23 +12,43 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 ## 1. End systems
 
-| # | End system | Description | High-level access rule |
-|---|---|---|---|
-| **1** | **Knowledge Base (RAG)** | Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases. | **All human users who successfully sign in to the AI chat app** can search the same approved knowledge. |
-| **2** | **Network Operations API** | Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and creates support tickets. | **Only authorized callers.** Human permissions depend on region and operation; the two approved automation identities have aggregate-only access. |
-| **3** | **NetworkMonitor** | Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts. | **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts. |
-| **4** | **Platform Health API** | Existing internal-use AWS API Gateway REST API, originally used by AWS workloads such as Lambda to read platform-health data. It uses IAM authentication rather than OAuth. **For the native AgentCore REST-stage target, the API has a public endpoint type but requires IAM/SigV4 authorization**; it is not an unauthenticated public API. | **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role. |
+- **1. Knowledge Base (RAG)**
+  - **Description:** Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases.
+  - **High-level access rule:** **All human users who successfully sign in to the AI chat app** can search the same approved knowledge.
+
+- **2. Network Operations API**
+  - **Description:** Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and creates support tickets.
+  - **High-level access rule:** **Only authorized callers.** Human permissions depend on region and operation; the two approved automation identities have aggregate-only access.
+
+- **3. NetworkMonitor**
+  - **Description:** Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts.
+  - **High-level access rule:** **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts.
+
+- **4. Platform Health API**
+  - **Description:** Existing internal-use AWS API Gateway REST API, originally used by AWS workloads such as Lambda to read platform-health data. It uses IAM authentication rather than OAuth. **For the native AgentCore REST-stage target, the API has a public endpoint type but requires IAM/SigV4 authorization**; it is not an unauthenticated public API.
+  - **High-level access rule:** **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role.
+
 
 ### Network Operations API — four endpoints
 
 These are the complete planned REST endpoints for our PoC. They all belong to **one Network Operations API** backed by RDS PostgreSQL:
 
-| Endpoint | What it returns or does | Access rule |
-|---|---|---|
-| `GET /assets/{id}/status` | Basic network asset status | Signed-in users **granted Network API access**; basic fields only for limited roles |
-| `GET /assets/{id}/diagnostics` | Detailed fault and diagnostic information | Authorized engineers/admins; **permitted regions only** |
-| `POST /tickets` | Creates a support ticket | Authorized engineers/admins; **permitted regions only**, with user confirmation |
-| `GET /network/health-summary` | Aggregate network-health summary | **Two approved automated identities only**; no individual asset details |
+- **`GET /assets/{id}/status`**
+  - **What it returns or does:** Basic network asset status
+  - **Access rule:** Signed-in users **granted Network API access**; basic fields only for limited roles
+
+- **`GET /assets/{id}/diagnostics`**
+  - **What it returns or does:** Detailed fault and diagnostic information
+  - **Access rule:** Authorized engineers/admins; **permitted regions only**
+
+- **`POST /tickets`**
+  - **What it returns or does:** Creates a support ticket
+  - **Access rule:** Authorized engineers/admins; **permitted regions only**, with user confirmation
+
+- **`GET /network/health-summary`**
+  - **What it returns or does:** Aggregate network-health summary
+  - **Access rule:** **Two approved automated identities only**; no individual asset details
+
 
 The Network API enforces each caller's permissions. The agent never queries RDS directly. We introduce the named people and their exact permissions next.
 
@@ -44,15 +64,41 @@ The Network API enforces each caller's permissions. The agent never queries RDS 
 
 The PoC has **five human users and two non-human service identities**. A **service account** is an identity used by an application or automated workload—not a person signing in. Here, the AWS Reporter is a scheduled Lambda using an **AWS IAM role**, while the Entra Automation Client is an application using an **Entra service principal**. Both run without a human and may request only the aggregate Network API report.
 
-| User | Role | Systems they can access | Exact permissions |
-|---|---|---|---|
-| **Sarah** | National Admin | **RAG, Network API** | Shared knowledge; network status, diagnostics and ticket creation in **all regions**. |
-| **James** | VIC Engineer | **RAG, Network API** | Shared knowledge; network status, diagnostics and ticket creation for **VIC only**. |
-| **Emma** | Service Desk | **RAG, Network API** | Shared knowledge; **basic asset status in all regions**. No detailed diagnostics or sensitive fields. |
-| **David** | External Analyst | **RAG, NetworkMonitor** | Shared knowledge; **his own third-party alerts**, after separate vendor authorization. |
-| **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
-| **AWS Network Health Reporter (non-human AWS workload)** | **Scheduled Lambda using an AWS IAM role; no human signs in** | **Network API** | Aggregate health only; **IAM/SigV4 into G2**, then its own Entra OAuth application token to the API. |
-| **Entra Automation Client (non-human service account)** | **Entra application/service principal; no human signs in** | **Network API** | Aggregate health only; **Entra Client Credentials JWT into G1**, then its own Network API OAuth application token. |
+- **Sarah**
+  - **Role:** National Admin
+  - **Systems they can access:** **RAG, Network API**
+  - **Exact permissions:** Shared knowledge; network status, diagnostics and ticket creation in **all regions**.
+
+- **James**
+  - **Role:** VIC Engineer
+  - **Systems they can access:** **RAG, Network API**
+  - **Exact permissions:** Shared knowledge; network status, diagnostics and ticket creation for **VIC only**.
+
+- **Emma**
+  - **Role:** Service Desk
+  - **Systems they can access:** **RAG, Network API**
+  - **Exact permissions:** Shared knowledge; **basic asset status in all regions**. No detailed diagnostics or sensitive fields.
+
+- **David**
+  - **Role:** External Analyst
+  - **Systems they can access:** **RAG, NetworkMonitor**
+  - **Exact permissions:** Shared knowledge; **his own third-party alerts**, after separate vendor authorization.
+
+- **Oliver**
+  - **Role:** Platform Analyst
+  - **Systems they can access:** **RAG, Platform Health API**
+  - **Exact permissions:** Shared knowledge; **read-only platform-health information**.
+
+- **AWS Network Health Reporter (non-human AWS workload)**
+  - **Role:** **Scheduled Lambda using an AWS IAM role; no human signs in**
+  - **Systems they can access:** **Network API**
+  - **Exact permissions:** Aggregate health only; **IAM/SigV4 into G2**, then its own Entra OAuth application token to the API.
+
+- **Entra Automation Client (non-human service account)**
+  - **Role:** **Entra application/service principal; no human signs in**
+  - **Systems they can access:** **Network API**
+  - **Exact permissions:** Aggregate health only; **Entra Client Credentials JWT into G1**, then its own Network API OAuth application token.
+
 
 ### Network API — exact endpoints for each caller
 
@@ -139,27 +185,59 @@ The journey is straightforward: **a caller asks → the agent selects a tool →
 
 The **Network API** is the clearest example of why identity matters:
 
-| Caller | Request | Result |
-|---|---|---|
-| **Sarah** | NSW diagnostics | ✅ Allowed |
-| **James** | NSW diagnostics | ❌ Denied — VIC only |
-| **Emma** | NSW basic asset status | ✅ Allowed — basic fields only |
-| **Emma** | NSW diagnostics | ❌ Denied |
-| **AWS Reporter — IAM into G2** | National aggregate health summary | ✅ Allowed — aggregate only |
-| **Entra Automation Client — JWT into G1** | National aggregate health summary | ✅ Allowed — aggregate only |
+- **Sarah**
+  - **Request:** NSW diagnostics
+  - **Result:** ✅ Allowed
+
+- **James**
+  - **Request:** NSW diagnostics
+  - **Result:** ❌ Denied — VIC only
+
+- **Emma**
+  - **Request:** NSW basic asset status
+  - **Result:** ✅ Allowed — basic fields only
+
+- **Emma**
+  - **Request:** NSW diagnostics
+  - **Result:** ❌ Denied
+
+- **AWS Reporter — IAM into G2**
+  - **Request:** National aggregate health summary
+  - **Result:** ✅ Allowed — aggregate only
+
+- **Entra Automation Client — JWT into G1**
+  - **Request:** National aggregate health summary
+  - **Result:** ✅ Allowed — aggregate only
+
 
 **Same API, different results:** the system uses each caller's identity and permissions to decide what can be returned.
 
 An application identity cannot replace an individual user. Some systems need to know **which person** made the request, some only **which application**, and the external vendor needs **a separate user-authorized OAuth grant**.
 
-| Why this pattern is needed | Authentication approach | What the downstream system knows |
-|---|---|---|
-| **Shared RAG:** Everyone signed into the AI app sees the same approved knowledge, so there is no need for per-user document access. | **Application sign-in + AWS IAM** for knowledge retrieval. | The AWS service identity, not individual document permissions. |
-| **Network API:** Sarah, James and Emma have different region and action permissions. The API **must know which person** called. | **OAuth On-Behalf-Of (OBO)** with Microsoft Entra ID. | The human caller. The API enforces permissions and sensitive fields; PostgreSQL RLS restricts database rows. |
-| **AWS Reporter IAM workload:** Lambda/Runtime enters G2 via IAM/SigV4, without a human. | **IAM inbound → Entra Client Credentials outbound** to Network API. | The Reporter's Entra app identity, summary-only. |
-| **Entra Automation Client:** Another application enters G1 with a JWT, without a human. | **Entra Client Credentials JWT inbound → new Entra Client Credentials token outbound** to Network API. | The separate Automation Client Entra app identity, summary-only. |
-| **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account. | **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor OAuth sign-in/authorization, and the resulting vendor credential is bound to his authenticated session. | Which vendor user authorized our application and what alerts they can access. |
-| **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it. | **IAM/SigV4 (AWS-signed service request):** AgentCore Gateway signs the final API call using its **service IAM role**, not Oliver's user credentials. | The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation. |
+- **Shared RAG:** Everyone signed into the AI app sees the same approved knowledge, so there is no need for per-user document access.**
+  - **Authentication approach:** **Application sign-in + AWS IAM** for knowledge retrieval.
+  - **What the downstream system knows:** The AWS service identity, not individual document permissions.
+
+- **Network API:** Sarah, James and Emma have different region and action permissions. The API **must know which person** called.**
+  - **Authentication approach:** **OAuth On-Behalf-Of (OBO)** with Microsoft Entra ID.
+  - **What the downstream system knows:** The human caller. The API enforces permissions and sensitive fields; PostgreSQL RLS restricts database rows.
+
+- **AWS Reporter IAM workload:** Lambda/Runtime enters G2 via IAM/SigV4, without a human.**
+  - **Authentication approach:** **IAM inbound → Entra Client Credentials outbound** to Network API.
+  - **What the downstream system knows:** The Reporter's Entra app identity, summary-only.
+
+- **Entra Automation Client:** Another application enters G1 with a JWT, without a human.**
+  - **Authentication approach:** **Entra Client Credentials JWT inbound → new Entra Client Credentials token outbound** to Network API.
+  - **What the downstream system knows:** The separate Automation Client Entra app identity, summary-only.
+
+- **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account.**
+  - **Authentication approach:** **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor OAuth sign-in/authorization, and the resulting vendor credential is bound to his authenticated session.
+  - **What the downstream system knows:** Which vendor user authorized our application and what alerts they can access.
+
+- **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it.**
+  - **Authentication approach:** **IAM/SigV4 (AWS-signed service request):** AgentCore Gateway signs the final API call using its **service IAM role**, not Oliver's user credentials.
+  - **What the downstream system knows:** The Gateway IAM role, **not Oliver**. Tool authorization enforces Oliver's access before invocation.
+
 
 ### Five downstream access patterns and two machine entry methods
 
@@ -247,11 +325,18 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 
 **When is it useful—and when can we leave it out?**
 
-| Situation | Cedar decision in our PoC | Why? |
-|---|---|---|
-| **Shared RAG: everyone signed into our chat app has the same access** | **No special per-user Cedar policy needed.** | No user-specific document restrictions to enforce at this tool. The AWS knowledge service still authenticates the agent's service role. |
-| **Network API: OBO carries the real user to an API that enforces their permissions** | **Optional extra protection; we choose to use it.** | Cedar can deny Emma's diagnostics **tool call early**. Even without Cedar, the Network API must independently reject the unauthorized request. |
-| **Platform Health: the final API sees only Gateway's IAM role** | **An upstream user-permission check is essential; we choose Cedar.** | The final API cannot tell Oliver from Emma by looking at the IAM role. Cedar permits Oliver's tool call and denies everyone else **before the same service role is used**. An equivalent correctly enforced application-side check could also provide this protection. |
+- **Shared RAG: everyone signed into our chat app has the same access**
+  - **Cedar decision in our PoC:** **No special per-user Cedar policy needed.**
+  - **Why?:** No user-specific document restrictions to enforce at this tool. The AWS knowledge service still authenticates the agent's service role.
+
+- **Network API: OBO carries the real user to an API that enforces their permissions**
+  - **Cedar decision in our PoC:** **Optional extra protection; we choose to use it.**
+  - **Why?:** Cedar can deny Emma's diagnostics **tool call early**. Even without Cedar, the Network API must independently reject the unauthorized request.
+
+- **Platform Health: the final API sees only Gateway's IAM role**
+  - **Cedar decision in our PoC:** **An upstream user-permission check is essential; we choose Cedar.**
+  - **Why?:** The final API cannot tell Oliver from Emma by looking at the IAM role. Cedar permits Oliver's tool call and denies everyone else **before the same service role is used**. An equivalent correctly enforced application-side check could also provide this protection.
+
 
 **The decision rule:** If the final API **knows the user and enforces their permissions**, Cedar can add defence in depth. If the final API **only knows a shared service identity**, make sure **some trusted component authorizes the human first**; Cedar is our selected control in that case.
 
@@ -309,12 +394,22 @@ Imagine James asks our AI application: **“Show me diagnostics for asset 123.�
 5. **PostgreSQL applies its RLS policy** to the database query using that verified context. It excludes any row outside James's permitted region.
 6. **The API returns only authorized data** to the agent, which uses it to answer James.
 
-| Caller | Verified access from Entra and API rules | What RLS allows |
-|---|---|---|
-| **Sarah** | National Admin, all-region entitlement | Rows in all permitted regions |
-| **James** | Engineer, VIC-only entitlement | **VIC rows only** |
-| **Emma** | Service Desk, nationwide basic status | Status rows nationally; **the API** removes sensitive fields |
-| **Both approved automation callers** | App-only OAuth permission for health summary | **Not a human regional-RLS example**; the API exposes only an aggregate response |
+- **Sarah**
+  - **Verified access from Entra and API rules:** National Admin, all-region entitlement
+  - **What RLS allows:** Rows in all permitted regions
+
+- **James**
+  - **Verified access from Entra and API rules:** Engineer, VIC-only entitlement
+  - **What RLS allows:** **VIC rows only**
+
+- **Emma**
+  - **Verified access from Entra and API rules:** Service Desk, nationwide basic status
+  - **What RLS allows:** Status rows nationally; **the API** removes sensitive fields
+
+- **Both approved automation callers**
+  - **Verified access from Entra and API rules:** App-only OAuth permission for health summary
+  - **What RLS allows:** **Not a human regional-RLS example**; the API exposes only an aggregate response
+
 
 **The crucial distinction:** OAuth/OBO tells the Network API **who is calling**. Verified Entra groups and our API rules determine **which data that caller may access**. The API conveys that trusted restriction to PostgreSQL, and **RLS enforces it against actual database rows**.
 
@@ -387,14 +482,30 @@ We also agreed on two separate AgentCore entry paths. **G1 is not a public alter
 4. **How a token is obtained:** When G2 invokes this target, **AgentCore Identity requests an access token from Microsoft Entra ID**, authenticating with those application credentials. Entra issues a **Network API-audience application token** containing the granted application permission, such as `HealthSummary.Read`. AgentCore Identity handles the OAuth token through its **encrypted token vault**.
 5. **OAuth into the enterprise API:** G2 sends that Entra bearer token to the **Network Operations API**. API Gateway validates the JWT, and the API checks the **application identity, audience and `HealthSummary.Read` role**. Only `GET /network/health-summary` is permitted. The API's Lambda retrieves aggregate data from RDS.
 
-| Credential or permission | Where it belongs | What it is used for |
-|---|---|---|
-| **Reporter Lambda IAM execution role** | AWS IAM | Invokes Runtime M; not a human OAuth identity |
-| **Runtime M IAM execution role** | AWS IAM | Signs the **inbound request to G2** with SigV4 |
-| **Reporter Entra client ID and client secret** | Entra app registration; secret managed through **AWS Secrets Manager** | Obtains an application-only OAuth token |
-| **OAuth credential provider** | **AgentCore Identity**, attached to G2's Network API target | Performs the Client Credentials flow |
-| **Issued OAuth access token** | AgentCore Identity **token vault** | Used by G2 to call the downstream Network API |
-| **`HealthSummary.Read` application permission** | Defined/granted in **Entra**, enforced by the Network API | Limits the Reporter to the aggregate report |
+- **Reporter Lambda IAM execution role**
+  - **Where it belongs:** AWS IAM
+  - **What it is used for:** Invokes Runtime M; not a human OAuth identity
+
+- **Runtime M IAM execution role**
+  - **Where it belongs:** AWS IAM
+  - **What it is used for:** Signs the **inbound request to G2** with SigV4
+
+- **Reporter Entra client ID and client secret**
+  - **Where it belongs:** Entra app registration; secret managed through **AWS Secrets Manager**
+  - **What it is used for:** Obtains an application-only OAuth token
+
+- **OAuth credential provider**
+  - **Where it belongs:** **AgentCore Identity**, attached to G2's Network API target
+  - **What it is used for:** Performs the Client Credentials flow
+
+- **Issued OAuth access token**
+  - **Where it belongs:** AgentCore Identity **token vault**
+  - **What it is used for:** Used by G2 to call the downstream Network API
+
+- **`HealthSummary.Read` application permission**
+  - **Where it belongs:** Defined/granted in **Entra**, enforced by the Network API
+  - **What it is used for:** Limits the Reporter to the aggregate report
+
 
 **The distinction from our Entra Automation Client:** That is an entirely **different application identity**. It first obtains an **Entra application JWT to enter G1**, then uses its **own separate outbound credential provider** to obtain a Network API token. It does **not** borrow the AWS Reporter's IAM role, client secret or access token. Both access the same final summary endpoint, but the Network API can identify which application called.
 
@@ -425,12 +536,20 @@ Think of the terms this way:
 
 **Both are ordinary REST APIs.** A REST API **can** authenticate users with OAuth. The difference is how we **register the API as a target in AgentCore Gateway** and which outbound credentials that particular target type supports.
 
-| | Native AWS API Gateway stage target | OpenAPI schema target |
-|---|---|---|
-| **Our example** | Platform Health API | Network Operations API |
-| **What we give AgentCore** | An existing AWS API Gateway REST API stage | An **OpenAPI document** listing the REST URLs, operations and parameters |
-| **Outbound authentication AgentCore supports** | **AWS IAM/SigV4** or API key; **no OAuth option** for this target type | **OAuth**, including OBO for a person and Client Credentials for a service |
-| **Identity the final API receives in our PoC** | Gateway's **AWS IAM service role** | A **user-delegated Entra token** or the service account's Entra token |
+**Native AWS API Gateway stage target**
+
+- **Our example:** Platform Health API
+- **What we give AgentCore:** An existing AWS API Gateway REST API stage
+- **Outbound authentication AgentCore supports:** **AWS IAM/SigV4** or API key; **no OAuth option** for this target type
+- **Identity the final API receives in our PoC:** Gateway's **AWS IAM service role**
+
+**OpenAPI schema target**
+
+- **Our example:** Network Operations API
+- **What we give AgentCore:** An **OpenAPI document** listing the REST URLs, operations and parameters
+- **Outbound authentication AgentCore supports:** **OAuth**, including OBO for a person and Client Credentials for a service
+- **Identity the final API receives in our PoC:** A **user-delegated Entra token** or the service account's Entra token
+
 
 **Why does Network Operations need the OpenAPI option?** Its REST endpoints must identify the human caller to enforce regional permissions. When James requests VIC diagnostics:
 
@@ -466,23 +585,43 @@ James and Emma both sign in to **our AI chat application**. James is a VIC engin
 
 That is not contradictory. The token's scope is **only one check**:
 
-| Question | Mechanism | Our example |
-|---|---|---|
-| Is the person allowed to use the **AI diagnostics tool**? | **AI Backend app role**, enforced by AgentCore G1 **Cedar** | James allowed; Emma denied |
-| May the **AI client request** the Network API diagnostics operation for a signed-in person? | **Delegated OAuth scope**, enforced by API Gateway | `diagnostics.read` is required |
-| May **this person** access diagnostics for **this asset and region**? | **AD group** membership, mapped by Network API Lambda to business entitlements | James VIC allowed; NSW denied; Emma denied |
-| Which **database rows** may the request return or change? | PostgreSQL **row-level security (RLS)** | James's request cannot retrieve NSW rows |
+- **Is the person allowed to use the **AI diagnostics tool**?**
+  - **Mechanism:** **AI Backend app role**, enforced by AgentCore G1 **Cedar**
+  - **Our example:** James allowed; Emma denied
+
+- **May the **AI client request** the Network API diagnostics operation for a signed-in person?**
+  - **Mechanism:** **Delegated OAuth scope**, enforced by API Gateway
+  - **Our example:** `diagnostics.read` is required
+
+- **May **this person** access diagnostics for **this asset and region**?**
+  - **Mechanism:** **AD group** membership, mapped by Network API Lambda to business entitlements
+  - **Our example:** James VIC allowed; NSW denied; Emma denied
+
+- **Which **database rows** may the request return or change?**
+  - **Mechanism:** PostgreSQL **row-level security (RLS)**
+  - **Our example:** James's request cannot retrieve NSW rows
+
 
 **The key rule:** An authenticated user and a valid OAuth scope are not sufficient to access every API operation or record. The final Network API must still enforce the individual's rights.
 
 #### 2. Four concepts, explained simply
 
-| Term | Plain-English meaning | Where we configure it |
-|---|---|---|
-| **AD group** | A named collection of users, such as the VIC engineering team. **We use ordinary Entra ID AD groups**, not an API Gateway-specific group. | Entra ID → Groups |
-| **App role** | A named permission **within a particular application**, such as `Network.Engineer`. | App registration → App roles; assign through Enterprise Applications |
-| **OAuth delegated scope** | Permission for a **client application to request an operation on behalf of a signed-in person**, such as `diagnostics.read`. | Network API app registration → Expose an API; grant delegated API permission/consent to the middle tier |
-| **OBO (On-Behalf-Of)** | A token exchange: our confidential AI backend asks Entra for a **new Network API token representing the same signed-in person**. | AI Backend confidential client + AgentCore Identity OAuth credential provider |
+- **AD group**
+  - **Plain-English meaning:** A named collection of users, such as the VIC engineering team. **We use ordinary Entra ID AD groups**, not an API Gateway-specific group.
+  - **Where we configure it:** Entra ID → Groups
+
+- **App role**
+  - **Plain-English meaning:** A named permission **within a particular application**, such as `Network.Engineer`.
+  - **Where we configure it:** App registration → App roles; assign through Enterprise Applications
+
+- **OAuth delegated scope**
+  - **Plain-English meaning:** Permission for a **client application to request an operation on behalf of a signed-in person**, such as `diagnostics.read`.
+  - **Where we configure it:** Network API app registration → Expose an API; grant delegated API permission/consent to the middle tier
+
+- **OBO (On-Behalf-Of)**
+  - **Plain-English meaning:** A token exchange: our confidential AI backend asks Entra for a **new Network API token representing the same signed-in person**.
+  - **Where we configure it:** AI Backend confidential client + AgentCore Identity OAuth credential provider
+
 
 **These do not automatically map to each other.** Adding James to an AD group does not automatically grant an app role, make him an OAuth client, or issue an OBO token. Granting `diagnostics.read` does not turn Emma into an engineer.
 
@@ -492,33 +631,60 @@ That is not contradictory. The token's scope is **only one check**:
 
 **A. Human AD groups — three in total**
 
-| AD group name to create | Member | What our Network API rules grant |
-|---|---|---|
-| `Network-Admins` | Sarah | Status, diagnostics and ticket creation for all regions |
-| `Network-Engineers-VIC` | James | Status, diagnostics and ticket creation for VIC only |
-| `Network-ServiceDesk` | Emma | Basic asset status for all regions; **no** diagnostics or tickets |
+- **`Network-Admins`**
+  - **Member:** Sarah
+  - **What our Network API rules grant:** Status, diagnostics and ticket creation for all regions
+
+- **`Network-Engineers-VIC`**
+  - **Member:** James
+  - **What our Network API rules grant:** Status, diagnostics and ticket creation for VIC only
+
+- **`Network-ServiceDesk`**
+  - **Member:** Emma
+  - **What our Network API rules grant:** Basic asset status for all regions; **no** diagnostics or tickets
+
 
 These are proposed names for **normal Entra AD groups**. **There is no special AD group registered to AWS API Gateway, and no group that is enabled for OBO.** David and Oliver need **no Network API AD group** because their permitted tools point to different systems. Neither non-human caller uses these human AD groups.
 
 **B. Three Entra app registrations for the human flow**
 
-| Entra app registration | Represents | What we define or configure |
-|---|---|---|
-| `enterprise-ai-web` | Browser chat client | Interactive authorization code + PKCE; permission to call the AI Backend's `chat.invoke` delegated scope |
-| `enterprise-ai-backend` | Protected Chat API (`POST /ai/chat`) **and** confidential client for OBO | Expose `chat.invoke`; define the human app roles below; configure the **same backend application ID** for the confidential OBO client |
-| `enterprise-network-api` | Protected Network Operations REST API | Expose delegated scopes `status.read`, `diagnostics.read`, `tickets.write`; define app-only role `HealthSummary.Read`; configure appropriate group claims for this API if using token membership |
+- **`enterprise-ai-web`**
+  - **Represents:** Browser chat client
+  - **What we define or configure:** Interactive authorization code + PKCE; permission to call the AI Backend's `chat.invoke` delegated scope
+
+- **`enterprise-ai-backend`**
+  - **Represents:** Protected Chat API (`POST /ai/chat`) **and** confidential client for OBO
+  - **What we define or configure:** Expose `chat.invoke`; define the human app roles below; configure the **same backend application ID** for the confidential OBO client
+
+- **`enterprise-network-api`**
+  - **Represents:** Protected Network Operations REST API
+  - **What we define or configure:** Expose delegated scopes `status.read`, `diagnostics.read`, `tickets.write`; define app-only role `HealthSummary.Read`; configure appropriate group claims for this API if using token membership
+
 
 **Why must the backend OBO client match Token A's audience?** Microsoft permits the middle tier to redeem an incoming token only when the assertion was issued **for that confidential middle-tier application**. Using some other client ID to exchange a Chat API token is not our design and can fail token exchange.
 
 **C. Human AI-application roles — assigned directly in this PoC**
 
-| Person | Chat API app role in Token A | Network API AD group |
-|---|---|---|
-| Sarah | `Network.Admin` | `Network-Admins` |
-| James | `Network.Engineer` | `Network-Engineers-VIC` |
-| Emma | `Network.ServiceDesk` | `Network-ServiceDesk` |
-| David | `Vendor.Analyst` | None |
-| Oliver | `Platform.Analyst` | None |
+- **Sarah**
+  - **Chat API app role in Token A:** `Network.Admin`
+  - **Network API AD group:** `Network-Admins`
+
+- **James**
+  - **Chat API app role in Token A:** `Network.Engineer`
+  - **Network API AD group:** `Network-Engineers-VIC`
+
+- **Emma**
+  - **Chat API app role in Token A:** `Network.ServiceDesk`
+  - **Network API AD group:** `Network-ServiceDesk`
+
+- **David**
+  - **Chat API app role in Token A:** `Vendor.Analyst`
+  - **Network API AD group:** None
+
+- **Oliver**
+  - **Chat API app role in Token A:** `Platform.Analyst`
+  - **Network API AD group:** None
+
 
 We assign these human **app roles directly to users** in the AI Backend's Enterprise Application. **Separately**, we maintain their AD group memberships. This keeps the two concepts easy to demonstrate, including in an Entra Free learning tenant.
 
@@ -532,15 +698,26 @@ The Network API defines the three **delegated scopes**. The confidential `enterp
 
 A person signs in **once**, but each protected API expects a token intended for **that API**.
 
-| | **Token A — AI Backend** | **Token B — Network API** |
-|---|---|---|
-| Who obtains it? | The browser client following interactive Entra sign-in | The **confidential AI backend** using AgentCore Identity **OBO** |
-| Issued by | Microsoft Entra ID | Microsoft Entra ID |
-| Intended audience (`aud`) | `enterprise-ai-backend` | `enterprise-network-api` |
-| Example delegated scope (`scp`) | `chat.invoke` | `diagnostics.read` |
-| User | James (`tid`, `oid`) | **The same James** (`tid`, `oid`) |
-| Additional claims | AI Backend-specific user roles may appear in `roles` | Group claims can appear **if configured for the Network API**; no automatic copying from Token A |
-| Who validates it? | Chat API and configured JWT-based AgentCore boundaries | Network API Gateway authorizer and its backend |
+**Token A — AI Backend**
+
+- **Who obtains it?:** The browser client following interactive Entra sign-in
+- **Issued by:** Microsoft Entra ID
+- **Intended audience (`aud`):** `enterprise-ai-backend`
+- **Example delegated scope (`scp`):** `chat.invoke`
+- **User:** James (`tid`, `oid`)
+- **Additional claims:** AI Backend-specific user roles may appear in `roles`
+- **Who validates it?:** Chat API and configured JWT-based AgentCore boundaries
+
+**Token B — Network API**
+
+- **Who obtains it?:** The **confidential AI backend** using AgentCore Identity **OBO**
+- **Issued by:** Microsoft Entra ID
+- **Intended audience (`aud`):** `enterprise-network-api`
+- **Example delegated scope (`scp`):** `diagnostics.read`
+- **User:** **The same James** (`tid`, `oid`)
+- **Additional claims:** Group claims can appear **if configured for the Network API**; no automatic copying from Token A
+- **Who validates it?:** Network API Gateway authorizer and its backend
+
 
 **Why not send Token A to every system?** Because the Network API must reject a token addressed to the Chat API. Accepting an unrelated token audience creates a security boundary failure. OBO obtains a properly addressed token without another interactive sign-in.
 
@@ -565,12 +742,22 @@ A person signs in **once**, but each protected API expects a token intended for 
 
 The **Network Operations API** is one REST API backed by one RDS PostgreSQL database. Its four endpoints are:
 
-| Endpoint | OAuth/API permission required | Additional Network API rules |
-|---|---|---|
-| `GET /assets/{id}/status` | Delegated `status.read` | Sarah all regions; James VIC; Emma nationwide **basic fields only** |
-| `GET /assets/{id}/diagnostics` | Delegated `diagnostics.read` | Sarah all regions; James VIC; Emma **denied** |
-| `POST /tickets` | Delegated `tickets.write` | Sarah all regions; James VIC; Emma **denied**; trusted explicit user confirmation before any write |
-| `GET /network/health-summary` | **App-only** `roles: [HealthSummary.Read]`, not a delegated `scp` | **Only** the two approved non-human Entra application identities; summary only |
+- **`GET /assets/{id}/status`**
+  - **OAuth/API permission required:** Delegated `status.read`
+  - **Additional Network API rules:** Sarah all regions; James VIC; Emma nationwide **basic fields only**
+
+- **`GET /assets/{id}/diagnostics`**
+  - **OAuth/API permission required:** Delegated `diagnostics.read`
+  - **Additional Network API rules:** Sarah all regions; James VIC; Emma **denied**
+
+- **`POST /tickets`**
+  - **OAuth/API permission required:** Delegated `tickets.write`
+  - **Additional Network API rules:** Sarah all regions; James VIC; Emma **denied**; trusted explicit user confirmation before any write
+
+- **`GET /network/health-summary`**
+  - **OAuth/API permission required:** **App-only** `roles: [HealthSummary.Read]`, not a delegated `scp`
+  - **Additional Network API rules:** **Only** the two approved non-human Entra application identities; summary only
+
 
 **Where does each check happen?**
 
@@ -582,12 +769,26 @@ The **Network Operations API** is one REST API backed by one RDS PostgreSQL data
 
 **Same OAuth scope, different person:**
 
-| Caller | Example delegated scope | Attempt | Result |
-|---|---|---|---|
-| James | `diagnostics.read` | VIC diagnostics | **Allow** |
-| James | `diagnostics.read` | NSW diagnostics | **Deny** — outside VIC |
-| Emma | `diagnostics.read` (even if her authorized client obtained it) | Any diagnostics | **Deny** — Service Desk has no diagnostics entitlement |
-| Emma | `status.read` | Basic NSW status | **Allow** — basic fields only |
+- **James**
+  - **Example delegated scope:** `diagnostics.read`
+  - **Attempt:** VIC diagnostics
+  - **Result:** **Allow**
+
+- **James**
+  - **Example delegated scope:** `diagnostics.read`
+  - **Attempt:** NSW diagnostics
+  - **Result:** **Deny** — outside VIC
+
+- **Emma**
+  - **Example delegated scope:** `diagnostics.read` (even if her authorized client obtained it)
+  - **Attempt:** Any diagnostics
+  - **Result:** **Deny** — Service Desk has no diagnostics entitlement
+
+- **Emma**
+  - **Example delegated scope:** `status.read`
+  - **Attempt:** Basic NSW status
+  - **Result:** **Allow** — basic fields only
+
 
 **Why isn't OAuth enough?** OAuth scopes describe what the client may request on a user's behalf, not every individual business rule. An endpoint that accepts James's `diagnostics.read` token must still deny James's NSW asset and Emma's diagnostics request.
 
@@ -622,10 +823,16 @@ G1's **Cedar** policies authorize **MCP tool invocation** from **Token A** ident
 
 Our PoC has **two automated callers with different inbound authentication**, but both eventually use **Entra application permissions** for the same Network API summary endpoint.
 
-| Caller | AgentCore inbound identity | Network API outbound credential | What the final API sees |
-|---|---|---|---|
-| **AWS Network Health Reporter** | Scheduled Lambda → IAM Runtime M → G2 **AWS_IAM/SigV4** | AgentCore Identity OAuth **Client Credentials** for dedicated Entra app `network-health-reporter` | Reporter's Entra **application ID**, `HealthSummary.Read`, no human |
-| **Entra Automation Client** | Separate Entra service principal → application JWT → Runtime U → G1 **CUSTOM_JWT** | Separate target's **Client Credentials** for `entra-automation-client` | Automation Client's own Entra **application ID**, `HealthSummary.Read`, no human |
+- **AWS Network Health Reporter**
+  - **AgentCore inbound identity:** Scheduled Lambda → IAM Runtime M → G2 **AWS_IAM/SigV4**
+  - **Network API outbound credential:** AgentCore Identity OAuth **Client Credentials** for dedicated Entra app `network-health-reporter`
+  - **What the final API sees:** Reporter's Entra **application ID**, `HealthSummary.Read`, no human
+
+- **Entra Automation Client**
+  - **AgentCore inbound identity:** Separate Entra service principal → application JWT → Runtime U → G1 **CUSTOM_JWT**
+  - **Network API outbound credential:** Separate target's **Client Credentials** for `entra-automation-client`
+  - **What the final API sees:** Automation Client's own Entra **application ID**, `HealthSummary.Read`, no human
+
 
 **No AD group or OBO is involved.** `HealthSummary.Read` is an Entra **application app role** defined on `enterprise-network-api` and granted separately to the two service principals. The Network API checks each application's verified client identity and its role—not just the signature of some Entra-issued JWT.
 
