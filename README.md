@@ -359,17 +359,17 @@ The machine caller must be authorized **twice**, because it calls **two differen
 
 #### Who gets which role and group?
 
-These names are **our PoC's proposed Entra configuration**. We assign human app roles **directly to the users** in the Chat API's Enterprise Application. We maintain group memberships independently. Only the Network API needs the network-region memberships.
+These names are **our PoC's proposed Entra configuration**. We assign human app roles **directly to the users** in the Chat API's Enterprise Application. We maintain group memberships independently. The table places **app role and Entra security group together for readability**, but they remain **different permissions**: G1 Cedar uses the app role; the Network API uses verified group membership for endpoint and regional access.
 
-| Caller | Chat API app role (`roles` in Token A) | Entra membership relevant to Network API | Effective access |
-|---|---|---|---|
-| **Sarah** | `Network.Admin` | `Network-Admins` | All-region status, diagnostics, ticket creation |
-| **James** | `Network.Engineer` | `Network-Engineers-VIC` | VIC status, diagnostics, ticket creation |
-| **Emma** | `Network.ServiceDesk` | `Network-ServiceDesk` | Basic status in all regions; no diagnostics/ticket actions |
-| **David** | `Vendor.Analyst` | **No Network API entitlement** | Vendor tool only, after separate vendor OAuth |
-| **Oliver** | `Platform.Analyst` | **No Network API entitlement** | Platform Health tool only, after Cedar approval |
-| **AWS Network Health Reporter** | No human role; IAM into G2 | No user group | Its own `HealthSummary.Read` app permission on Network API |
-| **Entra Automation Client** | AI Backend **application** role `Automation.Summary.Invoke` (not a human role) | No user group | G1 summary tool only; separate `HealthSummary.Read` application permission on Network API |
+| Caller | Entra app role and security group | Effective access |
+|---|---|---|
+| **Sarah** | **App role:** `Network.Admin`<br>**Entra group:** `Network-Admins` | All-region status, diagnostics, ticket creation |
+| **James** | **App role:** `Network.Engineer`<br>**Entra group:** `Network-Engineers-VIC` | VIC status, diagnostics, ticket creation |
+| **Emma** | **App role:** `Network.ServiceDesk`<br>**Entra group:** `Network-ServiceDesk` | Basic status in all regions; no diagnostics/ticket actions |
+| **David** | **App role:** `Vendor.Analyst`<br>**Entra group:** None required for Network API | Vendor tool only, after separate vendor OAuth |
+| **Oliver** | **App role:** `Platform.Analyst`<br>**Entra group:** None required for Network API | Platform Health tool only, after Cedar approval |
+| **AWS Network Health Reporter** | **Non-human IAM workload:** no user app role or Entra security group | Its own `HealthSummary.Read` application permission on Network API |
+| **Entra Automation Client** | **Non-human app role:** `Automation.Summary.Invoke`<br>**Entra security group:** None | G1 summary tool only; separate `HealthSummary.Read` application permission on Network API |
 
 All five humans may use shared RAG after signing into our application. These roles do **not** imply that David or Oliver can call Network API endpoints.
 
