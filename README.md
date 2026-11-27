@@ -359,21 +359,23 @@ The machine caller must be authorized **twice**, because it calls **two differen
 
 #### Who gets which role and group?
 
-These names are **our PoC's proposed Entra configuration**. We assign human app roles **directly to the users** in the Chat API's Enterprise Application. We maintain group memberships independently. The table places **app role and Entra security group together for readability**, but they remain **different permissions**: G1 Cedar uses the app role; the Network API uses verified group membership for endpoint and regional access.
+These names are **our PoC's proposed Entra configuration**. We assign human app roles **directly to the users** in the Chat API's Enterprise Application. We maintain group memberships independently. The table shows each **AD group display name in Microsoft Entra ID** alongside the app role. These are **proposed names for groups we will create**, not existing verified groups. In Entra, this group type is called a *security group*; it is still what we mean by an **AD group**. The two fields remain **different permissions**: G1 Cedar uses the app role; the Network API uses verified group membership for endpoint and regional access.
 
-| Caller | Entra app role and security group | Effective access |
+| Caller | Chat API app role and AD group name (Entra ID) | Effective access |
 |---|---|---|
-| **Sarah** | **App role:** `Network.Admin`<br>**Entra group:** `Network-Admins` | All-region status, diagnostics, ticket creation |
-| **James** | **App role:** `Network.Engineer`<br>**Entra group:** `Network-Engineers-VIC` | VIC status, diagnostics, ticket creation |
-| **Emma** | **App role:** `Network.ServiceDesk`<br>**Entra group:** `Network-ServiceDesk` | Basic status in all regions; no diagnostics/ticket actions |
-| **David** | **App role:** `Vendor.Analyst`<br>**Entra group:** None required for Network API | Vendor tool only, after separate vendor OAuth |
-| **Oliver** | **App role:** `Platform.Analyst`<br>**Entra group:** None required for Network API | Platform Health tool only, after Cedar approval |
-| **AWS Network Health Reporter** | **Non-human IAM workload:** no user app role or Entra security group | Its own `HealthSummary.Read` application permission on Network API |
-| **Entra Automation Client** | **Non-human app role:** `Automation.Summary.Invoke`<br>**Entra security group:** None | G1 summary tool only; separate `HealthSummary.Read` application permission on Network API |
+| **Sarah** | **App role:** `Network.Admin`<br>**AD group name:** `Network-Admins` | All-region status, diagnostics, ticket creation |
+| **James** | **App role:** `Network.Engineer`<br>**AD group name:** `Network-Engineers-VIC` | VIC status, diagnostics, ticket creation |
+| **Emma** | **App role:** `Network.ServiceDesk`<br>**AD group name:** `Network-ServiceDesk` | Basic status in all regions; no diagnostics/ticket actions |
+| **David** | **App role:** `Vendor.Analyst`<br>**AD group name:** None required for Network API | Vendor tool only, after separate vendor OAuth |
+| **Oliver** | **App role:** `Platform.Analyst`<br>**AD group name:** None required for Network API | Platform Health tool only, after Cedar approval |
+| **AWS Network Health Reporter** | **Non-human IAM workload:** no human app role or AD group | Its own `HealthSummary.Read` application permission on Network API |
+| **Entra Automation Client** | **Non-human app role:** `Automation.Summary.Invoke`<br>**AD group name:** None | G1 summary tool only; separate `HealthSummary.Read` application permission on Network API |
 
 All five humans may use shared RAG after signing into our application. These roles do **not** imply that David or Oliver can call Network API endpoints.
 
 **Why put the tool roles on the Chat API registration?** Token A is the verified user token that reaches human AgentCore Gateway **G1**. We want Cedar to evaluate a role claim present on **that token** before invoking a restricted MCP tool. Our actual Cedar rules grant the corresponding tools; simply defining an Entra role is not enough.
+
+**Important:** The names above are human-readable **AD group display names**. Entra assigns each group a unique **object ID**; the Network API verifies those IDs in the token or through an authorized lookup, rather than trusting a supplied group name.
 
 **Why keep groups separate?** Regional membership is a different question from tool eligibility. For example, James may invoke a diagnostics tool, but his VIC membership still prevents NSW records from being returned.
 
