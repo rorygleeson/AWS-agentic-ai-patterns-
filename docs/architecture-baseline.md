@@ -132,7 +132,7 @@ No document-specific RAG ACL exercise, real customer data or production-readines
 ## 10. Reference architecture requirements
 
 - Distinguish business use cases, reusable patterns and implementation components.
-- Show all six callers, both Runtime modes, both Gateway modes, token transitions and four end systems.
+- Show all seven callers, both Runtime modes, both Gateway modes, token transitions and four end systems.
 - Prefer short, accessible user-to-system diagrams before the detailed AWS service view; AWS-icon diagram may be expanded as a separate deliverable.
 - Keep architecture, patterns, ADR, implementation and testing documents independent.
 - Design intent is supported by AWS/Microsoft/PostgreSQL documentation; test procedures verify the future deployment **conforms** to the design.
