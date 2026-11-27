@@ -18,6 +18,16 @@ Together, they show why enterprise AI agents need different authentication and a
 
 **The key idea:** Signing in to the chat app is only the start. **Every connected system must still enforce its own access rules.**
 
+## Architecture overview
+
+The diagram shows the **whole PoC at a glance**. Employees use our AI chat app; the agent uses AgentCore to reach four downstream systems. Each system has a different authentication requirement. The scheduled Reporter enters through a separate IAM-protected machine path.
+
+![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview.svg)
+
+**Read the notes on the four right-hand systems:** shared RAG uses AWS IAM; Network Operations uses Entra OAuth (human OBO or application-only); the external vendor requires its **own** OAuth authorization; and Platform Health accepts IAM-signed requests after the user's tool permission is checked.
+
+The detailed architecture diagram remains near the end for readers who want to see more of the individual AWS components.
+
 ## 1. End systems
 
 | # | End system | Description | High-level access rule |
