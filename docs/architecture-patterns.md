@@ -49,7 +49,7 @@
 4. Network API validates its own audience, scopes and `tid/oid`, maps James to approved VIC rows and applies RLS.
 5. Denied NSW diagnostic queries remain denied regardless of the model's instructions.
 
-Ticket read/create operations use the **same Network API audience** but require their own delegated scopes (`ticket.read`, `ticket.create`). The exact Gateway outbound OBO token exchange integration and identity propagation must be matched to documented AWS connector capabilities before console configuration; no custom impersonation shortcut.
+Ticket creation uses the **same Network API audience** but require the delegated scope `tickets.write`. The exact Gateway outbound OBO token exchange integration and identity propagation must be matched to documented AWS connector capabilities before console configuration; no custom impersonation shortcut.
 
 **Security invariant:** A shared Lambda/Gateway IAM role must not override the downstream delegated authorization decision.
 
