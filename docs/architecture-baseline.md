@@ -13,7 +13,7 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 | System | Classification | Input/API contract | Output and restriction |
 |---|---|---|---|
 | Shared knowledge | Shared RAG repository | Native managed KB connector, `search_knowledge(query)` | Cited procedure excerpts. Same approved documents for all five human users; no document-level ACL example. |
-| Network Operations | Protected enterprise REST API | `GET /assets/{id}/status`, `GET /assets/{id}/diagnostics`, `GET /tickets/{id}`, `POST /tickets`, `GET /network/health-summary` | Asset status/diagnostics, ticket read/create and aggregate reporting; permission, region, field and write controls. |
+| Network Operations | Protected enterprise REST API | `GET /assets/{id}/status`, `GET /assets/{id}/diagnostics`, `POST /tickets`, `GET /network/health-summary` | Asset status/diagnostics, ticket creation and aggregate reporting; permission, region, field and write controls. |
 | NetworkMonitor | External simulated SaaS | `GET /alerts` | Alerts tied to separately authenticated vendor account; own Cognito authorization server. |
 | Platform Health | AWS-native protected REST API | `GET /platform/health` | Synthetic platform service health; IAM/SigV4 method, no human-specific data. |
 | RDS PostgreSQL | Private internal database | SQL only from Network Operations application tier | Assets, faults, tickets and entitlements with RLS; not exposed as an MCP tool. |
@@ -24,8 +24,8 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 
 | User | Permitted business outcomes | Explicitly forbidden |
 |---|---|---|
-| Sarah (National Admin) | Shared RAG; nationwide asset status and diagnostics; approved ticket read/create | Oliver-only platform health; David's vendor account |
-| James (VIC Engineer) | Shared RAG; VIC asset status, VIC diagnostics and VIC ticket activity | NSW restricted records; Oliver-only tool |
+| Sarah (National Admin) | Shared RAG; nationwide asset status and diagnostics; approved ticket creation | Oliver-only platform health; David's vendor account |
+| James (VIC Engineer) | Shared RAG; VIC asset status, VIC diagnostics and VIC ticket creation | NSW restricted records; Oliver-only tool |
 | Emma (Service Desk) | Shared RAG; nationwide **basic** status | Diagnostic fields and tools, ticket writes, Oliver-only tool |
 | David (External Analyst) | Shared RAG; vendor alerts after independent NetworkMonitor consent | Internal privileged assets, diagnostics or tickets |
 | Oliver (Platform Operations Analyst) | Shared RAG; platform health | Network diagnostics/tickets, other users' vendor alerts |
@@ -42,7 +42,7 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 - API Gateway, Lambda, Runtime U and G1 validate/forward the **AI Backend API audience** Token A as one logical API protection domain. Lambda forwards the unchanged signed user bearer JWT to Runtime; Runtime validates it independently.
 - Runtime U uses JWT, not IAM, for invocation. Lambda's role alone does not authenticate as a user.
 - For calls to G1, the agent explicitly passes its inbound user JWT via the allowlisted Authorization header; G1 creates an `OAuthUser` Cedar principal from the verified JWT. **Do not silently replace this with a Gateway M2M token**, as that would change the policy principal.
-- AgentCore Identity obtains target-audience OBO Token B for the Network API's asset, diagnostics and ticket operations. The downstream API validates the token and applies its own authorizations.
+- AgentCore Identity obtains target-audience OBO Token B for the Network API's asset, diagnostics and ticket creation. The downstream API validates the token and applies its own authorizations.
 - David's vendor tool uses independent Cognito 3LO consent. Oliver's native stage target deliberately uses Gateway IAM identity outbound, without OBO.
 - The Gateway's execution role is separate from the JWT principal presented to Cedar.
 
@@ -54,7 +54,7 @@ The IAM principal observed by **G2 is Runtime M's execution role**, not automati
 
 ### Gateway boundaries
 
-**G1: Entra JWT.** Human tools: shared KB; basic status; diagnostics; ticket read/create; vendor alerts; native platform health. Cedar uses user principal + tool/input. A distinct target provider can be OBO, 3LO or IAM.
+**G1: Entra JWT.** Human tools: shared KB; basic status; diagnostics; ticket creation; vendor alerts; native platform health. Cedar uses user principal + tool/input. A distinct target provider can be OBO, 3LO or IAM.
 
 **G2: AWS IAM.** One `get_network_health_summary` tool, one small role-restricted policy, limited Gateway execution role and 2LO target provider. There is no copy of all human Cedar rules in G2.
 
@@ -66,13 +66,13 @@ The API/Gateway and Runtime must not share unrestricted public bypasses: the hum
 
 1. `enterprise-ai-web`: public browser client, authorization-code + PKCE, granted `chat.invoke`.
 2. `enterprise-ai-backend`: protected logical AI API, exposes `chat.invoke`, confidential client performing OBO, audience for Token A.
-3. `enterprise-network-api`: one Network API resource, delegated scopes `asset.read`, `diagnostics.read`, `ticket.read`, `ticket.create`, and application role `HealthSummary.Read`.
+3. `enterprise-network-api`: one Network API resource, delegated scopes `status.read`, `diagnostics.read`, `tickets.write`, and application role `HealthSummary.Read`.
 4. `network-health-reporter`: confidential service application granted **application** `HealthSummary.Read` only.
 5. NetworkMonitor Cognito: separate vendor authorization server/resource, client and `alerts.read` user consent.
 
 Token A: Entra issuer, **AI Backend API** audience, `chat.invoke` in `scp`, user `tid` + `oid` + `sub`, and directly assigned business-role claim(s). JWT authorizers require valid signature/expiry/issuer/audience and appropriate scope.
 
-Token B: issued via Entra OBO, **Network API** audience, the original user's delegated identity, narrow Network scopes. Ticket calls use the same Network API audience with narrower `ticket.read` / `ticket.create` delegated scopes. The OBO assertion must have the audience of the confidential backend client performing the exchange.
+Token B: issued via Entra OBO, **Network API** audience, the original user's delegated identity, narrow Network scopes. Ticket calls use the same Network API audience with the `tickets.write` delegated scope. The OBO assertion must have the audience of the confidential backend client performing the exchange.
 
 Token C: Entra client credentials, **Network API** audience, Reporter application's `roles` (not human `scp`), no human `oid` identity claim.
 
@@ -97,7 +97,6 @@ Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHE
 | G1 | `search_knowledge` | Managed KB connector, Gateway IAM retrieval | Available to all human roles |
 | G1 | `get_asset_status` | Network OpenAPI target, Entra OBO | Emma basic DTO, Sarah national, James VIC |
 | G1 | `get_diagnostics` | Network OpenAPI target, Entra OBO | Sarah national, James VIC; Emma denied |
-| G1 | `get_ticket` | Network OpenAPI target, Entra OBO | Sarah and James authorized region |
 | G1 | `create_ticket` | Network OpenAPI target, Entra OBO | Sarah/James, confirmation and idempotency |
 | G1 | `search_vendor_alerts` | NetworkMonitor OpenAPI/MCP target, Cognito authorization-code 3LO | David with vendor consent only |
 | G1 | `get_platform_health` | **Native API Gateway REST stage** target, Gateway role SigV4 | **Oliver only**, simulated read-only status |
