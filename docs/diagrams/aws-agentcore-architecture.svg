@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 925" role="img" aria-label="AWS icon architecture diagram: human Entra JWT through AWS API Gateway, Lambda, AgentCore Runtime U and human Gateway G1 to four end systems; machine scheduled IAM Runtime M and G2 to aggregate Network API.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 1060" role="img" aria-label="AWS icon architecture diagram: human Entra JWT through AWS API Gateway, Lambda, AgentCore Runtime U and human Gateway G1 to four end systems; AWS Reporter scheduled IAM Runtime M and G2, plus separate Entra Automation Client JWT to G1 to aggregate Network API.">
 <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#536981" stroke-width="1.5"/></marker><symbol id="icon_agentcore" viewBox="0 0 80 80">
 <g clip-path="url(#agentcore_clip0_211_73)">
 <rect width="80" height="80" fill="#01A88D"/>
@@ -11,7 +11,7 @@
 </defs>
 </symbol>
 <symbol id="icon_bedrock" viewBox="0 0 80 80"><?xml version="1.0" encoding="UTF-8"?>
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-Bedrock_64</title>
     <g id="bedrock_Icon-Architecture/64/Arch_Amazon-Bedrock_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="bedrock_Icon-Architecture-BG/64/Machine-Learning" fill="#01A88D">
@@ -23,7 +23,7 @@
     </g>
 </symbol>
 <symbol id="icon_lambda" viewBox="0 0 80 80"><?xml version="1.0" encoding="UTF-8"?>
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_AWS-Lambda_64</title>
     <g id="lambda_Icon-Architecture/64/Arch_AWS-Lambda_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="lambda_Icon-Architecture-BG/64/Compute" fill="#ED7100">
@@ -33,7 +33,7 @@
     </g>
 </symbol>
 <symbol id="icon_rds" viewBox="0 0 80 80"><?xml version="1.0" encoding="UTF-8"?>
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-RDS_64</title>
     <g id="rds_Icon-Architecture/64/Arch_Amazon-RDS_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="rds_Icon-Architecture-BG/64/Database" fill="#C925D1">
@@ -53,7 +53,7 @@
 </g>
 </symbol>
 <symbol id="icon_eventbridge" viewBox="0 0 80 80"><?xml version="1.0" encoding="UTF-8"?>
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-EventBridge_64</title>
     <g id="eventbridge_Icon-Architecture/64/Arch_Amazon-EventBridge_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="eventbridge_Icon-Architecture-BG/64/Application-Integration" fill="#E7157B">
@@ -63,7 +63,7 @@
     </g>
 </symbol>
 <symbol id="icon_cognito" viewBox="0 0 80 80"><?xml version="1.0" encoding="UTF-8"?>
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-Cognito_64</title>
     <g id="cognito_Icon-Architecture/64/Arch_Amazon-Cognito_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="cognito_Icon-Architecture-BG/64/Security-Identity-Compliance" fill="#DD344C">
@@ -73,7 +73,7 @@
     </g>
 </symbol>
 <symbol id="icon_s3" viewBox="0 0 80 80"><?xml version="1.0" encoding="UTF-8"?>
-<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
     <title>Icon-Architecture/64/Arch_Amazon-Simple-Storage-Service_64</title>
     <g id="s3_Icon-Architecture/64/Arch_Amazon-Simple-Storage-Service_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="s3_Icon-Architecture-BG/64/Storage" fill="#7AA116">
@@ -98,7 +98,7 @@
 <g><rect x="926" y="145" width="190" height="82" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_agentcore" x="938" y="161" width="48" height="48"/><text x="994" y="176" class="label">Runtime U</text><text x="994" y="198" class="small">JWT-only agent</text></g>
 <g><rect x="1148" y="145" width="230" height="82" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_agentcore" x="1160" y="161" width="48" height="48"/><text x="1216" y="176" class="label">Gateway G1</text><text x="1216" y="198" class="small">JWT · Cedar tools</text></g>
 <path d="M228,186 L260,186" class="arrow"/><path d="M450,186 L482,186" class="arrow"/><path d="M672,186 L704,186" class="arrow"/><path d="M894,186 L926,186" class="arrow"/><path d="M1116,186 L1148,186" class="arrow"/>
-<text x="42" y="291" class="section">G1 MCP targets — same inbound human JWT; different target outbound identity</text>
+<text x="42" y="291" class="section">G1 targets — human and registered Entra-app JWTs; outbound identities differ</text>
 <path d="M1262 227 V307 H158 V337" fill="none" stroke="#66809b" stroke-width="1.8" marker-end="url(#arrow)"/>
 <path d="M1262 307 H435 V337" fill="none" stroke="#66809b" stroke-width="1.8" marker-end="url(#arrow)"/>
 <path d="M1262 307 H713 V337" fill="none" stroke="#66809b" stroke-width="1.8" marker-end="url(#arrow)"/>
@@ -111,9 +111,9 @@
 <g><rect x="1149" y="337" width="231" height="90" rx="12" fill="#fff8ea" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="1161" y="353" width="48" height="48"/><text x="1217" y="368" class="label">Platform Health</text><text x="1217" y="390" class="small">Native REST · IAM</text></g>
 <g><rect x="594" y="479" width="236" height="75" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_rds" x="606" y="495" width="48" height="48"/><text x="662" y="510" class="label">RDS PostgreSQL</text><text x="662" y="532" class="small">RLS · behind APIs</text></g>
 <path d="M713 427 V479" class="arrow"/>
-<text x="44" y="473" class="desc">G1: One Network API for assets and tickets (OBO); David vendor 3LO; Oliver platform IAM.</text>
+<text x="44" y="473" class="desc">G1: Human OBO assets/tickets; app-only summary; vendor 3LO; platform IAM.</text>
 <rect x="20" y="599" width="1380" height="193" rx="16" fill="#fff7ea" stroke="#efd4a5"/>
-<text x="40" y="630" class="section">Machine flow — AWS IAM Runtime M / Gateway G2 AWS_IAM</text>
+<text x="40" y="630" class="section">AWS Reporter — IAM Runtime M / Gateway G2 AWS_IAM</text>
 <g><rect x="38" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_eventbridge" x="50" y="682" width="48" height="48"/><text x="106" y="697" class="label">EventBridge</text><text x="106" y="719" class="small">Scheduled report</text></g>
 <g><rect x="310" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_lambda" x="322" y="682" width="48" height="48"/><text x="378" y="697" class="label">Reporter Lambda</text><text x="378" y="719" class="small">IAM invoke role</text></g>
 <g><rect x="582" y="666" width="242" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_agentcore" x="594" y="682" width="48" height="48"/><text x="650" y="697" class="label">Runtime M</text><text x="650" y="719" class="small">IAM-only agent</text></g>
@@ -125,4 +125,8 @@
 <text x="39" y="835" class="section">Key comparison</text>
 <text x="39" y="860" class="desc">James → OpenAPI → Entra OBO → Network API knows James → RLS enforces VIC only.</text>
 <text x="39" y="886" class="desc">Oliver → native API Gateway REST stage → IAM/SigV4 → Platform API knows Gateway execution role (Cedar checked Oliver first).</text>
+<rect x="20" y="923" width="1380" height="118" rx="13" fill="#eaf4ff" stroke="#94b8da"/>
+<text x="40" y="956" class="section">Separate Entra Automation Client — no human, no AWS IAM inbound</text>
+<text x="40" y="987" class="desc">Entra service principal → app-only JWT → Runtime U / G1 → app-only OpenAPI summary target</text>
+<text x="40" y="1017" class="desc">→ new Network API OAuth token (same app, different audience) → existing health-summary endpoint and RDS</text>
 </svg>
