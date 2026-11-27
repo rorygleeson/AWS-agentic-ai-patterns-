@@ -129,6 +129,8 @@ The same service account cannot replace every user. Some systems need to know **
 
 ### Five patterns, explained through user journeys
 
+**Why five patterns when the Network API has four endpoints?** An **endpoint** is an action exposed by an API; a **pattern** is how a caller proves its identity and gets permission to perform that action. The same OBO pattern covers the three human Network API endpoints, while the fourth endpoint uses a service-account token. Our other patterns demonstrate shared RAG, an external vendor account and an existing IAM-protected API. **We are not creating a separate pattern for every endpoint.**
+
 The comparison table above is the quick reference. Here is the **reasoning behind each choice**, starting with what someone is trying to do.
 
 #### Pattern 1 — Shared knowledge (RAG)
@@ -151,6 +153,14 @@ The comparison table above is the quick reference. Here is the **reasoning behin
 - **What solves it?** The Chat API validates the user token and our trusted flow preserves it through Lambda, AgentCore Runtime and human Gateway **G1**. AgentCore Gateway/Identity uses **OBO** to obtain a **new Network API token** representing that same person. The Network API validates the new token and applies scopes, verified entitlements and PostgreSQL row-level security. James gets VIC records, not NSW records.
 
 **Why a distinct pattern?** The final API must make decisions based on the **actual human's identity**. OBO supplies the appropriately scoped, downstream-audience token without asking James to sign in again. OBO does **not** grant new regional permissions or replace API authorization.
+
+**Why does this API have three human endpoints, rather than one?** They illustrate **different permission decisions within the same OBO pattern**:
+
+- `GET /assets/{id}/status` — **read basic information**. Sarah, James and Emma can call it, but James is limited to VIC and Emma receives only basic fields.
+- `GET /assets/{id}/diagnostics` — **read restricted information**. Sarah and James can call it, with their regional limits; Emma cannot.
+- `POST /tickets` — **make a change**. Only Sarah and James can create a ticket, for an allowed region, after the person confirms the action. Emma cannot create tickets.
+
+All three use **human OBO**, not three new OAuth methods. The point of separate endpoints is to show that **one authenticated person does not automatically have permission for every operation**, and that a write can require tighter approval than a read.
 
 #### Pattern 3 — Automated service using OAuth Client Credentials
 
