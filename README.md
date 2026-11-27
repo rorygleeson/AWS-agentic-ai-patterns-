@@ -33,7 +33,7 @@ These are the complete planned REST endpoints for our PoC. They all belong to **
 
 | Endpoint | What it returns or does | Access rule |
 |---|---|---|
-| `GET /assets/{id}/status` | Basic network asset status | Authorized signed-in users; basic fields only for limited roles |
+| `GET /assets/{id}/status` | Basic network asset status | Signed-in users **granted Network API access**; basic fields only for limited roles |
 | `GET /assets/{id}/diagnostics` | Detailed fault and diagnostic information | Authorized engineers/admins; **permitted regions only** |
 | `GET /tickets/{id}` | Reads an existing support ticket | Authorized engineers/admins; **permitted regions only** |
 | `POST /tickets` | Creates a support ticket | Authorized engineers/admins; **permitted regions only**, with user confirmation |
@@ -59,6 +59,8 @@ The application has **five human users** and **one non-human service account**.
 | **David** | External Analyst | **RAG, NetworkMonitor** | Shared knowledge; **his own third-party alerts**, after separate vendor authorization. |
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
 | **Network Health Reporter** | **Automated service account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
+
+**Endpoint access at a glance:** Sarah and James can use **status, diagnostics and ticket read/create** (with their respective regional limits). Emma can use **basic status only**. The Network Health Reporter can use **health-summary only**. David and Oliver have **no Network Operations API access**.
 
 ### Explicit restrictions
 
