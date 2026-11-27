@@ -126,7 +126,7 @@
 <text x="622" y="253" class="h">Amazon Bedrock AgentCore</text>
 <text x="622" y="279" class="body">AI agent, tools and policies</text>
 <rect x="547" y="314" width="340" height="57" rx="12" class="card"/>
-<text x="563" y="339" class="h">Runtime</text><text x="563" y="361" class="tiny">Runs the agent</text>
+<text x="563" y="339" class="h">Runtime U + M</text><text x="563" y="361" class="tiny">U: Entra JWT • M: AWS IAM</text>
 <rect x="547" y="387" width="340" height="57" rx="12" class="card"/>
 <text x="563" y="412" class="h">Gateway G1</text><text x="716" y="412" class="note">Entra JWT</text>
 <text x="563" y="434" class="tiny">Human + Entra app claims • Cedar</text>
