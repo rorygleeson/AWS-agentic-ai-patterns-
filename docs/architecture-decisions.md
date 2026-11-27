@@ -232,7 +232,7 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 
 - **Decision:** On `enterprise-ai-backend`, keep delegated `chat.invoke` for signed-in humans and define a separate **Applications-only** app role `Automation.Summary.Invoke` for the Entra Automation Client. Assign that role directly to the service principal and grant admin consent. Assign its **different** Network API app role `HealthSummary.Read` independently.
 - **Why:** The AI Backend and Network API are different audiences and permissions. App-only Entra Client Credentials tokens use `roles`, not delegated `scp`. Gateway-wide enforcement of human `chat.invoke` would reject the valid machine; accepting every correctly signed backend token without a required machine permission could authorize the wrong app.
-- **Decision:** Runtime U and G1 use the correct tenant discovery URL, AI Backend audience and approved-client restrictions. Do **not** impose human `chat.invoke` as a G1-wide `allowedScopes` value. The Chat API validates that scope for human requests; G1 Cedar permits human tools only for verified assigned human roles and the summary tool only for the exact automation app ID with `Automation.Summary.Invoke`. Reject missing/wrong-type roles and all other tool access. G2 remains IAM-only for the AWS Reporter.
+- **Decision:** Pin Entra **v2** access tokens and tenant-specific issuer/AI Backend audience at Runtime U/G1. AWS AgentCore `allowedClients` checks a `client_id` claim, but Entra v2 identifies the caller with **`azp`**; do **not** rely on `allowedClients` as an Entra app allow-list. G1 Cedar checks the exact approved `azp` client IDs and caller-specific permissions. Runtime U ingress has its own private/path restrictions. Do **not** impose human `chat.invoke` as a G1-wide `allowedScopes` value. The Chat API validates that scope for human requests; G1 Cedar permits human tools only for verified assigned human roles and the summary tool only for the exact automation app ID with `Automation.Summary.Invoke`. Reject missing/wrong-type roles and all other tool access. G2 remains IAM-only for the AWS Reporter.
 - **Why:** JWT validity authenticates a principal; an explicit permission authorizes an operation. Per-target outbound credentials are independent of this inbound check.
 - **References:** [AWS JWT inbound rules](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html), [Microsoft app-only roles](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow).
 
@@ -244,3 +244,17 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 - **Why:** The Gateway target's outbound credential configuration differs, while the underlying API is shared.
 - **Decision:** Use the native managed Knowledge Bases Gateway connector's actual `Retrieve` MCP tool (with its Gateway target prefix). “Search knowledge” is only the friendly use-case description.
 - **Consequence:** No additional end systems, authentication patterns or business endpoints.
+
+## ADR — Prevent direct G1 bypass and require trusted ticket confirmation
+
+- **Decision:** Invoke G1 from Runtime U through a private AgentCore Gateway VPC endpoint and restrict the Gateway with a resource/organization policy using `aws:SourceVpce`. Keep Runtime U ingress restricted to trusted backend and approved automation paths. G2 remains restricted to Runtime M's IAM execution role.
+- **Why:** A valid Entra JWT should not let a caller bypass the AI chat application's controls by invoking G1 directly.
+- **Decision:** The Network API accepts ticket creation only with backend-issued confirmation evidence bound to the verified human and specific proposed ticket; a model-supplied `confirmed` flag or idempotency key cannot prove consent.
+- **Why:** Tool invocation permission does not by itself authorize an irreversible business change.
+
+## ADR — Enforce delegated scopes and app-only roles at different Network API methods
+
+- **Decision:** Configure Network API Gateway JWT authorizer with the Network API audience and Entra issuer. Require `status.read`, `diagnostics.read` and `tickets.write` delegated scopes on corresponding human methods. Do **not** require an `scp` scope on `GET /network/health-summary`; its Lambda instead requires the exact approved Entra v2 `azp` and application `roles` membership `HealthSummary.Read` and rejects delegated user tokens.
+- **Why:** A Client Credentials token has app roles, not delegated scopes. Signature/audience validation alone is insufficient to grant summary access.
+- **Decision:** In G1 Cedar, treat Entra `roles` arrays as serialized strings; match complete quoted role values and exact `azp`, rejecting missing claims.
+- **Why:** AgentCore principal tags are strings; approximate role matching could authorize the wrong principal.
