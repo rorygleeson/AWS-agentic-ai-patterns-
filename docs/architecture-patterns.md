@@ -45,11 +45,12 @@
 
 1. Backend receives a valid access token whose audience is the registered middle-tier AI backend.
 2. An OBO-capable trusted component exchanges that token at Entra's token endpoint for a new **Network API-audience** delegated access token, asking for `diagnostics.read`.
+   The **AgentCore Entra OBO credential provider uses the same `enterprise-ai-backend` app registration/client ID** that Token A targets. If it uses another client ID, Entra rejects the assertion because the audience does not match.
 3. AgentCore Gateway's outbound OAuth configuration obtains/uses the delegated downstream token as configured.
 4. Network API validates its own audience, scopes and `tid/oid`, maps James to approved VIC rows and applies RLS.
 5. Denied NSW diagnostic queries remain denied regardless of the model's instructions.
 
-Ticket creation uses the **same Network API audience** but require the delegated scope `tickets.write`. The exact Gateway outbound OBO token exchange integration and identity propagation must be matched to documented AWS connector capabilities before console configuration; no custom impersonation shortcut.
+Ticket creation uses the **same Network API audience** but requires the delegated scope `tickets.write`. The exact Gateway outbound OBO token exchange integration and identity propagation must be matched to documented AWS connector capabilities before console configuration; no custom impersonation shortcut.
 
 **Security invariant:** A shared Lambda/Gateway IAM role must not override the downstream delegated authorization decision.
 
