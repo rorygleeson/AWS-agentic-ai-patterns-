@@ -44,41 +44,6 @@ The application has **five human users** and **one non-human service account**.
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
 | **Network Health Reporter** | **Automated service account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
 
-### How Entra protects the Chat API and Network API
-
-**First, what is the Chat API?** It is simply the AWS API Gateway endpoint our web chat calls when James sends a message: **`POST /ai/chat`**. That request goes through Lambda to AgentCore Runtime. It is **not another AI service**.
-
-Entra ID protects both this **Chat API** and the separate **Network Operations API**. We register them as protected APIs in Entra, alongside the browser client application. Entra issues a different access token for each:
-
-| | Token A — Chat API (`POST /ai/chat`) | Token B — Network Operations API |
-|---|---|---|
-| **Issued by** | Microsoft Entra ID | Microsoft Entra ID, using OBO |
-| **Intended for (audience)** | Chat API | Network Operations API |
-| **Example permission** | James's `Network.Engineer` app role and `chat.invoke` scope | `diagnostics.read` delegated scope |
-| **Who enforces access?** | Chat API validates Token A; **Cedar** restricts which tools James may use | **Network API** checks scope, identity and data entitlements; **PostgreSQL RLS** restricts rows |
-
-**The Network API must not accept Token A:** it was issued for a different API. OBO obtains Token B **without another sign-in** and still represents James. The two APIs enforce different rules, even though both tokens come from Entra.
-
-**Simple rule:** Entra defines and assigns roles and issues tokens. **Our systems enforce what those roles, scopes and groups mean.**
-
-For James, this is what we configure:
-
-1. **In Entra ID:** Define the `Network.Engineer` **app role** on our Chat API app registration, then assign James that role in its Enterprise Application. Entra includes it in the access token issued for the Chat API.
-2. **In AgentCore/Cedar:** Define a rule that users with `Network.Engineer` may call the diagnostics tool. Entra does **not** create this rule for us.
-3. **In the Network API:** After OBO provides a new token for this API, validate its `diagnostics.read` scope and James's identity. Check his verified Entra group `Network-VIC-Engineers`, which **our API maps to VIC-only access**. PostgreSQL RLS then restricts the actual rows.
-
-| Item | Plain-English purpose |
-|---|---|
-| **App role** (`Network.Engineer`) | **What kind of tools** James may use. Defined/assigned in Entra; enforced by our Cedar policy. |
-| **Entra group** (`Network-VIC-Engineers`) | **Which region's data** James may access. Membership is managed in Entra; the mapping and restriction are enforced by the Network API and database. |
-| **OAuth scope** (`diagnostics.read`) | **Which API operation** the client may request. Issued for and checked by the Network API. It is not permission to read every region. |
-
-**Example:** James asks for NSW diagnostics. He has the Engineer role and a diagnostics scope, but his group grants **VIC only**. The Network API denies the request; database RLS also prevents NSW rows being returned.
-
-**For our free Entra tenant:** We'll assign app roles **directly to test users**. We are **not** mapping groups automatically into app roles: group-to-enterprise-app role assignment requires Entra P1/P2. Each API must validate the claims intended for it; OBO does not automatically copy every claim from the original token. If group membership cannot be verified, deny access. The Network Health Reporter instead receives the application permission `HealthSummary.Read`, with no human user.
-
-Further reading: [Microsoft on app roles](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps) and [group-assignment licensing](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/assign-user-or-group-access-portal).
-
 ### Explicit restrictions
 
 | User | Access that must be denied |
@@ -130,6 +95,41 @@ The same service account cannot replace every user. Some systems need to know **
 - **OAuth Authorization Code:** A **person authorizes an application** to access an account, such as an external vendor account.
 - **AWS IAM:** An **AWS role** authenticates a request to an AWS-protected service.
 
+### How Entra protects the Chat API and Network API
+
+**First, what is the Chat API?** It is simply the AWS API Gateway endpoint our web chat calls when James sends a message: **`POST /ai/chat`**. That request goes through Lambda to AgentCore Runtime. It is **not another AI service**.
+
+Entra ID protects both this **Chat API** and the separate **Network Operations API**. We register them as protected APIs in Entra, alongside the browser client application. Entra issues a different access token for each:
+
+| | Token A — Chat API (`POST /ai/chat`) | Token B — Network Operations API |
+|---|---|---|
+| **Issued by** | Microsoft Entra ID | Microsoft Entra ID, using OBO |
+| **Intended for (audience)** | Chat API | Network Operations API |
+| **Example permission** | James's `Network.Engineer` app role and `chat.invoke` scope | `diagnostics.read` delegated scope |
+| **Who enforces access?** | Chat API validates Token A; **Cedar** restricts which tools James may use | **Network API** checks scope, identity and data entitlements; **PostgreSQL RLS** restricts rows |
+
+**The Network API must not accept Token A:** it was issued for a different API. OBO obtains Token B **without another sign-in** and still represents James. The two APIs enforce different rules, even though both tokens come from Entra.
+
+**Simple rule:** Entra defines and assigns roles and issues tokens. **Our systems enforce what those roles, scopes and groups mean.**
+
+For James, this is what we configure:
+
+1. **In Entra ID:** Define the `Network.Engineer` **app role** on our Chat API app registration, then assign James that role in its Enterprise Application. Entra includes it in the access token issued for the Chat API.
+2. **In AgentCore/Cedar:** Define a rule that users with `Network.Engineer` may call the diagnostics tool. Entra does **not** create this rule for us.
+3. **In the Network API:** After OBO provides a new token for this API, validate its `diagnostics.read` scope and James's identity. Check his verified Entra group `Network-VIC-Engineers`, which **our API maps to VIC-only access**. PostgreSQL RLS then restricts the actual rows.
+
+| Item | Plain-English purpose |
+|---|---|
+| **App role** (`Network.Engineer`) | **What kind of tools** James may use. Defined/assigned in Entra; enforced by our Cedar policy. |
+| **Entra group** (`Network-VIC-Engineers`) | **Which region's data** James may access. Membership is managed in Entra; the mapping and restriction are enforced by the Network API and database. |
+| **OAuth scope** (`diagnostics.read`) | **Which API operation** the client may request. Issued for and checked by the Network API. It is not permission to read every region. |
+
+**Example:** James asks for NSW diagnostics. He has the Engineer role and a diagnostics scope, but his group grants **VIC only**. The Network API denies the request; database RLS also prevents NSW rows being returned.
+
+**For our free Entra tenant:** We'll assign app roles **directly to test users**. We are **not** mapping groups automatically into app roles: group-to-enterprise-app role assignment requires Entra P1/P2. Each API must validate the claims intended for it; OBO does not automatically copy every claim from the original token. If group membership cannot be verified, deny access. The Network Health Reporter instead receives the application permission `HealthSummary.Read`, with no human user.
+
+Further reading: [Microsoft on app roles](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps) and [group-assignment licensing](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/assign-user-or-group-access-portal).
+
 ### Why can't James use his first token for the Network API?
 
 James signs in **once** to the web chat. The browser obtains **Token A for the Chat API (`POST /ai/chat`)**. James then asks: “Show me VIC diagnostics.”
@@ -142,11 +142,7 @@ The Network API is a **different API**. His first token is meant for the **Chat 
 2. Entra ID issues a **new token** that still identifies James, but is intended for the Network API.
 3. The Network API accepts that token only after validating it, then checks James's permissions: **VIC allowed, NSW denied**.
 
-| | First token | New OBO token |
-|---|---|---|
-| **Represents** | James | James |
-| **Intended for** | Chat API (`POST /ai/chat`) | Network Operations API |
-| **Example permission** | `chat.invoke` | `diagnostics.read` |
+The **Token A / Token B** comparison above shows the different audiences and permissions.
 
 **Why this matters:** Each API should accept a token intended **for that API**, with the appropriate permissions. Microsoft recommends OBO when a middle-tier API calls another API on behalf of a signed-in user. See [Microsoft's guidance on APIs calling other APIs](https://learn.microsoft.com/en-us/security/zero-trust/develop/api-calls-api).
 
