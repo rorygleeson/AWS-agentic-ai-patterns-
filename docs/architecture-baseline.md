@@ -29,7 +29,8 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 | Emma (Service Desk) | Shared RAG; nationwide **basic** status | Diagnostic fields and tools, ticket writes, Oliver-only tool |
 | David (External Analyst) | Shared RAG; vendor alerts after independent NetworkMonitor consent | Internal privileged assets, diagnostics or tickets |
 | Oliver (Platform Operations Analyst) | Shared RAG; platform health | Network diagnostics/tickets, other users' vendor alerts |
-| Network Health Reporter (non-human) | Scheduled aggregate read-only network health report | Human impersonation, diagnostics, writes, vendor consent |
+| AWS Network Health Reporter (IAM workload) | Aggregate report via G2 using IAM/SigV4 inbound | Human impersonation, diagnostics and writes |
+| Entra Automation Client (service principal) | Same aggregate report via G1 using OAuth JWT inbound | Human tools, diagnostics and writes |
 
 **Use case ≠ pattern.** “James investigates a VIC fault” is one business use case that composes SSO, JWT, OBO, MCP/OpenAPI, Cedar and RLS.
 
@@ -52,9 +53,15 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 
 The IAM principal observed by **G2 is Runtime M's execution role**, not automatically the upstream Lambda role. G2 obtains an Entra *application* token through its 2LO credential provider; the Network API sees the Reporter application identity and authorizes aggregate-only access.
 
+### Separate Entra application-only lane
+
+The **Entra Automation Client** is a **different non-human caller** from AWS Reporter Lambda. It has its **own Entra app registration/service principal**, obtains an AI-backend-audience JWT through **Client Credentials**, invokes JWT-protected **Runtime U → G1**, and is allowed by G1 Cedar to invoke **only** its dedicated health-summary tool. The G1 summary OpenAPI target uses that client's separately configured **Client Credentials** to obtain a **Network API-audience** token. The Network API validates the app ID and `HealthSummary.Read` application role. It is not OBO and does not represent a human. Its AI-backend JWT cannot be reused against Network API due to the different audience.
+
+**Two different incoming machine identities:** AWS Reporter IAM role → **G2**; Entra Automation Client OAuth JWT → **G1**. Both ultimately call **one existing** `GET /network/health-summary` endpoint under their respective Entra application identities. No new downstream system or REST endpoint is introduced.
+
 ### Gateway boundaries
 
-**G1: Entra JWT.** Human tools: shared KB; basic status; diagnostics; ticket creation; vendor alerts; native platform health. Cedar uses user principal + tool/input. A distinct target provider can be OBO, 3LO or IAM.
+**G1: Entra JWT.** Human tools plus a separately authorized application-only summary tool: shared KB; basic status; diagnostics; ticket creation; vendor alerts; native platform health. Cedar distinguishes human and application claims and grants each only its approved tools. A distinct target provider can be OBO, 3LO or IAM.
 
 **G2: AWS IAM.** One `get_network_health_summary` tool, one small role-restricted policy, limited Gateway execution role and 2LO target provider. There is no copy of all human Cedar rules in G2.
 
@@ -69,7 +76,8 @@ The API/Gateway and Runtime must not share unrestricted public bypasses: the hum
    - **Same application ID, two uses:** AgentCore's **Microsoft Entra OBO credential provider** must use this **same `enterprise-ai-backend` client ID** and its confidential client credentials. Token A is issued for this backend app's valid audience. Do **not** create a separate OBO client with a different ID; Microsoft rejects the exchange when the assertion's audience belongs to a different application.
 3. `enterprise-network-api`: one Network API resource, delegated scopes `status.read`, `diagnostics.read`, `tickets.write`, and application role `HealthSummary.Read`.
 4. `network-health-reporter`: confidential service application granted **application** `HealthSummary.Read` only.
-5. NetworkMonitor Cognito: separate vendor authorization server/resource, client and `alerts.read` user consent.
+5. `entra-automation-client`: **separate** confidential service principal; obtains an app-only JWT for AI backend/G1, and its own app-only Network API token with `HealthSummary.Read` using a separate audience.
+6. NetworkMonitor Cognito: separate vendor authorization server/resource, client and `alerts.read` user consent.
 
 Token A: Entra issuer, **AI Backend API** audience, `chat.invoke` in `scp`, user `tid` + `oid` + `sub`, and directly assigned business-role claim(s). JWT authorizers require valid signature/expiry/issuer/audience and appropriate scope.
 
@@ -101,9 +109,10 @@ Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHE
 | G1 | `create_ticket` | Network OpenAPI target, Entra OBO | Sarah/James, confirmation and idempotency |
 | G1 | `search_vendor_alerts` | NetworkMonitor OpenAPI/MCP target, Cognito authorization-code 3LO | David with vendor consent only |
 | G1 | `get_platform_health` | **Native API Gateway REST stage** target, Gateway role SigV4 | **Oliver only**, simulated read-only status |
+| G1 | `get_network_health_summary` | Separate Network OpenAPI target; **Entra Automation Client** Client Credentials | Only this verified Entra automation app, summary-only |
 | G2 | `get_network_health_summary` | Network OpenAPI target, Entra application token 2LO | Runtime M role + aggregate-only service permission |
 
-**There are two separate OpenAPI Gateway target configurations for one backend API:** G1 exposes three human operations with **OBO** outbound credentials; G2 exposes only the health-summary operation with **Client Credentials** outbound credentials. Each operation is a distinct MCP tool with its own authorization decision. The same Network Operations API and RDS database serve both Gateway targets. The Platform Health REST API remains a separate **native API Gateway stage** target using IAM.
+**There are three separate OpenAPI Gateway target configurations for one backend API:** G1 exposes three human operations via **OBO** plus a separate Automation Client **Client Credentials** summary target; G2 exposes the same summary operation with the **AWS Reporter's own Client Credentials**. Each target has isolated outbound credentials. Each operation is a distinct MCP tool with its own authorization decision. The same Network Operations API and RDS database serve both Gateway targets. The Platform Health REST API remains a separate **native API Gateway stage** target using IAM.
 
 ## 8. Session, audit and network controls
 
