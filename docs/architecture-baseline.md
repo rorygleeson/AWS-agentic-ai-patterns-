@@ -12,7 +12,7 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 
 | System | Classification | Input/API contract | Output and restriction |
 |---|---|---|---|
-| Shared knowledge | Shared RAG repository | Native managed KB connector, `search_knowledge(query)` | Cited procedure excerpts. Same approved documents for all five human users; no document-level ACL example. |
+| Shared knowledge | Shared RAG repository | Native managed KB connector, native `Retrieve` MCP tool (shown to readers as “search knowledge”) | Cited procedure excerpts. Same approved documents for all five human users; no document-level ACL example. |
 | Network Operations | Protected enterprise REST API | `GET /assets/{id}/status`, `GET /assets/{id}/diagnostics`, `POST /tickets`, `GET /network/health-summary` | Asset status/diagnostics, ticket creation and aggregate reporting; permission, region, field and write controls. |
 | NetworkMonitor | External simulated SaaS | `GET /alerts` | Alerts tied to separately authenticated vendor account; own Cognito authorization server. |
 | Platform Health | AWS-native protected REST API | `GET /platform/health` | Synthetic platform service health; IAM/SigV4 method, no human-specific data. |
@@ -66,6 +66,7 @@ The API/Gateway and Runtime must not share unrestricted public bypasses: the hum
 
 1. `enterprise-ai-web`: public browser client, authorization-code + PKCE, granted `chat.invoke`.
 2. `enterprise-ai-backend`: protected logical AI API, exposes `chat.invoke`, confidential client performing OBO, audience for Token A.
+   - **Same application ID, two uses:** AgentCore's **Microsoft Entra OBO credential provider** must use this **same `enterprise-ai-backend` client ID** and its confidential client credentials. Token A is issued for this backend app's valid audience. Do **not** create a separate OBO client with a different ID; Microsoft rejects the exchange when the assertion's audience belongs to a different application.
 3. `enterprise-network-api`: one Network API resource, delegated scopes `status.read`, `diagnostics.read`, `tickets.write`, and application role `HealthSummary.Read`.
 4. `network-health-reporter`: confidential service application granted **application** `HealthSummary.Read` only.
 5. NetworkMonitor Cognito: separate vendor authorization server/resource, client and `alerts.read` user consent.
@@ -78,7 +79,7 @@ Token C: Entra client credentials, **Network API** audience, Reporter applicatio
 
 Token D: Cognito-issued vendor access token, **NetworkMonitor API** audience, vendor-user `alerts.read`; cannot be exchanged for internal API permissions.
 
-**Business roles:** directly assign `Network.Admin`, `Network.Engineer`, `Network.ServiceDesk`, `Network.ExternalAnalyst`, `Platform.Observer` to human users in the AI backend application. Maintain Entra groups for group/entitlement learning, mapping validated group object IDs in the API. Direct role assignment avoids requiring premium group-to-enterprise-app assignment. Missing/overage group signals fail closed; do not infer membership from user-supplied names.
+**Business roles:** directly assign `Network.Admin`, `Network.Engineer`, `Network.ServiceDesk`, `Vendor.Analyst`, `Platform.Analyst` to human users in the AI backend application. Maintain Entra groups for group/entitlement learning, mapping validated group object IDs in the API. Direct role assignment avoids requiring premium group-to-enterprise-app assignment. Missing/overage group signals fail closed; do not infer membership from user-supplied names.
 
 ## 6. Data contract and RLS enforcement
 
@@ -94,7 +95,7 @@ Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHE
 
 | Gateway | MCP tool | Target and outbound auth | Core authorization |
 |---|---|---|---|
-| G1 | `search_knowledge` | Managed KB connector, Gateway IAM retrieval | Available to all human roles |
+| G1 | `Retrieve` (target-prefixed) | Managed KB connector, Gateway IAM retrieval | Available to all human roles |
 | G1 | `get_asset_status` | Network OpenAPI target, Entra OBO | Emma basic DTO, Sarah national, James VIC |
 | G1 | `get_diagnostics` | Network OpenAPI target, Entra OBO | Sarah national, James VIC; Emma denied |
 | G1 | `create_ticket` | Network OpenAPI target, Entra OBO | Sarah/James, confirmation and idempotency |
@@ -102,7 +103,7 @@ Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHE
 | G1 | `get_platform_health` | **Native API Gateway REST stage** target, Gateway role SigV4 | **Oliver only**, simulated read-only status |
 | G2 | `get_network_health_summary` | Network OpenAPI target, Entra application token 2LO | Runtime M role + aggregate-only service permission |
 
-Each operation in the Network API's OpenAPI definition is exposed as a distinct MCP tool with its own authorization decision. A single backend and RDS database serves assets, diagnostics, tickets and the aggregate report. The Platform Health REST API remains a separate **native API Gateway stage** target using IAM.
+**There are two separate OpenAPI Gateway target configurations for one backend API:** G1 exposes three human operations with **OBO** outbound credentials; G2 exposes only the health-summary operation with **Client Credentials** outbound credentials. Each operation is a distinct MCP tool with its own authorization decision. The same Network Operations API and RDS database serve both Gateway targets. The Platform Health REST API remains a separate **native API Gateway stage** target using IAM.
 
 ## 8. Session, audit and network controls
 
