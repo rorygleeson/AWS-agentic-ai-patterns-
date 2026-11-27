@@ -29,8 +29,8 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 | Emma (Service Desk) | Shared RAG; nationwide **basic** status | Diagnostic fields and tools, ticket writes, Oliver-only tool |
 | David (External Analyst) | Shared RAG; vendor alerts after independent NetworkMonitor consent | Internal privileged assets, diagnostics or tickets |
 | Oliver (Platform Operations Analyst) | Shared RAG; platform health | Network diagnostics/tickets, other users' vendor alerts |
-| AWS Network Health Reporter (IAM workload) | Aggregate report via G2 using IAM/SigV4 inbound | Human impersonation, diagnostics and writes |
-| Entra Automation Client (service principal) | Same aggregate report via G1 using OAuth JWT inbound | Human tools, diagnostics and writes |
+| AWS Service Account (IAM workload) | Aggregate report via G2 using IAM/SigV4 inbound | Human impersonation, diagnostics and writes |
+| Entra Service Account (service principal) | Same aggregate report via G1 using OAuth JWT inbound | Human tools, diagnostics and writes |
 
 **Use case ≠ pattern.** “James investigates a VIC fault” is one business use case that composes SSO, JWT, OBO, MCP/OpenAPI, Cedar and RLS.
 
@@ -55,9 +55,9 @@ The IAM principal observed by **G2 is Runtime M's execution role**, not automati
 
 ### Separate Entra application-only lane
 
-The **Entra Automation Client** is a **different non-human caller** from AWS Reporter Lambda. It has its **own Entra app registration/service principal**, obtains an AI-backend-audience JWT through **Client Credentials**, invokes JWT-protected **Runtime U → G1**, and is allowed by G1 Cedar to invoke **only** its dedicated health-summary tool. The G1 summary OpenAPI target uses that client's separately configured **Client Credentials** to obtain a **Network API-audience** token. The Network API validates the app ID and `HealthSummary.Read` application role. It is not OBO and does not represent a human. Its AI-backend JWT cannot be reused against Network API due to the different audience.
+The **Entra Service Account** is a **different non-human caller** from AWS Service Account Lambda. It has its **own Entra app registration/service principal**, obtains an AI-backend-audience JWT through **Client Credentials**, invokes JWT-protected **Runtime U → G1**, and is allowed by G1 Cedar to invoke **only** its dedicated health-summary tool. The G1 summary OpenAPI target uses that client's separately configured **Client Credentials** to obtain a **Network API-audience** token. The Network API validates the app ID and `HealthSummary.Read` application role. It is not OBO and does not represent a human. Its AI-backend JWT cannot be reused against Network API due to the different audience.
 
-**Two different incoming machine identities:** AWS Reporter IAM role → **G2**; Entra Automation Client OAuth JWT → **G1**. Both ultimately call **one existing** `GET /network/health-summary` endpoint under their respective Entra application identities. No new downstream system or REST endpoint is introduced.
+**Two different incoming machine identities:** AWS Service Account IAM role → **G2**; Entra Service Account OAuth JWT → **G1**. Both ultimately call **one existing** `GET /network/health-summary` endpoint under their respective Entra application identities. No new downstream system or REST endpoint is introduced.
 
 ### Gateway boundaries
 
@@ -81,7 +81,7 @@ The API/Gateway and Runtime must not share unrestricted public bypasses. Runtime
 
 Token A (human): Entra issuer, **AI Backend API** audience, `chat.invoke` in `scp`, user `tid` + `oid` + `sub`, and directly assigned business-role claim(s). The backend checks the delegated scope.
 
-Token A-M (Entra Automation Client): same **AI Backend API audience**, but an **app-only** Client Credentials token with `roles: [Automation.Summary.Invoke]`, approved client application identity, and **no human `scp`**. Neither the browser nor the automation client borrows the other's role. Runtime U and G1 validate issuer and audience; G1 Cedar checks the exact **Entra v2 `azp` client application ID** plus the appropriate delegated human permission or machine app role. AgentCore JWT `allowedClients` checks `client_id` and must **not** be used as if it checked Entra `azp`. Runtime U ingress is independently private/restricted. Avoid G1-wide `allowedScopes: [chat.invoke]` as it would exclude app-only tokens. A valid AI Backend token without its appropriate delegated scope or assigned application role is not enough.
+Token A-M (Entra Service Account): same **AI Backend API audience**, but an **app-only** Client Credentials token with `roles: [Automation.Summary.Invoke]`, approved client application identity, and **no human `scp`**. Neither the browser nor the automation client borrows the other's role. Runtime U and G1 validate issuer and audience; G1 Cedar checks the exact **Entra v2 `azp` client application ID** plus the appropriate delegated human permission or machine app role. AgentCore JWT `allowedClients` checks `client_id` and must **not** be used as if it checked Entra `azp`. Runtime U ingress is independently private/restricted. Avoid G1-wide `allowedScopes: [chat.invoke]` as it would exclude app-only tokens. A valid AI Backend token without its appropriate delegated scope or assigned application role is not enough.
 
 Token B: issued via Entra OBO, **Network API** audience, the original user's delegated identity, narrow Network scopes. Ticket calls use the same Network API audience with the `tickets.write` delegated scope. The OBO assertion must have the audience of the confidential backend client performing the exchange.
 
@@ -111,10 +111,10 @@ Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHE
 | G1 | `create_ticket` | Network OpenAPI target, Entra OBO | Sarah/James, confirmation and idempotency |
 | G1 | `search_vendor_alerts` | NetworkMonitor OpenAPI/MCP target, Cognito authorization-code 3LO | David with vendor consent only |
 | G1 | `get_platform_health` | **Native API Gateway REST stage** target, Gateway role SigV4 | **Oliver only**, simulated read-only status |
-| G1 | `get_network_health_summary` | Separate Network OpenAPI target; **Entra Automation Client** Client Credentials | Only this verified Entra automation app, summary-only |
+| G1 | `get_network_health_summary` | Separate Network OpenAPI target; **Entra Service Account** Client Credentials | Only this verified Entra automation app, summary-only |
 | G2 | `get_network_health_summary` | Network OpenAPI target, Entra application token 2LO | Runtime M role + aggregate-only service permission |
 
-**There are three separate OpenAPI Gateway target configurations for one backend API:** G1 exposes three human operations via **OBO** plus a separate Automation Client **Client Credentials** summary target; G2 exposes the same summary operation with the **AWS Reporter's own Client Credentials**. Each target has isolated outbound credentials. Each operation is a distinct MCP tool with its own authorization decision. The same Network Operations API and RDS database serve both Gateway targets. The Platform Health REST API remains a separate **native API Gateway stage** target using IAM. The native target requires an **API Gateway public endpoint type** even though the methods require **AWS_IAM/SigV4** authorization; this is not anonymous public access, and private integrations may sit behind API Gateway.
+**There are three separate OpenAPI Gateway target configurations for one backend API:** G1 exposes three human operations via **OBO** plus a separate Entra Service Account **Client Credentials** summary target; G2 exposes the same summary operation with the **AWS Service Account's own Client Credentials**. Each target has isolated outbound credentials. Each operation is a distinct MCP tool with its own authorization decision. The same Network Operations API and RDS database serve both Gateway targets. The Platform Health REST API remains a separate **native API Gateway stage** target using IAM. The native target requires an **API Gateway public endpoint type** even though the methods require **AWS_IAM/SigV4** authorization; this is not anonymous public access, and private integrations may sit behind API Gateway.
 
 ## 8. Session, audit and network controls
 
