@@ -16,6 +16,8 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 ## 1. End systems
 
+![Four downstream systems: shared RAG, enterprise Network Operations API, external NetworkMonitor, and internal Platform Health API, with their owners and purposes](docs/diagrams/four-end-systems.jpg)
+
 - **1. Knowledge Base (RAG)**
   - **Description:** Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases.
   - **High-level access rule:** **All human users who successfully sign in to the AI chat app** can search the same approved knowledge.
