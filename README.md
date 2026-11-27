@@ -458,6 +458,29 @@ We also agreed on two separate AgentCore entry paths:
 
 **The useful cross-boundary lesson:** Reporter Lambda / Runtime M → **GW2 (IAM/SigV4 inbound)** → a restricted health-summary OpenAPI target → **Network API (Entra OAuth Client Credentials outbound)** → RDS. The final Network API does not accept the Reporter's AWS role as an OAuth token. GW2 uses the Reporter's Entra application identity to obtain a separate Network API token; the API authorizes **health-summary only**.
 
+#### How can GW2 use OAuth outbound when it accepts IAM/SigV4 inbound?
+
+**GW2 does not convert an IAM signature into an OAuth token.** These are **two independent authentication steps**, each at a different boundary:
+
+1. **IAM into AgentCore:** EventBridge starts the AWS Reporter Lambda. Lambda invokes IAM-protected Runtime M using its execution role; **Runtime M uses its own authorized IAM execution role to sign its request to G2**. G2 checks the SigV4 caller identity. There is **no human Entra login or user OAuth token**.
+2. **OAuth credential configured on the target:** G2 has a **health-summary OpenAPI target** configured with an **AgentCore Identity OAuth credential provider**, specifically the **Client Credentials** grant. That provider refers to the separate `network-health-reporter` Entra application registration.
+3. **Where the secret lives:** The Entra application has a **client ID** and **client secret**. AgentCore's credential-provider setup uses a secret protected in **AWS Secrets Manager** (it can also reference an existing secret). **Do not put the client secret in Lambda code, the agent prompt, or the MCP tool arguments.**
+4. **How a token is obtained:** When G2 invokes this target, **AgentCore Identity requests an access token from Microsoft Entra ID**, authenticating with those application credentials. Entra issues a **Network API-audience application token** containing the granted application permission, such as `HealthSummary.Read`. AgentCore Identity handles the OAuth token through its **encrypted token vault**.
+5. **OAuth into the enterprise API:** G2 sends that Entra bearer token to the **Network Operations API**. API Gateway validates the JWT, and the API checks the **application identity, audience and `HealthSummary.Read` role**. Only `GET /network/health-summary` is permitted. The API's Lambda retrieves aggregate data from RDS.
+
+| Credential or permission | Where it belongs | What it is used for |
+|---|---|---|
+| **Reporter Lambda IAM execution role** | AWS IAM | Invokes Runtime M; not a human OAuth identity |
+| **Runtime M IAM execution role** | AWS IAM | Signs the **inbound request to G2** with SigV4 |
+| **Reporter Entra client ID and client secret** | Entra app registration; secret managed through **AWS Secrets Manager** | Obtains an application-only OAuth token |
+| **OAuth credential provider** | **AgentCore Identity**, attached to G2's Network API target | Performs the Client Credentials flow |
+| **Issued OAuth access token** | AgentCore Identity **token vault** | Used by G2 to call the downstream Network API |
+| **`HealthSummary.Read` application permission** | Defined/granted in **Entra**, enforced by the Network API | Limits the Reporter to the aggregate report |
+
+**The distinction from our Entra Automation Client:** That is an entirely **different application identity**. It first obtains an **Entra application JWT to enter G1**, then uses its **own separate outbound credential provider** to obtain a Network API token. It does **not** borrow the AWS Reporter's IAM role, client secret or access token. Both access the same final summary endpoint, but the Network API can identify which application called.
+
+**AWS references:** [AgentCore Gateway outbound authentication](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html), [OAuth credential providers and Secrets Manager references](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/resource-providers.html), and [AgentCore Identity token-vault encryption](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-data-encryption.html).
+
 **Could we remove GW2? Yes, but it would change what we demonstrate.** We could configure the Reporter to obtain an **Entra Client Credentials JWT for G1** and use one JWT-inbound Gateway. We explicitly retain GW2 to teach **AWS IAM inbound → enterprise OAuth outbound**. It is **not** needed just because downstream APIs use different authentication: **one AgentCore Gateway can contain multiple targets, each with its own outbound authentication**.
 
 ### Two ways to connect REST APIs to AgentCore tools
