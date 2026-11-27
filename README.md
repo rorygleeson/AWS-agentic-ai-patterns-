@@ -184,22 +184,30 @@ We also agreed on two separate AgentCore entry paths:
 
 This is **not** because the end systems use different authentication. **One Gateway can have multiple targets, each with its own outbound authentication** (such as OAuth OBO, OAuth Authorization Code or IAM).
 
-### Two ways to register REST APIs as MCP (agent) tools
+### Two ways to connect REST APIs to AgentCore tools
 
-**Model Context Protocol (MCP)** is a standard way for AI agents to discover and invoke tools. AgentCore Gateway presents our REST API operations as MCP tools.
+**Both are ordinary REST APIs.** A REST API **can** authenticate users with OAuth. The difference is how we **register the API as a target in AgentCore Gateway** and which outbound credentials that particular target type supports.
 
-Both systems expose ordinary **REST APIs**. We deliberately register them with AgentCore Gateway in two different ways:
+**Model Context Protocol (MCP)** lets the agent discover and call tools. AgentCore Gateway converts those tool calls into requests to the REST endpoints.
 
-| | Native API Gateway REST-stage target | OpenAPI-defined target |
+| | Native AWS API Gateway stage target | OpenAPI schema target |
 |---|---|---|
 | **Our example** | Platform Health API | Network Operations API |
-| **How AgentCore connects** | Import the existing AWS API Gateway REST stage | Supply an OpenAPI description of the REST endpoints |
-| **Outbound authentication** | IAM/SigV4 (or API key) | OAuth OBO for humans; OAuth Client Credentials for the service |
-| **Downstream identity** | Gateway's IAM role | Delegated human or application identity |
+| **What we give AgentCore** | An existing AWS API Gateway REST API stage | An **OpenAPI document** listing the REST URLs, operations and parameters |
+| **Outbound authentication AgentCore supports** | **AWS IAM/SigV4** or API key; **no OAuth option** for this target type | **OAuth**, including OBO for a person and Client Credentials for a service |
+| **Identity the final API receives in our PoC** | Gateway's **AWS IAM service role** | A **user-delegated Entra token** or the service account's Entra token |
 
-**Why does Platform Health get its own pattern?** We intentionally chose a downstream API protected by **AWS IAM instead of OAuth**. In this example, **SigV4 means the Gateway signs the request with its AWS service role**, not Oliver's Entra credentials. The Network API needs the caller's identity to decide which records they may see. Platform Health needs only a trusted AWS role to read synthetic health data—provided the agent first verifies that **Oliver is allowed to use the tool**. It demonstrates the important distinction between **authorizing a human to invoke a tool** and **authenticating the tool's service identity at the final API**.
+**Why does Network Operations need the OpenAPI option?** Its REST endpoints must identify the human caller to enforce regional permissions. When James requests VIC diagnostics:
 
-**Why the difference?** It's a limitation of the **AgentCore target type**, not REST itself. The native AWS API Gateway stage target supports IAM and API-key outbound authentication **but not OAuth**. An **OpenAPI target supports OAuth** through AgentCore's separately configured outbound credential provider—even if the actual REST API is hosted on AWS API Gateway. **The OpenAPI file describes the API; it doesn't provide OAuth or run another service.**
+1. AgentCore discovers the diagnostics tool from the **OpenAPI definition**.
+2. AgentCore's configured **OAuth credential provider** uses OBO to obtain an Entra token **for the Network API**, still representing James.
+3. Gateway calls the REST endpoint with that token. **The Network API validates it** and enforces James's VIC-only permissions.
+
+The native API Gateway stage target **cannot perform step 2 using OAuth outbound authentication**. This is a **limitation of that AgentCore target type**, **not of REST APIs or AWS API Gateway itself**. The actual REST endpoint may still be hosted on AWS API Gateway.
+
+**Why use the native target for Platform Health?** That API is deliberately protected by **AWS IAM**, so Gateway can import the REST stage and sign requests with **its own service role (SigV4)**. Oliver must first be authorized to use the tool; the final API authenticates the service role, **not Oliver's Entra token**.
+
+**Important:** The OpenAPI document **does not authenticate anyone or create another service**. It describes the existing REST API. AgentCore's credential provider obtains the OAuth token, and the downstream API validates and authorizes it. See AWS's [Gateway outbound-authentication matrix](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html) and [native API Gateway target limitation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-vpc-egress.html).
 
 These are our **core integration/authentication patterns**. Detailed session handling, Cedar policies, database controls, logging and implementation decisions belong in the supporting architecture documents—not in the introductory access tables.
 
