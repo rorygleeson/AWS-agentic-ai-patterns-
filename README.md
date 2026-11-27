@@ -232,6 +232,49 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 - **OAuth Authorization Code:** A **person authorizes an application** to access an account, such as an external vendor account.
 - **AWS IAM:** An **AWS role** authenticates a request to an AWS-protected service.
 
+### Why use Cedar if we already have OAuth?
+
+**Short answer: Cedar is an optional extra check at the agent-tool boundary. It is not needed because OAuth has lost the user's identity.** We use it in this PoC to show how an architect can centrally control which tools the agent is allowed to invoke.
+
+An **OAuth token** is evidence about a caller and their granted permissions. **The token itself does not block a tool**: an application, Cedar policy or downstream API must read the verified claims and make an authorization decision.
+
+There are two different situations in our design:
+
+| Our example | Without Cedar | Why we choose Cedar |
+|---|---|---|
+| **Emma requests network diagnostics (OBO)** | The agent could call the diagnostics tool, OBO would preserve Emma's identity, and the **Network API would deny** her. This can be secure on its own. | Cedar **denies the tool earlier**, before the Network API call. This is an **optional additional safeguard**; the Network API must still enforce its permissions. |
+| **Oliver requests Platform Health (IAM)** | The API sees **Gateway's AWS IAM role**, not Oliver's Entra identity. It cannot decide whether Oliver, Emma or James is the permitted employee. | Cedar checks **Oliver's user permission first**, then Gateway uses its IAM role. **Some upstream user-specific authorization is essential**; Cedar is our chosen way to provide it. |
+
+#### Three simple examples
+
+**1. Emma — OAuth already protects the API**
+
+1. Emma signs in and asks for diagnostics.
+2. In our PoC, Cedar sees her Service Desk role and denies the diagnostics **tool**.
+3. If we removed Cedar, the Network API could still reject Emma using her OBO identity and API rules.
+
+**Lesson:** Cedar is **defence in depth**, not a substitute for preserving Emma's identity or checking permissions at the API.
+
+**2. James — Cedar allows a tool, but cannot grant extra data**
+
+1. James asks for NSW diagnostics.
+2. Cedar allows the diagnostics **tool** because James is an Engineer.
+3. OBO supplies a Network API token representing James.
+4. The API checks his **VIC-only** entitlement, and PostgreSQL RLS restricts the rows. The NSW request is **denied**.
+
+**Lesson:** Cedar permission to invoke a tool does **not** override downstream OAuth authorization or RLS.
+
+**3. Oliver — the downstream API does not recognize a human token**
+
+1. Oliver asks for Platform Health.
+2. Cedar verifies that only Oliver is allowed to use that tool.
+3. Gateway signs the final API request with its **AWS IAM service role**.
+4. The API trusts that role. It does **not** receive Oliver's OAuth identity as its authenticated caller.
+
+**Lesson:** Here we need an **upstream user-specific permission check**, because the final API cannot make that decision from the service-role credentials. Cedar is a good fit; another properly enforced application authorization mechanism could also perform the check.
+
+**Remember:** **Cedar authorizes the tool call. OAuth/OBO authenticates the delegated user to the Network API. The Network API and database enforce data permissions.** Using Cedar never removes the need for downstream authorization.
+
 ### How Entra roles, groups and OAuth scopes work together
 
 Let's start with the problem, **without assuming any Microsoft identity knowledge**.
