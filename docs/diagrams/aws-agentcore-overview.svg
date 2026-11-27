@@ -130,8 +130,8 @@
 <text x="563" y="412" class="h">Gateway G1</text><text x="716" y="412" class="note">Human JWT</text>
 <text x="563" y="434" class="tiny">MCP tools • optional Cedar policies</text>
 <rect x="547" y="459" width="340" height="63" rx="12" fill="#f5effe" stroke="#b8a1d8" stroke-width="1.8"/>
-<text x="563" y="486" class="h">Gateway G2</text><text x="717" y="486" class="note">AWS IAM</text>
-<text x="563" y="509" class="tiny">Scheduled service account only</text>
+<text x="563" y="486" class="h">Gateway G2</text><text x="717" y="486" class="note">IAM / SigV4</text>
+<text x="563" y="509" class="tiny">Reporter IAM in → Entra OAuth out</text>
 <!-- machine caller -->
 <rect x="254" y="601" width="210" height="103" rx="17" fill="#faf5ff" stroke="#c3a9df" stroke-width="2"/>
 <text x="359" y="636" class="h" text-anchor="middle">Reporter job</text>
