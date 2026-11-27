@@ -458,6 +458,27 @@ We also agreed on two separate AgentCore entry paths:
 
 **The useful cross-boundary lesson:** Reporter Lambda / Runtime M → **GW2 (IAM/SigV4 inbound)** → a restricted health-summary OpenAPI target → **Network API (Entra OAuth Client Credentials outbound)** → RDS. The final Network API does not accept the Reporter's AWS role as an OAuth token. GW2 uses the Reporter's Entra application identity to obtain a separate Network API token; the API authorizes **health-summary only**.
 
+#### Exactly what we configure in AWS and Entra
+
+**Yes: GW2's Network API target is configured to use an OAuth client.** That client is an **Entra application/service principal** we register, and AgentCore Identity knows **which Entra tenant and OAuth token endpoint to contact**. We are not writing our own OAuth implementation.
+
+**In Microsoft Entra ID:**
+
+1. Register `network-health-reporter` as a **confidential client application**. Entra gives it an **Application (client) ID**; create a **client secret**.
+2. In the separately registered `enterprise-network-api`, define an **application permission/app role** called `HealthSummary.Read`. Assign this permission to `network-health-reporter` and grant the required administrator consent. This grants the application permission to request a summary, **not** a human user's permissions.
+3. Record our **Entra tenant ID**, the reporter application's **client ID**, and the **Network API's Application ID URI** (for example, `api://<network-api-app-id>`).
+
+**In AWS AgentCore Identity (outbound OAuth configuration):**
+
+1. Create an **OAuth 2.0 credential provider**, choosing **Microsoft** as the provider. Supply the **Entra tenant**, **reporter client ID**, and the reporter **client secret** or a reference to that secret in **AWS Secrets Manager**.
+2. AgentCore Identity uses the Microsoft tenant/provider configuration to locate Entra's **OAuth token endpoint**, such as `https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token`. This is the **connection to Entra ID**; it is not a network connection configured on the AWS IAM role.
+3. On **GW2's Network Operations OpenAPI target**, choose **Outbound authentication = OAuth**, select that **credential provider**, and set **Grant type = Client Credentials**. Request the Network API resource's `/.default` scope (example: `api://<network-api-app-id>/.default`), which asks Entra for the **application permissions already granted** to this client.
+4. Give GW2's service role the documented permissions to use that credential provider and its underlying secret. **GW2 is not configured with a human JWT for inbound access**—its inbound authentication stays **AWS IAM/SigV4**.
+
+**At runtime:** A signed IAM request arrives at GW2 → GW2 chooses its health-summary target → **AgentCore Identity** uses the configured Entra **client ID + secret** to ask Entra for an access token → Entra returns a token addressed to `enterprise-network-api` with the approved app role → GW2 calls the Network API with `Authorization: Bearer <access-token>`. The API validates the token and authorizes the **summary endpoint only**.
+
+**Where is what stored?** The **client secret** is secured through **Secrets Manager**; the **OAuth provider configuration** belongs to **AgentCore Identity**; issued **access tokens** are managed in AgentCore Identity's encrypted **token vault**. They are **three different things**.
+
 #### How can GW2 use OAuth outbound when it accepts IAM/SigV4 inbound?
 
 **GW2 does not convert an IAM signature into an OAuth token.** These are **two independent authentication steps**, each at a different boundary:
