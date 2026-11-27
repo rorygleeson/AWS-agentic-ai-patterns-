@@ -4,6 +4,8 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and six callers to show when each pattern applies—and how to prevent unauthorized access.
 
+**Why isn't one authentication pattern enough?** Because the end systems trust **different identities**: some need the signed-in person, some need an application identity, some require a separate vendor's consent, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
+
 **Why these particular examples?** We chose them because each demonstrates a different access requirement:
 
 - **Shared knowledge:** Anyone who successfully signs in to the AI chat app can search the same approved documents. **Why?** The documents are shared with all signed-in users, so we do not need to filter them by person.
