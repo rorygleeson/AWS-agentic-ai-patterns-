@@ -44,9 +44,20 @@ The application has **five human users** and **one non-human service account**.
 | **Oliver** | Platform Analyst | **RAG, Platform Health API** | Shared knowledge; **read-only platform-health information**. |
 | **Network Health Reporter** | **Automated service account** | **Network API** | **Aggregate network-health summary only**, using its own application identity. No individual asset access. |
 
-### Where do roles and permissions come from?
+### How Entra protects the AI app **and** the Network API
 
-**Simple rule: Entra ID defines and assigns the role. Our systems decide what that role is allowed to do.**
+**Entra ID is not just for signing in to the chat app.** We register **both protected APIs** in Entra, in addition to the browser client application. Entra issues a different access token for each protected API:
+
+| | Token A — AI Backend API | Token B — Network Operations API |
+|---|---|---|
+| **Issued by** | Microsoft Entra ID | Microsoft Entra ID, using OBO |
+| **Intended for (audience)** | Our AI backend | Our Network API |
+| **Example permission** | James's `Network.Engineer` app role and `chat.invoke` scope | `diagnostics.read` delegated scope |
+| **Who enforces access?** | AI backend and **Cedar** restrict which tools James may use | **Network API** checks scope, identity and data entitlements; **PostgreSQL RLS** restricts rows |
+
+**The Network API must not accept Token A:** it was issued for a different API. OBO obtains Token B **without another sign-in** and still represents James. The two APIs enforce different rules, even though both tokens come from Entra.
+
+**Simple rule:** Entra defines and assigns roles and issues tokens. **Our systems enforce what those roles, scopes and groups mean.**
 
 For James, this is what we configure:
 
