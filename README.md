@@ -116,7 +116,7 @@ This PoC focuses on **Runtime, Gateway and access control**; Memory and Registry
 
 Each gateway can expose approved tools for the downstream systems shown below. **Each system still applies its own authentication and authorization rules**; access to a gateway does not automatically grant access to every system or operation.
 
-![Simple AWS AgentCore architecture showing the Enterprise AI Application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v10.svg)
+![Simple AWS AgentCore architecture showing the Enterprise AI Application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v11.svg)
 
 ## 3. How these requirements lead to authentication patterns
 
@@ -197,7 +197,7 @@ The **Network Operations API** is the clearest example of why identity matters:
 
 An application identity cannot replace an individual user. Some systems need to know **which person** made the request, some only **which application**, and the external vendor needs **a separate user-authorized OAuth grant**.
 
-- **Shared RAG:** Everyone signed into the AI app sees the same approved knowledge, so there is no need for per-user document access.
+- **Shared RAG:** Everyone signed into the Enterprise AI Application sees the same approved knowledge, so there is no need for per-user document access.
   - **Authentication approach:** **Application sign-in + AWS IAM** for knowledge retrieval.
   - **What the downstream system knows:** The AWS service identity, not individual document permissions.
 
@@ -284,7 +284,7 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 
 **Why does this API use IAM in the first place?** Imagine the Platform Health API was built years ago for internal AWS workloads. A Lambda function checks platform health by calling an AWS API Gateway REST endpoint using its IAM execution role. That is a normal AWS service-to-service design: the API trusts approved **AWS roles**, not interactive employees. It has no reason to integrate with Entra just to serve those existing workloads. API Gateway can support other authentication methods; **IAM is a deliberate choice for this example**, not a limitation of REST.
 
-- **What does the user want?** Oliver now asks our **new AI application**: “Is our internal platform healthy?” We want to reuse that existing Platform Health API **without rebuilding its authentication**.
+- **What does the user want?** Oliver now asks our **Enterprise AI Application**: “Is our internal platform healthy?” We want to reuse that existing Platform Health API **without rebuilding its authentication**.
 - **Why can't we just send Oliver's token?** His Entra token is an **OAuth** token, while this existing API expects **IAM/SigV4**. The API doesn't know who Oliver is; it recognizes the **AWS role** signing the request. If everyone could invoke the agent's Platform Health tool, the same role could retrieve results for users who should not have access.
 - **What solves it?** Oliver signs in to our Enterprise AI Application. Before any API call, **G1 uses Cedar to check that Oliver is allowed to invoke the tool**. Only then does AgentCore Gateway use its **IAM service role** to sign the request to the native API Gateway REST-stage target. The Platform Health API validates the IAM signature and role permissions. Sarah, James, Emma and David are denied **at the tool boundary**, before Gateway can use that role for their request.
 
@@ -358,7 +358,7 @@ An **OAuth access token** contains signed information about a caller and permiss
 ### Identity and authorization — short version
 
 - **Entra ID group:** Which team a person belongs to, such as `Network-Engineers-VIC`. The Network Operations API uses verified group membership to enforce endpoint and regional permissions.
-- **Entra app role:** What a person can do **in our AI app**, such as `Network.Engineer`. AgentCore Cedar checks the role before invoking tools.
+- **Entra app role:** What a person can do **in the Enterprise AI Application**, such as `Network.Engineer`. AgentCore Cedar checks the role before invoking tools.
 - **OAuth delegated scope:** What the **client app** may request from a protected API for a signed-in user, such as `diagnostics.read`. API Gateway validates it for each endpoint.
 - **OBO:** The **confidential AI backend**, not an Entra ID group, asks Entra for a new **Network Operations API** token representing that signed-in person. OBO does not itself grant regional or endpoint entitlements.
 
