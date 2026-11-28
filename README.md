@@ -18,85 +18,21 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 ## 1. End systems
 
-![Four downstream systems: shared RAG, enterprise Network Operations API, external NetworkMonitor, and internal Platform Health API, with their owners and purposes](docs/diagrams/four-end-systems-consistent.svg)
+These are the **four systems** our AgentCore tools connect to. They have different authentication and authorization requirements, which drive the five access patterns explained later.
 
-- <img src="docs/diagrams/system-rag-icon.svg" width="28" height="28" alt="Knowledge Base icon"> **1. Shared Knowledge (RAG)**
-  - **Description:** Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases.
-  - **High-level access rule:** **All human users who successfully sign in to the Enterprise AI Application** can search the same approved knowledge.
+![Four downstream systems: shared RAG, enterprise Network Operations API, external NetworkMonitor, and internal Platform Health API](docs/diagrams/four-end-systems-consistent.svg)
 
-- <img src="docs/diagrams/system-network-api-icon.svg" width="28" height="28" alt="Network Operations API icon"> **2. Network Operations API**
-  - **Description:** Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and a health summary, and creates support tickets.
-  - **High-level access rule:** **Only authorized callers.** Human permissions depend on region and operation; the two approved service accounts (M2M) can access the health-summary endpoint only.
-
-- <img src="docs/diagrams/system-vendor-icon.svg" width="28" height="28" alt="NetworkMonitor icon"> **3. NetworkMonitor**
-  - **Description:** Simulated third-party provider (3PP) monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts.
-  - **High-level access rule:** **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts.
-
-- <img src="docs/diagrams/system-platform-icon.svg" width="28" height="28" alt="Platform Health API icon"> **4. Platform Health API**
-  - **Description:** Existing internal monitoring REST API that returns operational health information about an enterprise platform or service. AWS workloads already call it through Amazon API Gateway using **AWS IAM**, not OAuth. It is protected, not anonymously accessible; the technical endpoint-type requirement is explained under Pattern 5.
-  - **High-level access rule:** **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role.
-
-
-### Network Operations API — four endpoints
-
-**Why four endpoints?** This PoC uses one Network Operations API with different operations to demonstrate how **human users and service accounts authenticate differently** and how access can be **allowed or denied per endpoint**. We also demonstrate restrictions on regions, returned fields and actions such as creating a ticket.
-
-The four planned REST endpoints are exposed through **Amazon API Gateway**, with **AWS Lambda** handling the API requests and reading or writing data in **Amazon RDS PostgreSQL**. We introduce the endpoints here; the architecture section later explains what Lambda does and how the components communicate.
-
-![Four color-coded Network Operations API endpoint cards showing purpose and generic access restrictions](docs/diagrams/network-api-four-endpoints-v3.svg)
-
-**These are different permissions on the same API, not four separate APIs.** The API validates the caller's token and enforces endpoint and data restrictions. AgentCore can also block an unauthorized tool call before it reaches the API. PostgreSQL row-level security (RLS) adds protection for database rows. The architecture section introduces Gateway and its Cedar authorization rules.
-
-### Supporting database — Amazon RDS PostgreSQL
-
-- Stores network assets, diagnostics, tickets and access entitlements.
-- Is accessed **only through the Network Operations API**, never directly by the AI agent.
-- Uses database permissions and **row-level security (RLS)** to restrict which rows a caller can see or change.
-
-**How does RLS know the user's permissions?** PostgreSQL does **not** read OAuth tokens. The Network Operations API verifies the caller and passes trusted access restrictions to the database. We explain the full James example in [How OAuth connects to PostgreSQL RLS](docs/identity-and-authorization-deep-dive.md#how-oauth-connects-to-postgresql-rls).
+The **Network Operations API** is one API with four operations: asset status, diagnostics, ticket creation and health summary. Its numbered endpoint key and each caller's permissions are shown together in Section 2. The API is backed by **Amazon API Gateway, Lambda and RDS PostgreSQL**; only the API accesses the database. [Database row-level security explained](docs/identity-and-authorization-deep-dive.md#how-oauth-connects-to-postgresql-rls).
 
 ## 2. Users and their access
 
-We have **five human users and two service accounts (M2M)**. The cards below show each caller's role, accessible systems and exact permissions. Each caller has a **fixed color and icon** reused in the access diagrams.
+**Five people and two service accounts (M2M)** use these systems with different permissions. This single diagram shows their roles, consistent caller icons and colours, permitted systems, and Network Operations API endpoints **01–04**.
 
-**Why the VIC restriction?** It is deliberate: a national admin can access records across regions, while a VIC engineer can access VIC records only. Later, we demonstrate how **PostgreSQL row-level security (RLS)** enforces this data restriction even when both users are allowed to call the same API endpoint.
+![Seven caller cards with consistent icons and colours, endpoint legend, permitted systems and region/operation restrictions](docs/diagrams/users-service-accounts-v8.svg)
 
-**Endpoint labels 01–04 refer to the four operations in the [Network Operations API diagram](#network-operations-api--four-endpoints) above:** 01 = asset status, 02 = diagnostics, 03 = create ticket, 04 = health summary. They are identifiers for the same endpoints, not extra APIs.
+**Default deny:** Access not explicitly shown is denied. James is restricted to **VIC**, Emma can see only basic asset-status fields, and both service accounts can use **health summary (04)** only. A service account runs without a human signing in. The diagram defines **planned PoC permissions**, not yet-implemented controls.
 
-![Seven color-coded caller cards with human or service-account icons, role, systems, restrictions and numbered endpoint permissions](docs/diagrams/users-service-accounts-v8.svg)
-
-A **service account** is an automated application or workload that operates **without a human signing in**. The AWS Service Account (using IAM Role) runs a scheduled health-summary operation; the Entra Service Account invokes an AI agent for automated health analysis. Both are limited to endpoint **04**. Their different technical routes are introduced in the architecture section.
-
-### Network Operations API — exact endpoints for each caller
-
-**Endpoint key (Network Operations API):**
-
-- <img src="docs/diagrams/endpoint-badge-01.svg" width="37" alt="01"> Asset status — `GET /assets/{id}/status`
-- <img src="docs/diagrams/endpoint-badge-02.svg" width="37" alt="02"> Diagnostics — `GET /assets/{id}/diagnostics`
-- <img src="docs/diagrams/endpoint-badge-03.svg" width="37" alt="03"> Create ticket — `POST /tickets`
-- <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> Health summary — `GET /network/health-summary`
-
-![Color-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access-v5.svg)
-
-*How to read this diagram: green = allowed, amber = allowed with restrictions, and red = denied. Every Network Operations API request is checked against the caller's endpoint permissions and, where relevant, region and field restrictions. These are planned PoC rules, not yet-implemented controls.*
-
-**Same endpoint, different result:** James can call `GET /assets/{id}/diagnostics` for an asset in **VIC**, but the **identical endpoint** must deny an asset in **NSW**. Emma can call `GET /assets/{id}/status` nationally but sees **basic fields only**, not sensitive diagnostic details.
-
-**Where are these permissions enforced?** Tool access is checked at AgentCore Gateway; the **Network Operations API** independently validates the OAuth token and checks endpoint, region and field entitlements; **PostgreSQL RLS** protects underlying rows. We explain Gateway's Cedar rules after the access patterns. Signing in alone is never sufficient.
-
-### Explicit restrictions
-
-| User | Access that must be denied |
-|---|---|
-| <img src="docs/diagrams/caller-sarah-icon.svg" width="26" height="26" alt=""> **Sarah** | NetworkMonitor alerts and Platform Health API. |
-| <img src="docs/diagrams/caller-james-icon.svg" width="26" height="26" alt=""> **James** | NSW/other-region records, NetworkMonitor and Platform Health API. |
-| <img src="docs/diagrams/caller-emma-icon.svg" width="26" height="26" alt=""> **Emma** | Detailed diagnostics, sensitive asset fields, ticket actions, NetworkMonitor and Platform Health API. |
-| <img src="docs/diagrams/caller-david-icon.svg" width="26" height="26" alt=""> **David** | Network Operations API and Platform Health API. |
-| <img src="docs/diagrams/caller-oliver-icon.svg" width="26" height="26" alt=""> **Oliver** | Network Operations API and NetworkMonitor. |
-| <img src="docs/diagrams/caller-aws-service-icon.svg" width="26" height="26" alt=""> **AWS Service Account (using IAM Role)** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
-| <img src="docs/diagrams/caller-entra-service-icon.svg" width="26" height="26" alt=""> **Entra Service Account** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
-
-**Default rule:** A successful sign-in allows a human to use the Enterprise AI Application and shared RAG. Every other system requires its own authorization. If access is not explicitly listed above, it is denied.
+For exact REST paths, denied-case tests and enforcement across Gateway, the Network Operations API and PostgreSQL RLS, see the [identity and authorization deep dive](docs/identity-and-authorization-deep-dive.md) and the [access-pattern guides](docs/README.md#access-pattern-implementation-guides).
 
 
 <a id="architecture-overview"></a>
