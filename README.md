@@ -101,11 +101,20 @@ A **service account** is an automated application or workload that operates **wi
 
 ## 3. Architecture overview
 
-Our **Enterprise AI Application** is the user-facing product. Its **Chat API** is the protected backend REST endpoint (`POST /ai/chat`), not a separate AI application. When this guide says **AI Backend**, it means that Chat API and its Entra-protected API registration (`enterprise-ai-backend`), not another system. The agent runs in **Amazon Bedrock AgentCore Runtime**, and **AgentCore Gateway** exposes approved tools.
+**A simple example:** James opens our **Enterprise AI Application** and asks, “What's wrong with router R123 in Melbourne?”
 
-The diagrams introduce the **PoC and its main building blocks**. Employees use our **Enterprise AI Application** to interact with an agent hosted by **Amazon Bedrock AgentCore**. AgentCore is more than a gateway: **Runtime** runs the agent, **Memory** can retain context across interactions, **AWS Agent Registry** provides a searchable catalogue of agents and tools, and **Gateway** connects the agent to approved tools. **MCP (Model Context Protocol)** is the standard interface used to discover and invoke those tools—not an authentication method.
+1. **Enterprise AI Application:** Sends James's question to its backend **Chat API** (`POST /ai/chat`).
+2. **Chat API (Amazon API Gateway + Lambda):** Validates James's sign-in token and forwards the question and trusted identity to **Amazon Bedrock AgentCore Runtime**.
+3. **AgentCore Runtime:** Runs our AI agent. The agent decides it needs network diagnostics and selects the appropriate tool.
+4. **AgentCore Gateway (G1):** Checks that James may invoke that tool and connects it to the **Network Operations API**.
+5. **Network Operations API:** Validates a separate OAuth 2.0 On-Behalf-Of (OBO) token representing James, checks his VIC-only access and returns permitted diagnostics.
+6. **Response:** The agent explains the result in plain English, and the answer returns through the Chat API to James's screen.
 
-This PoC focuses on **Runtime, Gateway and access control**; Memory and Registry are optional platform capabilities, not additional authorization steps. [AgentCore components explained](#appendix-agentcore-components-in-context).
+**What belongs to our application?** The user-facing **Enterprise AI Application** includes its **Chat API** backend. When this guide uses **AI Backend**, it means that same Chat API and its Entra-protected API registration (`enterprise-ai-backend`)—**not another application or downstream system**.
+
+**Where does AgentCore fit?** **Runtime** runs the AI agent; **Gateway** exposes approved tools that connect to the four downstream systems. Those tools use **MCP (Model Context Protocol)**, a standard way to discover and invoke tools—not an authentication method. AgentCore also offers **Memory** (to retain context) and **AWS Agent Registry** (to catalogue agents and tools).
+
+This PoC focuses on **Runtime, Gateway and access control**. Memory and Registry are optional platform capabilities, not additional authorization steps. [AgentCore components explained](#appendix-agentcore-components-in-context).
 
 ![High-level view of Amazon Bedrock AgentCore: Enterprise AI Application, Runtime, Gateway, optional Memory and Registry, and four downstream systems](docs/diagrams/agentcore-platform-high-level-v3.svg)
 
