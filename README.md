@@ -34,6 +34,18 @@ The **Network Operations API** is one API with four operations: asset status, di
 
 ![Seven caller cards, each with green ticks or red crosses for all four downstream systems and inline numbered Network Operations API endpoint permissions](docs/diagrams/users-service-accounts-v8.svg)
 
+**Why these seven callers?** Each demonstrates a different access decision or invocation route:
+
+| Caller | Why included |
+|---|---|
+| **Sarah — National Admin** | Broad Network Operations API access across all states; baseline for comparing restrictions. |
+| **James — VIC Engineer** | Same API endpoints as Sarah, but **VIC-only records** enforced using API authorization and PostgreSQL RLS. |
+| **Emma — Service Desk** | **Endpoint 01 only**, with basic fields; demonstrates endpoint-level and field-level restrictions. |
+| **David — External Analyst** | Uses **separate vendor OAuth** for NetworkMonitor, not corporate Entra authorization for that service. |
+| **Oliver — Platform Analyst** | Uses an **IAM-protected Platform Health API** through an upstream tool-permission check. |
+| **Entra Service Account (M2M)** | **Application-only identity** invokes the agent for automated health analysis; no human signs in. |
+| **AWS Service Account (using IAM Role, M2M)** | **IAM/SigV4** invokes the health-summary tool directly without an AI agent. |
+
 **Default deny:** Access not explicitly shown is denied. James is restricted to **VIC**, Emma can see only basic asset-status fields, and both service accounts can use **health summary (04)** only. A service account runs without a human signing in. The diagram defines **planned PoC permissions**, not yet-implemented controls.
 
 For exact REST paths, denied-case tests and enforcement across Gateway, the Network Operations API and PostgreSQL RLS, see the [identity and authorization deep dive](docs/identity-and-authorization-deep-dive.md) and the [access-pattern guides](docs/README.md#access-pattern-implementation-guides).
