@@ -110,7 +110,7 @@ The diagram shows the **whole PoC at a glance**. Employees use our AI chat app, 
 
 Both gateways can expose approved tools for the **same Network Operations API**; they are not two copies of that API. The difference is **how the caller authenticates to the gateway**, while endpoint-specific permissions are enforced downstream.
 
-![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview.svg)
+![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v2.svg)
 
 **Read the notes on the four downstream systems:** shared RAG uses AWS IAM; the Network Operations API uses Entra OAuth (human OBO or application-only); the external vendor requires its **own** OAuth authorization; and Platform Health accepts IAM-signed requests after the user's tool permission is checked.
 
