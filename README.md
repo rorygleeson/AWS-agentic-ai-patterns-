@@ -69,13 +69,15 @@ A **service account (M2M)** acts without a signed-in human. Automated applicatio
 
 An **invocation method** is how a request reaches Runtime or Gateway. An **access pattern** is how the downstream system authenticates the request and enforces permissions. The same person can use multiple patterns during one conversation.
 
-### Pattern 1 — Shared Knowledge (RAG)
+### Pattern 1 — Shared access using an AWS IAM workload role
 
-**Example:** Emma asks, “What's the approved outage procedure?” The agent retrieves approved documents from **Amazon Bedrock Knowledge Bases** using its authorized AWS workload role.
+**Authentication pattern:** The downstream AWS service authenticates the **agent's IAM workload role**, not the signed-in person's Entra token. No user-specific OAuth/OBO exchange is required at this boundary.
 
-**Why this pattern?** All five human users share the same approved knowledge. RAG does not need each person's OAuth token at the knowledge-base boundary in this PoC; the AWS role authenticates the workload. This is shared access, **not user-level document security**.
+**Example — Shared Knowledge (RAG):** Emma asks, “What's the approved outage procedure?” The agent uses its authorized IAM role to retrieve documents from **Amazon Bedrock Knowledge Bases**. All five signed-in human users can access the same approved knowledge.
 
-[Pattern 1 deep dive (planned): flow and implementation](docs/access-patterns/pattern-1-rag.md).
+**Why this is distinct:** The data is deliberately **shared**, so the workload role is sufficient for downstream authentication and authorization. In **Pattern 5**, an IAM role also authenticates to the final API, but **only Oliver** may use that tool; an upstream Cedar permission check is therefore essential. **RAG is the example, not the authentication mechanism.**
+
+[Pattern 1 implementation deep dive (planned)](docs/access-patterns/pattern-1-rag.md).
 
 ### Pattern 2 — Human identity preserved with OAuth 2.0 OBO
 
