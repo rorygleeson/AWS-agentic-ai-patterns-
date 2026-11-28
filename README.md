@@ -23,8 +23,8 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
   - **High-level access rule:** **All human users who successfully sign in to the AI chat app** can search the same approved knowledge.
 
 - <img src="docs/diagrams/system-network-api-icon.svg" width="28" height="28" alt="Network Operations API icon"> **2. Network Operations API**
-  - **Description:** Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and creates support tickets.
-  - **High-level access rule:** **Only authorized callers.** Human permissions depend on region and operation; the two approved service accounts (M2M) have aggregate-only access.
+  - **Description:** Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and a health summary, and creates support tickets.
+  - **High-level access rule:** **Only authorized callers.** Human permissions depend on region and operation; the two approved service accounts (M2M) can access the health-summary endpoint only.
 
 - <img src="docs/diagrams/system-vendor-icon.svg" width="28" height="28" alt="NetworkMonitor icon"> **3. NetworkMonitor**
   - **Description:** Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts.
@@ -59,7 +59,7 @@ We have **five human users and two service accounts (M2M)**. The cards below sho
 
 **Why the VIC restriction?** It is deliberate: a national admin can access records across regions, while a VIC engineer can access VIC records only. Later, we demonstrate how **PostgreSQL row-level security (RLS)** enforces this data restriction even when both users are allowed to call the same API endpoint.
 
-**Endpoint labels 01–04 refer to the four operations in the [Network Operations API diagram](#network-operations-api--four-endpoints) above:** 01 = asset status, 02 = diagnostics, 03 = create ticket, 04 = aggregate health summary. They are identifiers for the same endpoints, not extra APIs.
+**Endpoint labels 01–04 refer to the four operations in the [Network Operations API diagram](#network-operations-api--four-endpoints) above:** 01 = asset status, 02 = diagnostics, 03 = create ticket, 04 = health summary. They are identifiers for the same endpoints, not extra APIs.
 
 ![Seven colour-coded caller cards with human or service-account icons, role, systems, restrictions and numbered endpoint permissions](docs/diagrams/users-service-accounts-v7.svg)
 
@@ -76,7 +76,7 @@ A **service account** is an automated application or workload that operates **wi
 
 ![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access-v3.svg)
 
-*Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or aggregate-only); red = denied. This shows planned PoC policy, not yet-implemented controls.*
+*Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or health-summary-only); red = denied. This shows planned PoC policy, not yet-implemented controls.*
 
 **The Network Operations API has four endpoints, but no caller automatically gets all four.** Here is exactly what each human or automated application may invoke.
 
@@ -87,8 +87,8 @@ A **service account** is an automated application or workload that operates **wi
 | **Emma** | <img src="docs/diagrams/endpoint-badge-01.svg" width="37" alt="01"> | Basic fields; all regions |
 | **David** | None | Uses NetworkMonitor |
 | **Oliver** | None | Uses Platform Health API |
-| **AWS Service Account (using IAM Role)** | <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> | Aggregate only |
-| **Entra Service Account** | <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> | Aggregate only |
+| **AWS Service Account (using IAM Role)** | <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> | Health summary only |
+| **Entra Service Account** | <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> | Health summary only |
 
 **Any endpoint not listed for that caller is denied.** In particular:
 
@@ -178,12 +178,12 @@ The **Network API** is the clearest example of why identity matters:
   - **Result:** ❌ Denied
 
 - **AWS Service Account (using IAM Role) — G2**
-  - **Request:** National aggregate health summary
-  - **Result:** ✅ Allowed — aggregate only
+  - **Request:** Network health summary
+  - **Result:** ✅ Allowed — health summary only
 
 - **Entra Service Account — JWT into G1**
-  - **Request:** National aggregate health summary
-  - **Result:** ✅ Allowed — aggregate only
+  - **Request:** Network health summary
+  - **Result:** ✅ Allowed — health summary only
 
 
 **Same API, different results:** the system uses each caller's identity and permissions to decide what can be returned.
@@ -252,12 +252,12 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 
 #### Pattern 3 — Service account (M2M) OAuth access through two different AgentCore ingress methods
 
-**Why does an enterprise need this?** Not every consumer of the Network Operations API is an employee asking a question. The AWS Service Account (using IAM Role) runs a scheduled Lambda that generates an aggregate report automatically—for example, for an overnight operations briefing. The job runs in AWS and has an **IAM role**, but the existing Network API is protected by **Microsoft Entra OAuth**. That API is not configured to accept an AWS IAM signature.
+**Why does an enterprise need this?** Not every consumer of the Network Operations API is an employee asking a question. The AWS Service Account (using IAM Role) runs a scheduled Lambda that generates a health summary automatically—for example, for an overnight operations briefing. The job runs in AWS and has an **IAM role**, but the existing Network API is protected by **Microsoft Entra OAuth**. That API is not configured to accept an AWS IAM signature.
 
 - **What does the caller want?** The AWS Service Account (using IAM Role) runs on a schedule and invokes **the same Network Operations API** used by people, but requests only `GET /network/health-summary`. It must never retrieve individual assets or tickets.
 - **Why can't it use the human OBO pattern?** Nobody has signed in to the job. There is **no person's access token** to exchange, and inventing or borrowing a human identity would be wrong.
 - **Why isn't its AWS IAM role sufficient end to end?** IAM can authenticate the scheduled AWS workload when it invokes **machine Runtime M and Gateway G2**. But the **final Network API expects an Entra-issued OAuth access token**. IAM and Entra tokens are different credentials for different trust boundaries. The Network API must not start accepting an unrelated AWS role just to support this reporter.
-- **What solves it?** Register a dedicated **Entra app registration for the AWS Service Account (using IAM Role)'s outbound OAuth access** and grant it the application permission `HealthSummary.Read`. The Gateway's configured Entra OAuth credential provider uses **Client Credentials** to obtain an **app-only access token** for the Network API. The API validates the token's audience and application permission, recognises the AWS Service Account (using IAM Role) application rather than any human, and permits **only** the aggregate endpoint. Its backend must still enforce that limitation.
+- **What solves it?** Register a dedicated **Entra app registration for the AWS Service Account (using IAM Role)'s outbound OAuth access** and grant it the application permission `HealthSummary.Read`. The Gateway's configured Entra OAuth credential provider uses **Client Credentials** to obtain an **app-only access token** for the Network API. The API validates the token's audience and application permission, recognises the AWS Service Account (using IAM Role) application rather than any human, and permits **only** the health-summary endpoint. Its backend must still enforce that limitation.
 
 **Why a distinct pattern?** This is **machine-to-machine OAuth for an API that requires OAuth**, even though the caller runs on AWS. It differs from **OBO**, which carries a particular human's delegated identity; from **Shared RAG**, where the downstream AWS service accepts an IAM role; and from **Platform Health**, where the final REST API itself accepts IAM/SigV4. The two hops are intentional: **AWS IAM into G2; Entra OAuth Client Credentials out to Network Operations.**
 
@@ -384,7 +384,7 @@ Imagine James asks our AI application: **“Show me diagnostics for asset 123.�
 
 - **Both approved automation callers**
   - **Verified access from Entra and API rules:** App-only OAuth permission for health summary
-  - **What RLS allows:** **Not a human regional-RLS example**; the API exposes only an aggregate response
+  - **What RLS allows:** **Not a human regional-RLS example**; the API exposes only a health-summary response
 
 
 **The crucial distinction:** OAuth/OBO tells the Network API **who is calling**. Verified Entra groups and our API rules determine **which data that caller may access**. The API conveys that trusted restriction to PostgreSQL, and **RLS enforces it against actual database rows**.
@@ -456,7 +456,7 @@ We also agreed on two separate AgentCore entry paths. **G1 is not a public alter
 2. **OAuth credential configured on the target:** G2 has a **health-summary OpenAPI target** configured with an **AgentCore Identity OAuth credential provider**, specifically the **Client Credentials** grant. That provider refers to the separate `network-health-reporter` Entra application registration.
 3. **Where the secret lives:** The Entra application has a **client ID** and **client secret**. AgentCore's credential-provider setup uses a secret protected in **AWS Secrets Manager** (it can also reference an existing secret). **Do not put the client secret in Lambda code, the agent prompt, or the MCP tool arguments.**
 4. **How a token is obtained:** When G2 invokes this target, **AgentCore Identity requests an access token from Microsoft Entra ID**, authenticating with those application credentials. Entra issues a **Network API-audience application token** containing the granted application permission, such as `HealthSummary.Read`. AgentCore Identity handles the OAuth token through its **encrypted token vault**.
-5. **OAuth into the enterprise API:** G2 sends that Entra bearer token to the **Network Operations API**. API Gateway validates the JWT, and the API checks the **application identity, audience and `HealthSummary.Read` role**. Only `GET /network/health-summary` is permitted. The API's Lambda retrieves aggregate data from RDS.
+5. **OAuth into the enterprise API:** G2 sends that Entra bearer token to the **Network Operations API**. API Gateway validates the JWT, and the API checks the **application identity, audience and `HealthSummary.Read` role**. Only `GET /network/health-summary` is permitted. The API's Lambda retrieves network health summary data from RDS.
 
 - **AWS Service Account (using IAM Role)'s Lambda IAM execution role**
   - **Where it belongs:** AWS IAM
@@ -480,7 +480,7 @@ We also agreed on two separate AgentCore entry paths. **G1 is not a public alter
 
 - **`HealthSummary.Read` application permission**
   - **Where it belongs:** Defined/granted in **Entra**, enforced by the Network API
-  - **What it is used for:** Limits the AWS Service Account (using IAM Role) to the aggregate report
+  - **What it is used for:** Limits the AWS Service Account (using IAM Role) to the health-summary endpoint
 
 
 **The distinction from our Entra Service Account:** That is an entirely **different application identity**. It first obtains an **Entra application JWT to enter G1**, then uses its **own separate outbound credential provider** to obtain a Network API token. It does **not** borrow the AWS Service Account (using IAM Role)'s IAM role, client secret or access token. Both access the same final summary endpoint, but the Network API can identify which application called.
