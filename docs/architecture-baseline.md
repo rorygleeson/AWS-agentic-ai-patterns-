@@ -44,7 +44,7 @@ Rules: (1) identity comes from validated tokens, never prompts; (2) least privil
 - AgentCore Runtime uses JWT, not IAM, for invocation. Lambda's role alone does not authenticate as a user.
 - For calls to G1, the agent explicitly passes its inbound user JWT via the allowlisted Authorization header; G1 creates an `OAuthUser` Cedar principal from the verified JWT. **Do not silently replace this with a Gateway M2M token**, as that would change the policy principal.
 - AgentCore Identity obtains target-audience OBO Token B for the Network API's asset, diagnostics and ticket creation. The downstream API validates the token and applies its own authorizations.
-- David's vendor tool uses independent Cognito 3LO consent. Oliver's native stage target deliberately uses Gateway IAM identity outbound, without OBO.
+- David's vendor tool uses independent Cognito Authorization Code consent. Oliver's native stage target deliberately uses Gateway IAM identity outbound, without OBO.
 - The Gateway's execution role is separate from the JWT principal presented to Cedar.
 
 ### Direct AWS service-account tool lane
@@ -61,9 +61,9 @@ The **Entra Service Account** is a **different non-human caller** from AWS Servi
 
 ### Gateway boundaries
 
-**G1: Entra JWT.** Human tools plus a separately authorized application-only summary tool: shared KB; basic status; diagnostics; ticket creation; vendor alerts; native platform health. Cedar distinguishes human and application claims and grants each only its approved tools. A distinct target provider can be OBO, 3LO or IAM.
+**G1: Entra JWT.** Human tools plus a separately authorized application-only summary tool: shared KB; basic status; diagnostics; ticket creation; vendor alerts; native platform health. Cedar distinguishes human and application claims and grants each only its approved tools. A distinct target provider can be OBO, Authorization Code or IAM.
 
-**G2: AWS IAM.** One `get_network_health_summary` tool, one small role-restricted policy, limited Gateway execution role and 2LO target provider. There is no copy of all human Cedar rules in G2.
+**G2: AWS IAM.** One `get_network_health_summary` tool, one small role-restricted policy, limited Gateway execution role and Client Credentials target provider. There is no copy of all human Cedar rules in G2.
 
 The API/Gateway and Runtime must not share unrestricted public bypasses. AgentCore Runtime is reached over its approved private ingress and separately constrained to the trusted Chat API/Lambda and approved automation route. **G1 itself is private**: AgentCore Runtime calls the AgentCore Gateway interface VPC endpoint, and a Gateway resource policy or organization resource control policy restricts G1 by `aws:SourceVpce`. Valid Entra JWTs alone must not permit a direct public G1 bypass. G2 restricts inbound IAM callers to the approved scheduled Lambda execution role. Backend APIs independently require their own audience-specific token or AWS IAM signature.
 
@@ -110,7 +110,7 @@ Ticket `POST` requires confirmed intent, resource-level authorization, `WITH CHE
 | G1 | `get_asset_status` | Network OpenAPI target, Entra OBO | Emma basic DTO, Sarah national, James VIC |
 | G1 | `get_diagnostics` | Network OpenAPI target, Entra OBO | Sarah national, James VIC; Emma denied |
 | G1 | `create_ticket` | Network OpenAPI target, Entra OBO | Sarah/James, confirmation and idempotency |
-| G1 | `search_vendor_alerts` | NetworkMonitor OpenAPI/MCP target, Cognito authorization-code 3LO | David with vendor consent only |
+| G1 | `search_vendor_alerts` | NetworkMonitor OpenAPI/MCP target, Cognito Authorization Code (with PKCE) | David with vendor consent only |
 | G1 | `get_platform_health` | **Native API Gateway REST stage** target, Gateway role SigV4 | **Oliver only**, simulated read-only status |
 | G1 | `get_network_health_summary` | Separate Network OpenAPI target; **Entra Service Account** Client Credentials | Only this verified Entra automation app, summary-only |
 | G2 | `get_network_health_summary` | Network OpenAPI target, Entra application token via OAuth 2.0 Client Credentials | Scheduled Lambda execution role + summary-only service permission |
