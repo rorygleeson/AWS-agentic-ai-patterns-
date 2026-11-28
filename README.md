@@ -108,9 +108,9 @@ The diagram shows the **whole PoC at a glance**. Employees use our AI chat app, 
 - **G1 — OAuth/JWT gateway:** Accepts an Entra-issued access token. Used by the signed-in human flow and the **Entra Service Account**.
 - **G2 — AWS IAM gateway:** Accepts AWS IAM-signed requests. Used by the **AWS Service Account (using IAM Role)**, such as the scheduled Lambda.
 
-Both gateways can expose approved tools for the **same Network Operations API**; they are not two copies of that API. The difference is **how the caller authenticates to the gateway**, while endpoint-specific permissions are enforced downstream.
+The two gateways demonstrate **different ways to authenticate tool calls**. Through their approved tools, the agent can reach the four downstream systems shown below. **Each system still applies its own authentication and authorization rules**; access to a gateway does not automatically grant access to every system or operation.
 
-![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v2.svg)
+![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v3.svg)
 
 **Read the notes on the four downstream systems:** shared RAG uses AWS IAM; the Network Operations API uses Entra OAuth (human OBO or application-only); the external vendor requires its **own** OAuth authorization; and Platform Health accepts IAM-signed requests after the user's tool permission is checked.
 
