@@ -6,17 +6,17 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 ![High-level AgentCore overview: five human users, two service accounts, Enterprise AI Application, AgentCore and four downstream systems](docs/diagrams/agentcore-access-overview-clean-v9.svg)
 
-*At a glance: five human users and two service accounts reach four downstream systems through different AgentCore paths. Exact caller permissions appear in Section 2; the detailed AWS architecture appears in Section 3.*
+*At a glance: five human users and two service accounts reach four downstream systems through different AgentCore paths. Exact caller permissions appear in Section 2; the detailed AWS architecture appears in Section 4.*
 
 **Why do we need different access patterns?** Because the end systems trust **different identities**: some need the signed-in person, some need a service account, some require separate authorization from an external provider, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
 
-**How to read this guide:** Meet the **four end systems**, then see the **seven callers** and their exact permissions. Follow the **AWS architecture** and **five access patterns**, each with a concrete example. Detailed configuration, token flows and test cases are being developed in the [deep dives](docs/README.md); some guides are currently placeholders.
+**How to read this guide:** Meet the **four end systems**, then see the **seven callers** and their exact permissions. Explore the **five access patterns** and then the **AWS architecture**, each with a concrete example. Detailed configuration, token flows and test cases are being developed in the [deep dives](docs/README.md); some guides are currently placeholders.
 
 **Key distinction:** Three **invocation methods** describe how people or service accounts reach AgentCore; five **access patterns** describe how downstream systems authorize access. Signing into the Enterprise AI Application **never** grants automatic access to every connected system.
 
 ## 1. End systems
 
-These are the **four systems** our AgentCore tools connect to. They have different authentication and authorization requirements, which drive the five access patterns explained later.
+These are the **four systems** our AgentCore tools connect to. They have different authentication and authorization requirements, which drive the five access patterns in Section 3.
 
 ![Four downstream systems: shared RAG, enterprise Network Operations API, external NetworkMonitor, and internal Platform Health API](docs/diagrams/four-end-systems-consistent.svg)
 
@@ -51,39 +51,7 @@ The **Network Operations API** is one API with four operations: asset status, di
 For exact REST paths, denied-case tests and enforcement across Gateway, the Network Operations API and PostgreSQL RLS, see the [identity and authorization deep dive](docs/identity-and-authorization-deep-dive.md) and the [access-pattern guides](docs/README.md#access-pattern-implementation-guides).
 
 
-<a id="architecture-overview"></a>
-
-## 3. Architecture overview
-
-**Follow James's request:** James signs in to the **Enterprise AI Application** through Microsoft Entra ID and asks, “What's wrong with router R123 in Melbourne?” The application calls the managed **AgentCore Runtime API** using an Entra-issued **Runtime access token**. **AgentCore Runtime** runs the **agent**, which invokes the diagnostics tool through **AgentCore Gateway (G1)**. The **Network Operations API** independently enforces James's VIC-only permissions.
-
-![James's end-to-end sign-in, Runtime access token, two OBO token exchanges, G1 authorization and Network Operations API response](docs/diagrams/james-high-level-obo-flow-v3.svg)
-
-**What the diagram shows:** During the initial **Authorization Code + PKCE** sign-in, Microsoft Entra ID issues **both tokens together** for this PoC: an **ID token** for James's application login and a separate **Runtime access token** whose audience is AgentCore Runtime. The application sends the **Runtime access token**, never the ID token, to Runtime. **OBO #1** exchanges it for a **G1 access token**; **OBO #2** exchanges the G1 access token for a **Network Operations API access token**. Both OBO results represent James and are valid only for their intended receiving APIs. Each receiving resource validates its own audience-specific token. **Cedar** can authorize the tool at G1; the API independently checks endpoint and data access. This two-OBO Entra integration is a **proposed PoC design**, not yet deployment-tested. [Why two OBO exchanges, and possible simpler alternatives](docs/architecture-qa.md) · [Application sign-in detail](docs/enterprise-ai-application-authentication.md).
-
-### Three invocation methods
-
-These describe **how callers use AgentCore**. They are distinct from the five downstream **access patterns** in Section 4.
-
-| Method | Caller and route | Example |
-|---|---|---|
-| **Human → agent** | Five signed-in people → Enterprise AI Application → Runtime → **G1 (JWT)** | James asks for VIC router diagnostics. |
-| **M2M → agent** | **Entra Service Account** → Runtime → **G1 (JWT)** with separate application tokens | Overnight AI analysis of the health summary. |
-| **M2M → tool directly** | **AWS Service Account (using IAM Role)** → **G2 (IAM/SigV4)**; no Runtime | Scheduled Lambda fetches the health summary without AI. |
-
-A **service account (M2M)** acts without a signed-in human. Automated application tokens must **never** be used as if they represented a human. An invocation method may use more than one access pattern.
-
-**Why G1 and G2?** Each AgentCore Gateway has one configured inbound authorization method. **G1** accepts correctly audience-scoped Entra JWTs; **G2** accepts IAM/SigV4 requests. We use two gateways to demonstrate both. Each gateway still needs an authorized outbound identity for the target system. The final API independently checks its own permissions. [AgentCore component reference](docs/agentcore-components.md).
-
-### AWS architecture
-
-![Mobile-readable AWS AgentCore architecture showing the human and two service-account paths](docs/diagrams/aws-agentcore-architecture-mobile.svg)
-
-[Open the full-width AWS service-icon architecture](docs/diagrams/aws-agentcore-architecture.svg).
-
-**Component names used throughout:** **AgentCore Runtime** runs the agent; **AgentCore Gateway** publishes approved **MCP tools**; a **Gateway target** configures the connection from a tool to its backend (it is not an additional API); **AgentCore Identity** brokers supported OAuth credentials/token exchanges; **Cedar** expresses Gateway tool-authorization rules. MCP is a tool protocol, **not** an authentication mechanism. Optional **Memory** and **Agent Registry** are explained in the [component deep dive](docs/agentcore-components.md).
-
-## 4. Five access patterns for connected systems
+## 3. Five access patterns for connected systems
 
 An **invocation method** is how a request reaches Runtime or Gateway. An **access pattern** is how the downstream system authenticates the request and enforces permissions. The same person can use multiple patterns during one conversation.
 
@@ -128,6 +96,38 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 **Why this pattern?** We reuse an existing IAM-protected REST API without changing it to OAuth. Because it sees a shared service identity, a **trusted upstream authorization check is essential**; Cedar is our chosen control. The native AgentCore API Gateway REST-stage target requires a public **endpoint type**, but API methods remain IAM-protected—it does **not** imply anonymous access.
 
 [Pattern 5 deep dive (planned): flow and implementation](docs/access-patterns/pattern-5-iam.md).
+
+<a id="architecture-overview"></a>
+
+## 4. Architecture overview
+
+**Follow James's request:** James signs in to the **Enterprise AI Application** through Microsoft Entra ID and asks, “What's wrong with router R123 in Melbourne?” The application calls the managed **AgentCore Runtime API** using an Entra-issued **Runtime access token**. **AgentCore Runtime** runs the **agent**, which invokes the diagnostics tool through **AgentCore Gateway (G1)**. The **Network Operations API** independently enforces James's VIC-only permissions.
+
+![James's end-to-end sign-in, Runtime access token, two OBO token exchanges, G1 authorization and Network Operations API response](docs/diagrams/james-high-level-obo-flow-v3.svg)
+
+**What the diagram shows:** During the initial **Authorization Code + PKCE** sign-in, Microsoft Entra ID issues **both tokens together** for this PoC: an **ID token** for James's application login and a separate **Runtime access token** whose audience is AgentCore Runtime. The application sends the **Runtime access token**, never the ID token, to Runtime. **OBO #1** exchanges it for a **G1 access token**; **OBO #2** exchanges the G1 access token for a **Network Operations API access token**. Both OBO results represent James and are valid only for their intended receiving APIs. Each receiving resource validates its own audience-specific token. **Cedar** can authorize the tool at G1; the API independently checks endpoint and data access. This two-OBO Entra integration is a **proposed PoC design**, not yet deployment-tested. [Why two OBO exchanges, and possible simpler alternatives](docs/architecture-qa.md) · [Application sign-in detail](docs/enterprise-ai-application-authentication.md).
+
+### Three invocation methods
+
+These describe **how callers use AgentCore**. They are distinct from the five downstream **access patterns** in Section 3.
+
+| Method | Caller and route | Example |
+|---|---|---|
+| **Human → agent** | Five signed-in people → Enterprise AI Application → Runtime → **G1 (JWT)** | James asks for VIC router diagnostics. |
+| **M2M → agent** | **Entra Service Account** → Runtime → **G1 (JWT)** with separate application tokens | Overnight AI analysis of the health summary. |
+| **M2M → tool directly** | **AWS Service Account (using IAM Role)** → **G2 (IAM/SigV4)**; no Runtime | Scheduled Lambda fetches the health summary without AI. |
+
+A **service account (M2M)** acts without a signed-in human. Automated application tokens must **never** be used as if they represented a human. An invocation method may use more than one access pattern.
+
+**Why G1 and G2?** Each AgentCore Gateway has one configured inbound authorization method. **G1** accepts correctly audience-scoped Entra JWTs; **G2** accepts IAM/SigV4 requests. We use two gateways to demonstrate both. Each gateway still needs an authorized outbound identity for the target system. The final API independently checks its own permissions. [AgentCore component reference](docs/agentcore-components.md).
+
+### AWS architecture
+
+![Mobile-readable AWS AgentCore architecture showing the human and two service-account paths](docs/diagrams/aws-agentcore-architecture-mobile.svg)
+
+[Open the full-width AWS service-icon architecture](docs/diagrams/aws-agentcore-architecture.svg).
+
+**Component names used throughout:** **AgentCore Runtime** runs the agent; **AgentCore Gateway** publishes approved **MCP tools**; a **Gateway target** configures the connection from a tool to its backend (it is not an additional API); **AgentCore Identity** brokers supported OAuth credentials/token exchanges; **Cedar** expresses Gateway tool-authorization rules. MCP is a tool protocol, **not** an authentication mechanism. Optional **Memory** and **Agent Registry** are explained in the [component deep dive](docs/agentcore-components.md).
 
 ### Where authorization is enforced
 
