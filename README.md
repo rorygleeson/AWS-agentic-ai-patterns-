@@ -28,10 +28,7 @@ The **Network Operations API** is one API with four operations: asset status, di
 
 **Network Operations API — endpoint key** (one API, four operations):
 
-- 🟩 **01 — Asset status**
-- 🟦 **02 — Diagnostics**
-- 🟧 **03 — Create ticket**
-- 🟪 **04 — Health summary**
+![Network Operations API endpoint key using exactly the same teal, blue, orange and violet colours as the permissions diagram](docs/diagrams/network-api-endpoint-key.svg)
 
 ![Seven caller cards, each with green ticks or red crosses for all four downstream systems and inline numbered Network Operations API endpoint permissions](docs/diagrams/users-service-accounts-v8.svg)
 
