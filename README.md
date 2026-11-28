@@ -355,7 +355,7 @@ An **OAuth access token** contains signed information about a caller and permiss
 - **OAuth delegated scope:** What the **client app** may request from a protected API for a signed-in user, such as `diagnostics.read`. API Gateway validates it for each endpoint.
 - **OBO:** The **confidential AI backend**, not an Entra ID group, asks Entra for a new **Network Operations API** token representing that signed-in person. OBO does not itself grant regional or endpoint entitlements.
 
-These are independent controls. A valid scope never overrides the Network Operations API's user/group checks. **[Full explanation with Entra configuration, tokens, OBO and a James/Emma example](#deep-dive-entra-ad-groups-app-roles-oauth-scopes-and-obo).**
+These are independent controls. A valid scope never overrides the Network Operations API's user/group checks. **[Full explanation with Entra configuration, tokens, OBO and a James/Emma example](#deep-dive-entra-id-groups-app-roles-oauth-scopes-and-obo).**
 
 ### How OAuth connects to PostgreSQL RLS
 
