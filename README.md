@@ -155,10 +155,9 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 **The same three invocation paths, with AWS components:** human users → Runtime → G1; Entra Service Account → Runtime → G1; AWS Service Account (using IAM Role) → G2 directly. The endpoint-access matrix in Section 2 remains authoritative for each caller's permissions.
 
-![AWS AgentCore architecture with AWS service icons](docs/diagrams/aws-agentcore-architecture.svg)
+![Mobile-readable AWS AgentCore architecture showing human, AWS service-account and Entra service-account paths separately](docs/diagrams/aws-agentcore-architecture-mobile.svg)
 
-**Terminology note:** You may see *two-legged OAuth (2LO)* used informally for application-only access, and *three-legged OAuth (3LO)* for user-authorized access. This guide uses the actual OAuth flow names—**Client Credentials** and **Authorization Code**—because they're clearer. OBO is a separate token-exchange flow used when a backend calls another API for a signed-in user.
-
+[Open the full-width AWS service-icon architecture](docs/diagrams/aws-agentcore-architecture.svg) for individual component detail and a zoomable desktop view.
 
 ### Authentication terms in plain English
 
