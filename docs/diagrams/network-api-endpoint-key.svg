@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="138" viewBox="0 0 760 138" role="img" aria-labelledby="title desc">
+<title id="title">Network Operations API endpoint colour key</title><desc id="desc">01 Asset status teal, 02 Diagnostics blue, 03 Create ticket brown-orange, 04 Health summary violet. The colours exactly match endpoint badges in the caller permissions diagram.</desc>
+<g font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="700" fill="#fff">
+<rect x="0" y="0" width="370" height="58" rx="12" fill="#0f766e"/><text x="185" y="38" text-anchor="middle">01  Asset status</text>
+<rect x="390" y="0" width="370" height="58" rx="12" fill="#2563eb"/><text x="575" y="38" text-anchor="middle">02  Diagnostics</text>
+<rect x="0" y="77" width="370" height="58" rx="12" fill="#b45309"/><text x="185" y="115" text-anchor="middle">03  Create ticket</text>
+<rect x="390" y="77" width="370" height="58" rx="12" fill="#7c3aed"/><text x="575" y="115" text-anchor="middle">04  Health summary</text>
+</g></svg>
