@@ -121,9 +121,14 @@ The access rules discussed earlier lead to different technical patterns. **A use
 - **AWS Service Account (using IAM Role) → Network Operations API:** Uses **AWS IAM/SigV4 to authenticate to G2**, without OAuth at that gateway. Its Lambda then obtains a **separate Entra OAuth 2.0 Client Credentials token** to call the Network Operations API, because that downstream API requires OAuth. The IAM role itself is not an OAuth token.
 - **Platform Health API — AWS IAM, not OAuth:** An approved request is **signed with AWS Signature Version 4 (SigV4)** using an IAM role, and API Gateway checks the IAM permission. No OAuth access token is needed for this API.
 
-**Why does the AWS workload need a second token?** G2 trusts the Lambda's **AWS IAM role**, but the Network Operations API trusts **Entra-issued OAuth tokens**. They are separate security boundaries: passing G2 does not grant access to the API. The integration therefore obtains an application-only Entra token before calling that API.
+**Why are we deliberately adding an OAuth step for the AWS Lambda?**
 
-**Why keep this extra step?** In a real enterprise where the Network Operations API already standardises on Entra OAuth, retaining its existing authentication, application permissions and audit model is generally preferable to adding a special IAM authentication path solely for one AWS caller. Production implementations should manage the OAuth credential securely (ideally using federation or a managed credential provider). This is a **context-dependent preference**, not a rule: an API designed for AWS IAM can and should use IAM directly without OAuth.
+1. **What Lambda has:** The scheduled Lambda runs with an **AWS IAM role**. AWS provides temporary IAM credentials, so it can sign a request to **G2** using SigV4. **It does not automatically receive an Entra OAuth token.**
+2. **What our API accepts:** We have deliberately made the **Network Operations API Entra OAuth-only**. It validates an Entra-issued access token; an AWS IAM signature alone will **not** authenticate a request to this API.
+3. **What bridges the gap:** After the IAM-authenticated tool invocation, the integration uses a separately authorised **Entra application identity** to obtain an **OAuth 2.0 Client Credentials access token**, then sends that token to the Network Operations API. Lambda *can* use OAuth; it simply has to be configured to obtain the token.
+4. **Why we choose this:** In an enterprise with an existing Entra-protected API, we generally preserve its **one established authentication and permission model** instead of adding a second IAM-based entry method just for AWS workloads. This makes the extra token acquisition worthwhile for this example.
+
+**Bottom line:** **IAM gets the AWS workload into G2; OAuth gets the integration into the Network Operations API.** These are separate security checks. For an API already protected by IAM, we would skip the OAuth step entirely. In production, we would favour managed credentials or workload federation rather than a long-lived client secret.
 
 The authentication method at an **AgentCore Gateway** and the method used to call a **downstream API** are separate decisions. The examples below show why **the identity reaching the final system matters**.
 
