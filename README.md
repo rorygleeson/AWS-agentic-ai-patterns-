@@ -53,7 +53,20 @@ For exact REST paths, denied-case tests and enforcement across Gateway, the Netw
 
 ## 3. Five access patterns for connected systems
 
-An **invocation method** is how a request reaches Runtime or Gateway. An **access pattern** is how the downstream system authenticates the request and enforces permissions. The same person can use multiple patterns during one conversation.
+**Two different questions:** An **invocation method** describes how a caller reaches AgentCore Runtime or Gateway. An **access pattern** describes how a downstream system authenticates the request and enforces permissions. The same conversation may use several access patterns.
+
+### Three invocation methods
+
+These describe **how callers use AgentCore**. The five downstream **access patterns** below describe how the connected systems authenticate and authorize requests.
+
+| Method | Caller and route | Example |
+|---|---|---|
+| **Human → agent** | Five signed-in people → Enterprise AI Application → Runtime → **G1 (JWT)** | James asks for VIC router diagnostics. |
+| **M2M → agent** | **Entra Service Account** → Runtime → **G1 (JWT)** with separate application tokens | Overnight AI analysis of the health summary. |
+| **M2M → tool directly** | **AWS Service Account (using IAM Role)** → **G2 (IAM/SigV4)**; no Runtime | Scheduled Lambda fetches the health summary without AI. |
+
+A **service account (M2M)** acts without a signed-in human. Automated application tokens must **never** be used as if they represented a human. An invocation method may use more than one access pattern.
+
 
 ### Pattern 1 — Shared access using an AWS IAM workload role
 
@@ -107,19 +120,9 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 
 **What the diagram shows:** During the initial **Authorization Code + PKCE** sign-in, Microsoft Entra ID issues **both tokens together** for this PoC: an **ID token** for James's application login and a separate **Runtime access token** whose audience is AgentCore Runtime. The application sends the **Runtime access token**, never the ID token, to Runtime. **OBO #1** exchanges it for a **G1 access token**; **OBO #2** exchanges the G1 access token for a **Network Operations API access token**. Both OBO results represent James and are valid only for their intended receiving APIs. Each receiving resource validates its own audience-specific token. **Cedar** can authorize the tool at G1; the API independently checks endpoint and data access. This two-OBO Entra integration is a **proposed PoC design**, not yet deployment-tested. [Why two OBO exchanges, and possible simpler alternatives](docs/architecture-qa.md) · [Application sign-in detail](docs/enterprise-ai-application-authentication.md).
 
-### Three invocation methods
+### Why G1 and G2?
 
-These describe **how callers use AgentCore**. They are distinct from the five downstream **access patterns** in Section 3.
-
-| Method | Caller and route | Example |
-|---|---|---|
-| **Human → agent** | Five signed-in people → Enterprise AI Application → Runtime → **G1 (JWT)** | James asks for VIC router diagnostics. |
-| **M2M → agent** | **Entra Service Account** → Runtime → **G1 (JWT)** with separate application tokens | Overnight AI analysis of the health summary. |
-| **M2M → tool directly** | **AWS Service Account (using IAM Role)** → **G2 (IAM/SigV4)**; no Runtime | Scheduled Lambda fetches the health summary without AI. |
-
-A **service account (M2M)** acts without a signed-in human. Automated application tokens must **never** be used as if they represented a human. An invocation method may use more than one access pattern.
-
-**Why G1 and G2?** Each AgentCore Gateway has one configured inbound authorization method. **G1** accepts correctly audience-scoped Entra JWTs; **G2** accepts IAM/SigV4 requests. We use two gateways to demonstrate both. Each gateway still needs an authorized outbound identity for the target system. The final API independently checks its own permissions. [AgentCore component reference](docs/agentcore-components.md).
+ Each AgentCore Gateway has one configured inbound authorization method. **G1** accepts correctly audience-scoped Entra JWTs; **G2** accepts IAM/SigV4 requests. We use two gateways to demonstrate both. Each gateway still needs an authorized outbound identity for the target system. The final API independently checks its own permissions. [AgentCore component reference](docs/agentcore-components.md).
 
 ### AWS architecture
 
