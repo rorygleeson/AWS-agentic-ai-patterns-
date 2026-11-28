@@ -110,7 +110,7 @@ The diagram shows the **whole PoC at a glance**. Employees use our AI chat app, 
 
 Each gateway can expose approved tools for the downstream systems shown below. **Each system still applies its own authentication and authorization rules**; access to a gateway does not automatically grant access to every system or operation.
 
-![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v6.svg)
+![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v7.svg)
 
 ## 3. How these requirements lead to authentication patterns
 
