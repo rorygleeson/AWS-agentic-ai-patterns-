@@ -105,13 +105,13 @@
 <path d="M1262 307 H991 V337" fill="none" stroke="#66809b" stroke-width="1.8" marker-end="url(#arrow)"/>
 <path d="M1262,307 L1262,337" class="arrow"/>
 <g><rect x="40" y="337" width="236" height="90" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_bedrock" x="52" y="353" width="48" height="48"/><text x="108" y="368" class="label">Shared Knowledge</text><text x="108" y="390" class="small">RAG · IAM</text></g>
-<g><rect x="317" y="337" width="514" height="90" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="331" y="353" width="48" height="48"/><text x="391" y="366" class="label">Network Operations API</text><text x="391" y="387" class="small">OpenAPI · Entra OBO</text><text x="391" y="409" class="small">Asset status · Diagnostics · Ticket create</text></g>
+<g><rect x="317" y="337" width="514" height="90" rx="12" fill="#eaf4ff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="331" y="353" width="48" height="48"/><text x="391" y="366" class="label">Network Operations API</text><text x="391" y="387" class="small">OpenAPI · Entra OBO</text><text x="391" y="409" class="small">Asset status · Diagnostics · Ticket create</text></g>
 
-<g><rect x="872" y="337" width="236" height="90" rx="12" fill="#f6f0ff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_cognito" x="884" y="353" width="48" height="48"/><text x="940" y="368" class="label">NetworkMonitor</text><text x="940" y="390" class="small">Cognito · 3LO</text></g>
-<g><rect x="1149" y="337" width="231" height="90" rx="12" fill="#fff8ea" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="1161" y="353" width="48" height="48"/><text x="1217" y="368" class="label">Platform Health API</text><text x="1217" y="390" class="small">Native REST · IAM</text></g>
+<g><rect x="872" y="337" width="236" height="90" rx="12" fill="#fff1f2" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_cognito" x="884" y="353" width="48" height="48"/><text x="940" y="368" class="label">NetworkMonitor</text><text x="940" y="390" class="small">Cognito · Authorization Code</text></g>
+<g><rect x="1149" y="337" width="231" height="90" rx="12" fill="#f5f3ff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="1161" y="353" width="48" height="48"/><text x="1217" y="368" class="label">Platform Health API</text><text x="1217" y="390" class="small">Native REST · IAM</text></g>
 <g><rect x="594" y="479" width="236" height="75" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_rds" x="606" y="495" width="48" height="48"/><text x="662" y="510" class="label">RDS PostgreSQL</text><text x="662" y="532" class="small">RLS · behind APIs</text></g>
 <path d="M713 427 V479" class="arrow"/>
-<text x="44" y="473" class="desc">G1: Human OBO assets/tickets; app-only summary; vendor 3LO; platform IAM.</text>
+<text x="44" y="473" class="desc">G1: Human OBO assets/tickets; app-only summary; vendor Authorization Code; platform IAM.</text>
 <rect x="20" y="599" width="1380" height="193" rx="16" fill="#fff7ea" stroke="#efd4a5"/>
 <text x="40" y="630" class="section">AWS Service Account — scheduled Lambda calls G2 directly (IAM/SigV4)</text>
 <g><rect x="38" y="666" width="265" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_eventbridge" x="50" y="682" width="48" height="48"/><text x="106" y="697" class="label">EventBridge</text><text x="106" y="719" class="small">Scheduled report</text></g>
@@ -119,7 +119,7 @@
 <g><rect x="673" y="666" width="300" height="83" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_agentcore" x="685" y="682" width="48" height="48"/><text x="741" y="697" class="label">Gateway G2</text><text x="741" y="719" class="small">IAM/SigV4 · MCP tool</text></g>
 <g><rect x="1008" y="666" width="370" height="83" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="1020" y="682" width="48" height="48"/><text x="1076" y="697" class="label">Network Operations API</text><text x="1076" y="719" class="small">OAuth Client Credentials · 04 only</text></g>
 <path d="M303,708 L338,708" class="arrow"/><path d="M638,708 L673,708" class="arrow"/><path d="M973,708 L1008,708" class="arrow"/>
-<text x="40" y="776" class="small">G2 calls the SAME Network Operations API for aggregate summary using app-only OAuth 2LO.</text>
+<text x="40" y="776" class="small">G2 calls the SAME Network Operations API for aggregate summary using app-only OAuth Client Credentials.</text>
 <rect x="20" y="807" width="1380" height="97" rx="12" fill="#fff" stroke="#d4dfec"/>
 <text x="39" y="835" class="section">Key comparison</text>
 <text x="39" y="860" class="desc">James → OpenAPI → Entra OBO → Network API knows James → RLS enforces VIC only.</text>
