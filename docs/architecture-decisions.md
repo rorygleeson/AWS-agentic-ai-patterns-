@@ -2,7 +2,7 @@
 
 This is the **single source of truth for architectural decisions** in the Enterprise GenAI on AWS proof of concept. The [README](../README.md) introduces the end systems and users; the [architecture baseline](architecture-baseline.md) describes the design; the [patterns guide](architecture-patterns.md) explains reusable mechanisms. **The ADRs live here only.**
 
-**Status:** Accepted as a design baseline; implementation and tests have not yet occurred. These decisions are based on the design agreed in this chat.
+**Status:** Accepted as a design baseline; implementation and tests have not yet occurred. The current decisions match the three invocation paths in the README; superseded second-Runtime proposals are not part of this baseline.
 
 ## How to read this register
 
@@ -29,14 +29,14 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-001
 
-- **Decision:** Separate human Runtime U (JWT) and automation Runtime M (IAM).
-- **Why:** Enforces mutually exclusive inbound trust models.
-- **Alternative considered:** one runtime with mixed identity handling, harder to verify.
-- **Consequence:** two deployments.
+- **Decision:** Use **one JWT-protected AgentCore Runtime** for human AI requests and Entra Service Account automated AI analysis; let the scheduled AWS Service Account Lambda invoke **G2 directly** over IAM/SigV4.
+- **Why:** Runtime is needed where an AI agent reasons about a prompt, not for a deterministic MCP tool invocation. G1 and G2 already demonstrate the two different inbound Gateway authorization types.
+- **Alternative considered:** route the scheduled Lambda through a second IAM-protected Runtime, which adds deployment and identity handoff without AI benefit.
+- **Consequence:** one AI Runtime, two Gateways, three invocation paths; G2 verifies the **Lambda execution role** itself.
 
 ### ADR-003
 
-- **Decision:** Forward original Entra human JWT through Lambda and Runtime U, then use audience-correct OBO for the downstream Network API (including ticket operations).
+- **Decision:** Forward original Entra human JWT through Lambda and AgentCore Runtime, then use audience-correct OBO for the downstream Network API (including ticket operations).
 - **Why:** Makes James's identity independently verifiable at downstream systems.
 - **Alternative considered:** use Lambda IAM role as user identity, unacceptable for delegated API/RLS pattern.
 - **Consequence:** token forwarding, audience, exchange, consent and expiry handling matter.
@@ -74,8 +74,8 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 ### ADR-002
 
 - **Decision:** **Retain two AgentCore Gateways**: G1 `CUSTOM_JWT` for Entra-authenticated people **and the separate Entra Service Account**; G2 `AWS_IAM` for the scheduled AWS Service Account workload.
-- **Why:** We deliberately require **IAM/SigV4 inbound authentication** for the AWS Service Account Lambda/Runtime, whereas G1 requires **Entra JWT inbound** for people and the approved Entra Service Account application. An AgentCore Gateway has one inbound `authorizerType`, so our chosen two inbound methods require separate gateways. GW2 then uses **Entra OAuth Client Credentials outbound** to the Network API's health-summary endpoint. This shows **AWS IAM inbound → enterprise OAuth outbound**, a boundary not covered by human OBO.
-- **Alternative considered:** let the Reporter obtain an Entra Client Credentials JWT to enter G1; technically possible and would remove GW2, but would **not** demonstrate IAM-inbound workload access. Another alternative, a single IAM-inbound Gateway, would lose the human JWT-inbound/Cedar identity pattern.
+- **Why:** We deliberately require **IAM/SigV4 inbound authentication** for the AWS Service Account Lambda, whereas G1 requires **Entra JWT inbound** for people and the approved Entra Service Account application. An AgentCore Gateway has one inbound `authorizerType`, so our chosen two inbound methods require separate gateways. G2 then uses **Entra OAuth Client Credentials outbound** to the Network API's health-summary endpoint. This shows **AWS IAM inbound → enterprise OAuth outbound**, a boundary not covered by human OBO.
+- **Alternative considered:** let the Reporter obtain an Entra Client Credentials JWT to enter G1; technically possible and would remove G2, but would **not** demonstrate IAM-inbound workload access. Another alternative, a single IAM-inbound Gateway, would lose the human JWT-inbound/Cedar identity pattern.
 - **Consequence:** two narrowly scoped gateway endpoints; G2 exposes only the report tool and does not duplicate human targets/policies. **This is a deliberate PoC learning objective, not a universal service-account requirement.**
 
 ### ADR-007
@@ -87,10 +87,10 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-009
 
-- **Decision:** Automation uses explicit Reporter Lambda role → Runtime M role → G2 IAM.
-- **Why:** Clarifies the principal each service sees.
-- **Alternative considered:** pass a fabricated employee token.
-- **Consequence:** tightly scoped AWS roles/resource policies.
+- **Decision:** The scheduled Reporter Lambda uses its own execution role to sign the direct G2 MCP request; G2 then uses separately configured Entra OAuth Client Credentials for the downstream Network Operations API.
+- **Why:** Keeps the deterministic tool route independent of AI Runtime while preserving distinct IAM inbound and OAuth outbound trust boundaries.
+- **Alternative considered:** insert an unnecessary IAM Runtime or impersonate an employee, both rejected.
+- **Consequence:** G2 authorizes the actual Lambda role, and the Network Operations API independently authorizes the reporter's Entra application identity.
 
 ### ADR-017
 
@@ -111,7 +111,7 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-010
 
-- **Decision:** **Two distinct M2M callers** demonstrate different AgentCore ingress: AWS Service Account Lambda/Runtime enters G2 using IAM/SigV4; a **separate Entra Service Account** enters G1 using an Entra Client Credentials JWT. Each obtains its own Network API-audience Client Credentials token with app-only `HealthSummary.Read`.
+- **Decision:** **Two distinct M2M callers** demonstrate different AgentCore ingress: AWS Service Account Lambda enters G2 using IAM/SigV4; a **separate Entra Service Account** enters G1 using an Entra Client Credentials JWT. Each obtains its own Network API-audience Client Credentials token with app-only `HealthSummary.Read`.
 - **Why:** No end user is involved.
 - **Alternative considered:** OBO, invalid without real user assertion.
 - **Consequence:** two separately registered, least-privileged non-human Entra applications, isolated Gateway target credentials and independent application identities in API logs. Both call the **same** existing summary endpoint; G1 Cedar must authorize the Entra Service Account only for that tool.
@@ -166,7 +166,7 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-019
 
-- **Decision:** Use synthetic domain services for the PoC, generic AWS enterprise framing.
+- **Decision:** Use fictional reference services for the PoC, generic AWS enterprise framing.
 - **Why:** Clear capabilities without actual corporate/network data or named internal products.
 - **Alternative considered:** claim integration with a real organization's services.
 - **Consequence:** all data/test identities are fictional.
@@ -200,7 +200,7 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 These statements connect the decisions without duplicating their rationale:
 
 - A user's identity comes from a **validated token**, never the prompt, HTTP JSON `userId`, or Lambda IAM role.
-- G1 accepts **Entra JWTs for five humans and the explicitly approved Entra Service Account application**; G2 accepts **machine IAM/SigV4** from Runtime M. Each Gateway has one inbound authorizer type. A target's outbound credentials are configured separately.
+- G1 accepts **Entra JWTs for five humans and the explicitly approved Entra Service Account application**; G2 accepts **machine IAM/SigV4** directly from the scheduled AWS Lambda execution role. Each Gateway has one inbound authorizer type. A target's outbound credentials are configured separately.
 - The **OpenAPI + OBO** REST path preserves James's delegated identity; the **native API Gateway REST stage + IAM** path deliberately uses the Gateway execution role after Cedar authorizes Oliver.
 - OAuth **2LO** is app-only; OAuth **3LO** is independent vendor-user consent; **OBO** preserves a corporate user's delegated identity. Do not collapse them.
 - Downstream APIs re-authorize and RDS applies RLS; Cedar alone is insufficient.
@@ -230,15 +230,15 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 
 ## ADR — Distinguish human scopes from machine application roles at G1
 
-- **Decision:** On `enterprise-ai-backend`, keep delegated `chat.invoke` for signed-in humans and define a separate **Applications-only** app role `Automation.Summary.Invoke` for the Entra Service Account. Assign that role directly to the service principal and grant admin consent. Assign its **different** Network API app role `HealthSummary.Read` independently.
+- **Decision:** On `enterprise-ai-backend`, keep delegated `chat.invoke` for signed-in humans and define the Applications-only role `Automation.Runtime.Invoke` for the Entra Service Account's Runtime entry. Register the separate G1 JWT resource `enterprise-agentcore-g1` with Applications-only role `Automation.Summary.Invoke`, assigned and admin-consented to that service principal. Independently grant `HealthSummary.Read` on the Network Operations API.
 - **Why:** The AI Backend and Network API are different audiences and permissions. App-only Entra Client Credentials tokens use `roles`, not delegated `scp`. Gateway-wide enforcement of human `chat.invoke` would reject the valid machine; accepting every correctly signed backend token without a required machine permission could authorize the wrong app.
-- **Decision:** Pin Entra **v2** access tokens and tenant-specific issuer/AI Backend audience at Runtime U/G1. AWS AgentCore `allowedClients` checks a `client_id` claim, but Entra v2 identifies the caller with **`azp`**; do **not** rely on `allowedClients` as an Entra app allow-list. G1 Cedar checks the exact approved `azp` client IDs and caller-specific permissions. Runtime U ingress has its own private/path restrictions. Do **not** impose human `chat.invoke` as a G1-wide `allowedScopes` value. The Chat API validates that scope for human requests; G1 Cedar permits human tools only for verified assigned human roles and the summary tool only for the exact automation app ID with `Automation.Summary.Invoke`. Reject missing/wrong-type roles and all other tool access. G2 remains IAM-only for the AWS Service Account.
+- **Decision:** Pin Entra **v2** access tokens and tenant-specific issuer/audience: AI Backend for human Token A and the Entra automation's Runtime entry, a **distinct G1 resource audience** for the automation's G1 call, and Network Operations API for downstream Client Credentials. Configure G1 to accept only the two explicitly approved audiences (human backend or automation G1). AWS AgentCore `allowedClients` checks a `client_id` claim, but Entra v2 identifies the caller with **`azp`**; do **not** rely on `allowedClients` as an Entra app allow-list. G1 Cedar checks the exact approved `azp` client IDs and caller-specific permissions. AgentCore Runtime ingress has its own private/path restrictions. Do **not** impose human `chat.invoke` as a G1-wide `allowedScopes` value. The Chat API validates that scope for human requests; G1 Cedar permits human tools only for verified assigned human roles and the summary tool only for the exact automation app ID carrying G1's `Automation.Summary.Invoke`. Reject missing/wrong-type roles and all other tool access. G2 remains IAM-only for the AWS Service Account.
 - **Why:** JWT validity authenticates a principal; an explicit permission authorizes an operation. Per-target outbound credentials are independent of this inbound check.
 - **References:** [AWS JWT inbound rules](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html), [Microsoft app-only roles](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow).
 
 ## ADR — Pin Entra OBO client identity and separate Gateway target credentials
 
-- **Decision:** Token A is issued for the `enterprise-ai-backend` Entra app registration. AgentCore's confidential Entra OBO credential provider uses **that same app's client ID** to request Token B for the separate `enterprise-network-api` audience.
+- **Decision:** Human Token A is issued for the `enterprise-ai-backend` Entra app registration; the Entra Service Account separately requests its Runtime JWT and its G1-audience JWT. AgentCore's confidential Entra OBO credential provider uses **that same app's client ID** to request Token B for the separate `enterprise-network-api` audience.
 - **Why:** Microsoft OBO rejects a token whose audience belongs to a different application from the confidential client performing the exchange.
 - **Decision:** Keep one Network Operations backend REST API, but create **three separate OpenAPI Gateway targets**: G1 human OBO (status, diagnostics, ticket creation), G1 Entra Service Account Credentials (health-summary only), and G2 AWS Service Account Client Credentials (same health-summary endpoint, different app identity).
 - **Why:** The Gateway target's outbound credential configuration differs, while the underlying API is shared.
@@ -247,8 +247,8 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 
 ## ADR — Prevent direct G1 bypass and require trusted ticket confirmation
 
-- **Decision:** Invoke G1 from Runtime U through a private AgentCore Gateway VPC endpoint and restrict the Gateway with a resource/organization policy using `aws:SourceVpce`. Keep Runtime U ingress restricted to trusted backend and approved automation paths. G2 remains restricted to Runtime M's IAM execution role.
-- **Why:** A valid Entra JWT should not let a caller bypass the AI chat application's controls by invoking G1 directly.
+- **Decision:** Invoke G1 from AgentCore Runtime through a private AgentCore Gateway VPC endpoint and restrict the Gateway with a resource/organization policy using `aws:SourceVpce`. Keep AgentCore Runtime ingress restricted to trusted backend and approved automation paths. G2 remains restricted to the approved scheduled Lambda IAM execution role.
+- **Why:** A valid Entra JWT should not let a caller bypass the Enterprise AI Application's controls by invoking G1 directly.
 - **Decision:** The Network API accepts ticket creation only with backend-issued confirmation evidence bound to the verified human and specific proposed ticket; a model-supplied `confirmed` flag or idempotency key cannot prove consent.
 - **Why:** Tool invocation permission does not by itself authorize an irreversible business change.
 
