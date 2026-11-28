@@ -50,7 +50,16 @@ If we use **only Runtime → G1 OBO**, G1 would need to forward its token to the
 **A: Yes.** AWS PrivateLink provides an **interface VPC endpoint** for AgentCore Gateway. An **AWS Organizations Resource Control Policy (RCP)** can deny `bedrock-agentcore:InvokeGateway` when `aws:SourceVpc` or `aws:SourceVpce` is not approved. AWS explicitly says these RCPs apply to **all Gateway inbound types, including `NONE`**. The RCP is attached at the organization root, OU or account—not directly to the Gateway—and **sets a deny perimeter; it never grants access**. A resource-based policy can also be attached to an individual supported AgentCore resource. A VPC endpoint policy and endpoint security groups add further restrictions.
 
 **Q: Does an approved VPC make an unauthenticated Gateway secure for sensitive tools?**  
-**A: Not by itself.** Network location is **not a caller identity**. A workload that can reach the approved endpoint may still be able to invoke exposed tools when Gateway inbound authorization is `NONE`. Downstream authorization, a trusted authentication layer/interceptor and tool-level policy may be needed. Do not treat an endpoint policy's wildcard principal as proof of a human identity. For OAuth-based requests, VPC endpoint policies also require `Principal: "*"`; they cannot filter individual OAuth users as IAM principals.
+**A: Not by itself.** A VPC restriction answers **“Where did this request come from?”**, not **“Who is calling?”** With `NONE`, a workload that can reach Gateway through an approved VPC endpoint may invoke its tools unless an additional trusted control blocks it. Sensitive tools therefore need suitable downstream authorization and/or an authentication/interceptor layer.
+
+**Q: Why does an OAuth VPC endpoint policy use `"Principal": "*"`? Isn't that open to everyone?**  
+**A: No.** In this policy, `*` means **the endpoint policy does not filter by AWS IAM identity**. An OAuth bearer token represents a user or application at the identity provider; it is **not an IAM principal** that the VPC endpoint policy can name. AWS therefore requires `"Principal": "*"` for OAuth requests through that endpoint. This does **not** bypass other controls:
+
+- **PrivateLink and an RCP** can still deny Gateway invocations from outside approved VPCs/endpoints.
+- **JWT-enabled G1** still validates the Entra token and Cedar can authorize individual tools.
+- **`NONE` Gateway** does not perform that JWT check—so it needs an equivalent trusted protection if exposed tools are sensitive.
+
+Think of the endpoint policy as specifying **which AgentCore resource can be reached through this network path**, while the JWT/IAM authorizer determines **who can invoke it**. The two controls solve different problems.
 
 **Important implementation consideration:** A strict VPC-only RCP will also block an AgentCore Runtime agent that invokes Gateway **outside the approved VPC path**. Runtime must be configured to reach Gateway through an approved interface VPC endpoint, or the perimeter design must explicitly account for that route. Test AWS-service/forward-access-session exceptions and CloudTrail data-event visibility before enforcing an RCP broadly.
 
