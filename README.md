@@ -45,8 +45,6 @@ The four planned REST endpoints are exposed through **Amazon API Gateway**, with
 
 **These are different permissions on the same API, not four separate APIs.** The API validates the caller's token and enforces endpoint and data restrictions. AgentCore Gateway can also use Cedar to deny an unauthorised tool invocation before it reaches the API. PostgreSQL row-level security (RLS) adds protection for database rows.
 
-The agent does not access RDS directly. Next we introduce the callers, then show exactly which endpoints each can use.
-
 ### Supporting database — Amazon RDS PostgreSQL
 
 - Stores network assets, diagnostics, tickets and access entitlements.
