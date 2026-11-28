@@ -35,38 +35,22 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
   - **High-level access rule:** **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role.
 
 
-### Network Operations API — four endpoints, different access per caller
+### Network Operations API — four endpoints
 
-**Why does this PoC have four endpoints?** We deliberately expose different operations through **one Network Operations API** so we can demonstrate how authentication and authorization work for different callers. Human users and service accounts can authenticate in different ways, and each is granted access only to the endpoints and data they are permitted to use.
+**Why four endpoints?** This PoC uses one Network Operations API with different operations to demonstrate how **human users and service accounts authenticate differently** and how access can be **allowed or denied per endpoint**. We also demonstrate restrictions on regions, returned fields and actions such as creating a ticket.
 
-This lets us show **who can call which endpoint, who is denied, and why**—including different user roles, regional restrictions, read versus write permissions, and machine-to-machine (M2M) access. The diagram below summarises those differences before we explain the technical controls.
+The four planned REST endpoints are backed by Amazon RDS PostgreSQL:
 
-![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access.svg)
+| Endpoint | Purpose | Access rule |
+|---|---|---|
+| `GET /assets/{id}/status` | View basic network asset status | Authorised users; some receive basic fields only |
+| `GET /assets/{id}/diagnostics` | View detailed fault information | Authorised engineers and admins; regional restrictions apply |
+| `POST /tickets` | Create a support ticket | Authorised engineers and admins; regional restrictions and user confirmation required |
+| `GET /network/health-summary` | View aggregate network health | Approved service accounts (M2M) only; no individual asset details |
 
-*Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or aggregate-only); red = denied. A permitted ticket request also requires user confirmation. The diagram shows intended PoC policy—not a claim that the controls are already implemented.*
+**These are different permissions on the same API, not four separate APIs.** The API validates the caller's token and enforces endpoint and data restrictions. AgentCore Gateway can also use Cedar to deny an unauthorised tool invocation before it reaches the API. PostgreSQL row-level security (RLS) adds protection for database rows.
 
-**How we enforce it:** Cedar authorizes the individual AgentCore tool invocation; the Network API independently validates its OAuth token and enforces the requested **HTTP method/path**, scope or app role, caller entitlement and regional/field rules. PostgreSQL row-level security provides a further data boundary. Both a permitted tool call **and** a permitted API request are required.
-
-These are the four planned REST endpoints, all on **one Network Operations API** backed by RDS PostgreSQL:
-
-- **`GET /assets/{id}/status`**
-  - **What it returns or does:** Basic network asset status
-  - **Access rule:** Signed-in users **granted Network API access**; basic fields only for limited roles
-
-- **`GET /assets/{id}/diagnostics`**
-  - **What it returns or does:** Detailed fault and diagnostic information
-  - **Access rule:** Authorized engineers/admins; **permitted regions only**
-
-- **`POST /tickets`**
-  - **What it returns or does:** Creates a support ticket
-  - **Access rule:** Authorized engineers/admins; **permitted regions only**, with user confirmation
-
-- **`GET /network/health-summary`**
-  - **What it returns or does:** Aggregate network-health summary
-  - **Access rule:** **Two approved service accounts (M2M) only**; no individual asset details
-
-
-The Network API enforces each caller's permissions. The agent never queries RDS directly. We introduce the named people and their exact permissions next.
+The agent does not access RDS directly. Next we introduce the callers, then show exactly which endpoints each can use.
 
 ### Supporting database — Amazon RDS PostgreSQL
 
@@ -117,6 +101,10 @@ The PoC has **five human users and two service accounts (M2M)**. A **service acc
 
 
 ### Network API — exact endpoints for each caller
+
+![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access.svg)
+
+*Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or aggregate-only); red = denied. Ticket creation also requires user confirmation. This shows planned PoC policy, not yet-implemented controls.*
 
 **The Network Operations API has four endpoints, but no caller automatically gets all four.** Here is exactly what each human or automated application may invoke.
 
