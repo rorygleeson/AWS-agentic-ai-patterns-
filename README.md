@@ -4,7 +4,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and seven callers to show when each pattern applies—and how to prevent unauthorized access.
 
-![Same AI, different access: five people and two service accounts with distinct permissions for four downstream systems](docs/diagrams/agentcore-access-overview-mobile-v2.svg)
+![Same AI, different access: five people and two service accounts with distinct permissions for four downstream systems](docs/diagrams/agentcore-access-overview-clean-v2.svg)
 
 *At a glance: five people and two service accounts (M2M) use the same AI platform but have different access to four systems. A tick means some access—not permission for every operation. The detailed AWS service diagram appears later.*
 
