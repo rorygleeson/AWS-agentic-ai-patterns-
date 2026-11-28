@@ -166,10 +166,18 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 **A: No.** Two exchanges are **our architectural choice** for these three trust boundaries. [Microsoft's Entra OBO specification](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow) requires the incoming token to be issued for the confidential client performing that particular exchange; it does not prescribe how many intermediary services an architecture must have. [AWS AgentCore Identity](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/on-behalf-of-token-exchange.html) supports audience-scoped OBO exchange and has a Microsoft Entra provider mode. The two Entra confidential-client registrations and their permitted audiences must be designed consistently with those requirements.
 
 **Q: Why not use just one OBO exchange?**  
-**A:** It would be simpler, but it would mean changing one of our requirements:
+**A:** The decisive constraint is **G1's outbound authorization to our Network Operations API**, which is exposed as an **OpenAPI/MCP tool target**. AWS documents these options:
 
-- **OBO only from Runtime to G1:** We would then need to reuse G1's token at the Network Operations API. That token is intended for G1, **not** the API. AWS's [Gateway outbound-authorization matrix](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html) supports **OAuth token exchange** for OpenAPI/MCP targets but **not JWT passthrough** for those target types.
-- **OBO only from Runtime to the API:** That would supply an API-audience token but not the separate G1-audience token used for our Gateway authentication and Cedar tool-authorization boundary. We could redesign the integration to bypass or change G1, but it would no longer be the architecture this PoC is teaching.
+| G1 → API authentication | AWS support for OpenAPI/MCP targets | Fit for James's request |
+|---|---|---|
+| **OAuth 2.0 token exchange (OBO)** | **Supported** | **Yes.** Gets a new API-audience token representing James. |
+| **JWT token passthrough** | **Not supported for this target type** | No. Would also reuse G1's token at a different resource audience. |
+| **OAuth 2.0 Client Credentials** | **Supported** | No. It identifies an application, not James, so the API cannot enforce his delegated VIC-only identity from that token. |
+| **AWS IAM/SigV4** | **Supported** | Not with the existing Network Operations API authentication contract, which expects Entra OAuth. |
+
+Source: [AWS AgentCore Gateway — outbound authorization support by target type](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html).
+
+If we use **only Runtime → G1 OBO**, G1 would need to forward its token to the API rather than exchange it; that shortcut is not supported by our target type and would blur resource audiences. If we use **only Runtime → API OBO**, we must change or bypass the separately authenticated **G1/Cedar** boundary. **One OBO is possible in other architectures, but it does not preserve all the requirements of this one.**
 
 **Q: Is the extra complexity justified by AWS and Microsoft guidance?**  
 **A:** **For our chosen trust boundaries, yes—although neither vendor prescribes exactly two OBO exchanges.** We trade additional token-exchange configuration for distinct resource audiences and independent authorization at G1 and the API. [AWS recommends OBO instead of token passthrough for production Gateway integrations](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-inbound-auth.html). [Microsoft Entra requires each OBO assertion to be intended for the confidential client redeeming it](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow), and [AgentCore Identity documents Microsoft-specific OBO support](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/on-behalf-of-token-exchange.html). Our design follows those documented principles; the precise Entra client registrations, delegated permissions and audience mappings will be specified in the technical appendix.
