@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1080" viewBox="0 0 720 1080" role="img" aria-labelledby="title desc">
+<title id="title">AgentCore at a glance</title>
+<desc id="desc">The Enterprise AI Application connects to an agent running in AgentCore Runtime. The agent invokes tools through AgentCore Gateway, using MCP, to reach four downstream systems. AgentCore Memory and AWS Agent Registry are shown as optional supporting capabilities, not required authorization steps. Service accounts can enter gateways directly as detailed later.</desc>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#172334}
+.h1{font-size:33px;font-weight:700}.sub{font-size:20px;fill:#526273}.head{font-size:26px;font-weight:700}.body{font-size:21px}.small{font-size:18px;fill:#526273}.pill{font-size:19px;font-weight:700}
+.line{stroke:#71859b;stroke-width:4;stroke-linecap:round;fill:none}
+</style>
+<rect x="0" y="0" width="720" height="1080" rx="25" fill="#f8fafc"/>
+<text x="40" y="63" class="h1">Amazon Bedrock AgentCore</text>
+<text x="40" y="99" class="sub">A simple view of the main building blocks</text>
+<rect x="84" y="137" width="552" height="108" rx="17" fill="#dbedff" stroke="#3b92cc" stroke-width="2"/>
+<text x="360" y="182" text-anchor="middle" class="head">Enterprise AI Application</text>
+<text x="360" y="215" text-anchor="middle" class="body">People submit requests</text>
+<path d="M360 245 V286" class="line"/>
+<rect x="42" y="285" width="636" height="455" rx="22" fill="#f3eeff" stroke="#aa8fd8" stroke-width="2.5"/>
+<text x="70" y="324" class="pill" fill="#65409a">AGENTCORE PLATFORM</text>
+<rect x="84" y="348" width="552" height="104" rx="16" fill="#fff" stroke="#ac93dc" stroke-width="2"/>
+<text x="360" y="387" text-anchor="middle" class="head">Runtime</text>
+<text x="360" y="418" text-anchor="middle" class="body">Runs our AI agent</text>
+<path d="M360 452 V492" class="line"/>
+<rect x="84" y="491" width="552" height="115" rx="16" fill="#fff" stroke="#8a75cd" stroke-width="2"/>
+<text x="360" y="529" text-anchor="middle" class="head">Gateway</text>
+<text x="360" y="560" text-anchor="middle" class="body">Exposes approved tools using MCP</text>
+<text x="360" y="588" text-anchor="middle" class="small">G1 (JWT) and G2 (IAM) shown below</text>
+<text x="68" y="650" class="small">Optional capabilities (not access-control steps)</text>
+<rect x="67" y="664" width="281" height="58" rx="12" fill="#e9faf5" stroke="#4ca98e" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="208" y="690" text-anchor="middle" class="pill">Memory</text>
+<text x="208" y="713" text-anchor="middle" class="small">Retains context</text>
+<rect x="365" y="664" width="287" height="58" rx="12" fill="#e9faf5" stroke="#4ca98e" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="508" y="690" text-anchor="middle" class="pill">AWS Agent Registry</text>
+<text x="508" y="713" text-anchor="middle" class="small">Catalogues agents and tools</text>
+<path d="M360 740 V781" class="line"/>
+<text x="360" y="816" text-anchor="middle" class="head">Four downstream systems</text>
+<rect x="43" y="841" width="309" height="80" rx="14" fill="#dcfbed" stroke="#30ac7b" stroke-width="2"/>
+<text x="197" y="876" text-anchor="middle" class="body" font-weight="700">Shared knowledge</text>
+<text x="197" y="903" text-anchor="middle" class="small">RAG</text>
+<rect x="367" y="841" width="309" height="80" rx="14" fill="#dbeeff" stroke="#3293c8" stroke-width="2"/>
+<text x="521" y="875" text-anchor="middle" class="body" font-weight="700">Network Operations</text>
+<text x="521" y="903" text-anchor="middle" class="small">API</text>
+<rect x="43" y="933" width="309" height="80" rx="14" fill="#ffebeb" stroke="#dc6685" stroke-width="2"/>
+<text x="197" y="968" text-anchor="middle" class="body" font-weight="700">NetworkMonitor</text>
+<text x="197" y="996" text-anchor="middle" class="small">External 3PP</text>
+<rect x="367" y="933" width="309" height="80" rx="14" fill="#eee9ff" stroke="#8c6ec7" stroke-width="2"/>
+<text x="521" y="968" text-anchor="middle" class="body" font-weight="700">Platform Health</text>
+<text x="521" y="996" text-anchor="middle" class="small">API</text>
+<text x="360" y="1051" text-anchor="middle" class="small">Simplified human path; M2M enters gateways directly.</text>
+</svg>
