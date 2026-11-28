@@ -69,14 +69,14 @@ A **service account** is an automated application or workload that operates **wi
 
 ![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access.svg)
 
-*Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or aggregate-only); red = denied. Ticket creation also requires user confirmation. This shows planned PoC policy, not yet-implemented controls.*
+*Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or aggregate-only); red = denied. This shows planned PoC policy, not yet-implemented controls.*
 
 **The Network Operations API has four endpoints, but no caller automatically gets all four.** Here is exactly what each human or automated application may invoke.
 
 | Caller | Exact Network API endpoints they are allowed to call |
 |---|---|
-| **Sarah — National Admin** | `GET /assets/{id}/status` — all regions, full permitted status<br>`GET /assets/{id}/diagnostics` — all regions<br>`POST /tickets` — all regions, user confirmation required |
-| **James — VIC Engineer** | `GET /assets/{id}/status` — **VIC only**<br>`GET /assets/{id}/diagnostics` — **VIC only**<br>`POST /tickets` — **VIC only**, user confirmation required |
+| **Sarah — National Admin** | `GET /assets/{id}/status` — all regions, full permitted status<br>`GET /assets/{id}/diagnostics` — all regions<br>`POST /tickets` — all regions |
+| **James — VIC Engineer** | `GET /assets/{id}/status` — **VIC only**<br>`GET /assets/{id}/diagnostics` — **VIC only**<br>`POST /tickets` — **VIC only** |
 | **Emma — Service Desk** | `GET /assets/{id}/status` — **all regions, basic fields only** |
 | **David — External Analyst** | **None.** David uses the separate NetworkMonitor vendor service. |
 | **Oliver — Platform Analyst** | **None.** Oliver uses the separate Platform Health API. |
@@ -106,7 +106,7 @@ A **service account** is an automated application or workload that operates **wi
 | **AWS Service Account (using IAM Role)** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
 | **Entra Service Account** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
 
-**Default rule:** A successful sign-in allows a human to use the AI chat app and shared RAG. Every other system requires its own authorization. If access is not explicitly listed above, it is denied. Ticket creation additionally requires explicit confirmation.
+**Default rule:** A successful sign-in allows a human to use the AI chat app and shared RAG. Every other system requires its own authorization. If access is not explicitly listed above, it is denied.
 
 
 ## Architecture overview
@@ -239,7 +239,7 @@ The comparison table above is the quick reference. Here is the **reasoning behin
 
 - `GET /assets/{id}/status` — **read basic information**. Sarah, James and Emma can call it, but James is limited to VIC and Emma receives only basic fields.
 - `GET /assets/{id}/diagnostics` — **read restricted information**. Sarah and James can call it, with their regional limits; Emma cannot.
-- `POST /tickets` — **make a change**. Only Sarah and James can create a ticket, for an allowed region, after the person confirms the action. Emma cannot create tickets.
+- `POST /tickets` — **make a change**. Only Sarah and James can create a ticket, for an allowed region. Emma cannot create tickets.
 
 All three use **human OBO**, not three new OAuth methods. The point of separate endpoints is to show that **one authenticated person does not automatically have permission for every operation**, and that a write can require tighter approval than a read.
 
@@ -721,7 +721,7 @@ The **Network Operations API** is one REST API backed by one RDS PostgreSQL data
 
 - **`POST /tickets`**
   - **OAuth/API permission required:** Delegated `tickets.write`
-  - **Additional Network API rules:** Sarah all regions; James VIC; Emma **denied**; trusted explicit user confirmation before any write
+  - **Additional Network API rules:** Sarah all regions; James VIC; Emma **denied**
 
 - **`GET /network/health-summary`**
   - **OAuth/API permission required:** **App-only** `roles: [HealthSummary.Read]`, not a delegated `scp`
@@ -734,7 +734,7 @@ The **Network Operations API** is one REST API backed by one RDS PostgreSQL data
 2. **Network API Lambda** obtains the **verified** user `tid/oid` and AD group Object IDs from correctly issued Network API claims, or an authorized membership lookup. It determines permissions from the RDS **`group_entitlements`** table. **Entra is the source of truth for group membership; RDS is the source for our business mappings.**
 3. Lambda checks the actual asset's **trusted region**, permitted operation and, for Emma, **permitted response fields**. It rejects a prompt-supplied user ID, region or group claim as an authorization source.
 4. Lambda establishes trustworthy **per-request database context**. PostgreSQL **RLS** filters permitted rows. RLS does **not** read an OAuth token by itself, and RLS does **not** redact columns; the API shapes Emma's basic response.
-5. For `POST /tickets`, Lambda additionally checks permitted region and **backend-issued evidence of the user's confirmation**. A user/model-supplied `confirmed: true` flag is not sufficient.
+5. For `POST /tickets`, Lambda checks the caller's ticket-creation permission and verified regional entitlement before writing to the database.
 
 **Same OAuth scope, different person:**
 
