@@ -122,7 +122,7 @@ A **service account (M2M)** acts without a signed-in human. Automated applicatio
 
 ### Why G1 and G2?
 
- Each AgentCore Gateway has one configured inbound authorization method. **G1** accepts correctly audience-scoped Entra JWTs; **G2** accepts IAM/SigV4 requests. We use two gateways to demonstrate both. Each gateway still needs an authorized outbound identity for the target system. The final API independently checks its own permissions. [AgentCore component reference](docs/agentcore-components.md).
+Each AgentCore Gateway has one configured inbound authorization method. **G1** accepts correctly audience-scoped Entra JWTs; **G2** accepts IAM/SigV4 requests. We use two gateways to demonstrate both. Each gateway still needs an authorized outbound identity for the target system. The final API independently checks its own permissions. [AgentCore component reference](docs/agentcore-components.md).
 
 ### AWS architecture
 
