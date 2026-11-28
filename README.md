@@ -20,7 +20,7 @@ These are the **four systems** our AgentCore tools connect to. They have differe
 
 ![Four downstream systems: shared RAG, enterprise Network Operations API, external NetworkMonitor, and internal Platform Health API](docs/diagrams/four-end-systems-consistent.svg)
 
-The **Network Operations API** is one API with four operations: asset status, diagnostics, ticket creation and health summary. Section 2 shows exactly which of these endpoints each authorized caller can access. The API is backed by **Amazon API Gateway, Lambda and RDS PostgreSQL**; only the API accesses the database. [Database row-level security explained](docs/identity-and-authorization-deep-dive.md#how-oauth-connects-to-postgresql-rls).
+The **Network Operations API** is one API with four operations: asset status, diagnostics, ticket creation and health summary. Section 2 shows exactly which of these endpoints each authorized caller can access.
 
 ## 2. Users and their access
 
@@ -132,7 +132,8 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 
 - [Five access-pattern deep dives](docs/README.md#access-pattern-implementation-guides) — implementation material being developed; some guides are currently placeholders.
 - [Architecture Q&A](docs/architecture-qa.md) — two-OBO justification, alternatives and trade-offs.
-- [Identity and authorization](docs/identity-and-authorization-deep-dive.md) — Entra, Cedar, API authorization and RLS.
+- [Identity and authorization](docs/identity-and-authorization-deep-dive.md) — Entra, Cedar and API authorization.
+- [Appendix — Database row-level security (RLS)](docs/identity-and-authorization-deep-dive.md#how-oauth-connects-to-postgresql-rls) — how the Network Operations API enforces database-row restrictions.
 - [AgentCore components and application authentication](docs/README.md#architecture).
 
 [Browse all technical documentation](docs/README.md).
