@@ -41,12 +41,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 The four planned REST endpoints are backed by Amazon RDS PostgreSQL:
 
-| Endpoint | Purpose | Access rule |
-|---|---|---|
-| `GET /assets/{id}/status` | View basic network asset status | Authorised users; some receive basic fields only |
-| `GET /assets/{id}/diagnostics` | View detailed fault information | Authorised engineers and admins; regional restrictions apply |
-| `POST /tickets` | Create a support ticket | Authorised engineers and admins; regional restrictions and user confirmation required |
-| `GET /network/health-summary` | View aggregate network health | Approved service accounts (M2M) only; no individual asset details |
+![Four colour-coded Network Operations API endpoint cards showing purpose and generic access restrictions](docs/diagrams/network-api-four-endpoints.svg)
 
 **These are different permissions on the same API, not four separate APIs.** The API validates the caller's token and enforces endpoint and data restrictions. AgentCore Gateway can also use Cedar to deny an unauthorised tool invocation before it reaches the API. PostgreSQL row-level security (RLS) adds protection for database rows.
 
