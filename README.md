@@ -68,7 +68,7 @@ These describe **how callers use AgentCore**. The five downstream **access patte
 A **service account (M2M)** acts without a signed-in human. Automated application tokens must **never** be used as if they represented a human. An invocation method may use more than one access pattern.
 
 
-### Pattern 1 — Shared access using an AWS IAM workload role
+### Pattern 1 — End-user identity not required: AWS IAM Role
 
 **Authentication pattern:** The downstream AWS service authenticates the **agent's IAM workload role**, not the signed-in person's Entra token. No user-specific OAuth/OBO exchange is required at this boundary.
 
@@ -78,7 +78,7 @@ A **service account (M2M)** acts without a signed-in human. Automated applicatio
 
 [Pattern 1 implementation deep dive (planned)](docs/access-patterns/pattern-1-rag.md).
 
-### Pattern 2 — Human identity preserved with OAuth 2.0 OBO
+### Pattern 2 — End-user identity required: OAuth 2.0 OBO
 
 **Example:** James requests router diagnostics. The Network Operations API receives an appropriately scoped **delegated token identifying James**, and returns only permitted **VIC** records. Sarah can use the same diagnostics endpoint nationally; Emma cannot use it.
 
