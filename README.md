@@ -26,6 +26,13 @@ The **Network Operations API** is one API with four operations: asset status, di
 
 **Five people and two service accounts (M2M)** have different permissions. For **every caller**, the diagram shows all four downstream systems with a green tick for access or red X for no access. Whenever Network Operations API is allowed, the permitted **endpoint number and name appear directly underneath it**, along with restrictions.
 
+**Network Operations API — endpoint key** (one API, four operations):
+
+- 🟩 **01 — Asset status**
+- 🟦 **02 — Diagnostics**
+- 🟧 **03 — Create ticket**
+- 🟪 **04 — Health summary**
+
 ![Seven caller cards, each with green ticks or red crosses for all four downstream systems and inline numbered Network Operations API endpoint permissions](docs/diagrams/users-service-accounts-v8.svg)
 
 **Default deny:** Access not explicitly shown is denied. James is restricted to **VIC**, Emma can see only basic asset-status fields, and both service accounts can use **health summary (04)** only. A service account runs without a human signing in. The diagram defines **planned PoC permissions**, not yet-implemented controls.
