@@ -105,7 +105,7 @@ This PoC focuses on **Runtime, Gateway and access control**; Memory and Registry
 
 ![High-level view of Amazon Bedrock AgentCore: Enterprise AI Application, Runtime, Gateway, optional Memory and Registry, and four downstream systems](docs/diagrams/agentcore-platform-high-level-v3.svg)
 
-*Simplified platform view: the three invocation paths are specified below. The detailed architecture images still show an earlier service-account routing variant; Step 4 will align their connectors with the agreed paths.*
+*Simplified platform view: the detailed diagrams below distinguish human AI requests, Entra automated AI requests, and direct AWS machine-to-machine tool calls.*
 
 **Three invocation patterns (different from authentication protocols):**
 
@@ -123,8 +123,6 @@ This PoC focuses on **Runtime, Gateway and access control**; Memory and Registry
 - **G2 — AWS IAM gateway:** Accepts AWS IAM-signed requests. Used by the **AWS Service Account (using IAM Role)**, such as the scheduled Lambda.
 
 Each gateway can expose approved tools for the downstream systems shown below. **Gateway access does not grant automatic access to a downstream API or operation.**
-
-*Diagram correction pending (Step 4): this image still routes both service accounts directly to gateways. The agreed routing is humans → Runtime → G1, Entra Service Account → Runtime → G1, and AWS Service Account (using IAM Role) → G2 directly. The three-pattern description above is authoritative until the image is updated.*
 
 ![Simple AWS AgentCore architecture showing the Enterprise AI Application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v16.svg)
 
@@ -556,7 +554,7 @@ These are our **core integration/authentication patterns**. Detailed session han
 
 ## Architecture at a glance
 
-The detailed AWS diagram currently illustrates an earlier Runtime U/Runtime M variant and must be updated in Step 4. **Our locked architecture has three invocation paths:** human users → Runtime → G1; Entra Service Account → Runtime → G1; AWS Service Account (using IAM Role) → G2 directly. The access tables above remain authoritative for which endpoints each caller may use.
+**The architecture has three invocation paths:** human users → Runtime → G1; Entra Service Account → Runtime → G1; AWS Service Account (using IAM Role) → G2 directly. The access tables above remain authoritative for which endpoints each caller may use.
 
 ![AWS AgentCore architecture with AWS service icons](docs/diagrams/aws-agentcore-architecture.svg)
 
