@@ -159,7 +159,7 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 ### Architecture Q&A — Why two OBO exchanges?
 
-**First, is the MCP tool the same as the API?** The tool (for example, `get_diagnostics`) is a Gateway-exposed operation mapped to the existing REST endpoint (`GET /assets/{id}/diagnostics`). **It is not a second backend API.** Nevertheless, invoking the tool at **G1** and calling the **Network Operations API** are two independently authenticated requests, with different authorization responsibilities.
+**First, is the MCP tool the same as the API?** The tool (for example, `get_diagnostics`) is an operation that **G1 exposes over MCP**. G1's **OpenAPI target configuration** maps that tool to the existing REST endpoint (`GET /assets/{id}/diagnostics`). The target is configuration, **not another backend API**. G1 authenticates and authorizes the MCP tool invocation; the Network Operations API separately authenticates and authorizes the resulting REST request.
 
 **Q: Why are there two OAuth 2.0 On-Behalf-Of (OBO) exchanges?**  
 **A:** Our design crosses three independently protected resources: **AgentCore Runtime → G1 → Network Operations API**. James first has a token intended for Runtime. AgentCore Identity obtains a **G1-audience** token for the agent's tool call; then G1 obtains a **Network Operations API-audience** token for the final API call. G1 checks tool authorization using Cedar, and the API independently enforces James's regional and endpoint permissions. James still **signs in only once**.
@@ -170,12 +170,12 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 **Q: Why not use just one OBO exchange?**  
 **A:** The decisive constraint is **G1's outbound authorization to our Network Operations API**, which is exposed as an **OpenAPI/MCP tool target**. AWS documents these options:
 
-| G1 → API authentication | AWS support for OpenAPI/MCP targets | Fit for James's request |
-|---|---|---|
-| **OAuth 2.0 token exchange (OBO)** | **Supported** | **Yes.** Gets a new API-audience token representing James. |
-| **JWT token passthrough** | **Not supported for this target type** | No. Would also reuse G1's token at a different resource audience. |
-| **OAuth 2.0 Client Credentials** | **Supported** | No. It identifies an application, not James, so the API cannot enforce his delegated VIC-only identity from that token. |
-| **AWS IAM/SigV4** | **Supported** | Not with the existing Network Operations API authentication contract, which expects Entra OAuth. |
+| G1 outbound option | Support and consequence for this PoC |
+|---|---|
+| **OAuth 2.0 OBO** | **Supported.** API receives a token representing James. **Chosen.** |
+| **JWT passthrough** | **Not supported** for our OpenAPI target; also reuses G1's token audience. |
+| **OAuth 2.0 Client Credentials** | **Supported**, but the API receives an application identity, not James. |
+| **AWS IAM/SigV4** | **Supported**, but our Network Operations API expects Entra OAuth. |
 
 Source: [AWS AgentCore Gateway — outbound authorization support by target type](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html).
 
@@ -817,9 +817,30 @@ Planned detail: Bedrock Knowledge Bases configuration, the agent's IAM service r
 
 ### Pattern 2 — Human identity and OAuth 2.0 OBO (Entra ID): implementation deep dive
 
-*Placeholder — not yet written or integration-tested.*
+**Design specification — human OBO token and Entra application mapping.** This pattern preserves a signed-in person's identity across **Enterprise AI Application → AgentCore Runtime → G1 → Network Operations API**. These names are **proposed Entra app-registration labels**, not deployed resource IDs.
 
-Planned detail: frontend Entra sign-in, direct Runtime JWT invocation, confidential AgentCore Identity credential providers, Runtime → G1 → Network Operations API audience-specific OBO exchanges, delegated scopes and negative authorization tests.
+| Entra registration | Role in this pattern |
+|---|---|
+| `enterprise-ai-application-spa` | **Public client** for the Enterprise AI Application's Authorization Code + PKCE sign-in. No confidential client secret in the browser. |
+| `enterprise-agentcore-runtime` | **Protected Runtime audience** and **confidential OBO client** for obtaining a G1 token. Runtime's AgentCore Identity credential provider holds its confidential credential. |
+| `enterprise-agentcore-g1` | **Protected G1 audience** and **confidential OBO client** for obtaining a Network Operations API token. G1's outbound AgentCore Identity provider uses its confidential credential. |
+| `enterprise-network-api` | **Final protected API resource** exposing delegated scopes such as `status.read`, `diagnostics.read` and `tickets.create`. |
+
+**Three access tokens, two OBO exchanges:**
+
+| Request boundary | Token audience and identity |
+|---|---|
+| **Application → Runtime** | Entra **delegated access token** issued for `enterprise-agentcore-runtime`, representing James; obtained by the public client using Authorization Code + PKCE. Runtime validates issuer, signature, audience and authorized client. |
+| **Runtime → G1 (OBO 1)** | A new Entra delegated token for `enterprise-agentcore-g1`, representing James. The confidential client registered as `enterprise-agentcore-runtime` redeems its own inbound-audience assertion through **AgentCore Identity OBO**. |
+| **G1 → Network Operations API (OBO 2)** | A new Entra delegated token for `enterprise-network-api`, still representing James. The confidential client registered as `enterprise-agentcore-g1` redeems the G1-audience assertion through **Gateway outbound OBO**. The API validates the token and applies James's scopes, entitlements and VIC-only data rules. |
+
+**Microsoft's key constraint:** For each OBO request, the incoming `assertion` must have an `aud` claim identifying the **same confidential client** making that exchange. Therefore, the Runtime and G1 resource registrations must also be configured as confidential OBO clients with separately managed credentials, appropriate delegated permissions and consent. **Do not reuse the Runtime token at G1 or the G1 token at the API.**
+
+**Where credentials and permissions live:** The browser holds no client secret. AgentCore Identity manages the confidential credentials for the two OBO hops; Entra grants delegated permissions to the successive resources; Runtime and G1 check inbound tokens; Cedar checks G1 tool access; the Network Operations API independently enforces endpoint, region and field permissions. These registrations **preserve user delegation** and must not be confused with the separate Entra Service Account's **Client Credentials** route.
+
+**Authoritative specifications:** [Microsoft Entra OBO and assertion audience](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow) · [AWS AgentCore Identity OBO — Microsoft provider](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/on-behalf-of-token-exchange.html) · [AWS Entra ID integration](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-microsoft.html) · [AWS Gateway target authorization](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-building-adding-targets-authorization.html).
+
+**Remaining implementation detail:** Exact app IDs, delegated scope strings, consent configuration, credential-provider names and Cedar policy JSON are deployment-specific and will be documented with the configuration examples. This does not introduce a custom Chat API or additional application service.
 
 <a id="appendix-pattern-3-service-accounts"></a>
 
