@@ -110,6 +110,8 @@ A **service account (M2M)** acts without a signed-in human. Automated applicatio
 
 [Pattern 5 deep dive (planned): flow and implementation](docs/access-patterns/pattern-5-iam.md).
 
+*Scope note: These five patterns reflect the authentication and authorization choices in this example solution. They are not an exhaustive list; other valid approaches and combinations are possible depending on the application, identity provider and downstream system.*
+
 <a id="architecture-overview"></a>
 
 ## 4. Architecture overview
