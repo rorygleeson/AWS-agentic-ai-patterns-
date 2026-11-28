@@ -105,13 +105,13 @@ A **service account** is an automated application or workload that operates **wi
 
 | User | Access that must be denied |
 |---|---|
-| **Sarah** | NetworkMonitor alerts and Platform Health API. |
-| **James** | NSW/other-region records, NetworkMonitor and Platform Health API. |
-| **Emma** | Detailed diagnostics, sensitive asset fields, ticket actions, NetworkMonitor and Platform Health API. |
-| **David** | Network Operations API and Platform Health API. |
-| **Oliver** | Network Operations API and NetworkMonitor. |
-| **AWS Service Account (using IAM Role)** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
-| **Entra Service Account** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
+| <img src="docs/diagrams/caller-sarah-icon.svg" width="26" height="26" alt=""> **Sarah** | NetworkMonitor alerts and Platform Health API. |
+| <img src="docs/diagrams/caller-james-icon.svg" width="26" height="26" alt=""> **James** | NSW/other-region records, NetworkMonitor and Platform Health API. |
+| <img src="docs/diagrams/caller-emma-icon.svg" width="26" height="26" alt=""> **Emma** | Detailed diagnostics, sensitive asset fields, ticket actions, NetworkMonitor and Platform Health API. |
+| <img src="docs/diagrams/caller-david-icon.svg" width="26" height="26" alt=""> **David** | Network Operations API and Platform Health API. |
+| <img src="docs/diagrams/caller-oliver-icon.svg" width="26" height="26" alt=""> **Oliver** | Network Operations API and NetworkMonitor. |
+| <img src="docs/diagrams/caller-aws-service-icon.svg" width="26" height="26" alt=""> **AWS Service Account (using IAM Role)** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
+| <img src="docs/diagrams/caller-entra-service-icon.svg" width="26" height="26" alt=""> **Entra Service Account** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
 
 **Default rule:** A successful sign-in allows a human to use the AI chat app and shared RAG. Every other system requires its own authorization. If access is not explicitly listed above, it is denied.
 
