@@ -140,9 +140,9 @@ The AI journey is: **human or approved Entra automation → Runtime agent → G1
 
 **Three ways of invoking AgentCore:** These describe **how a request reaches and uses AgentCore**, not how the final system grants access. A person or service account can invoke an AI agent, while a service account with a known task can invoke a tool directly. **One invocation route can use more than one downstream access pattern.**
 
-1. **Human → AI agent:** Five people use the **Enterprise AI Application** to invoke **AgentCore Runtime**; the agent selects approved tools through **G1 (OAuth/JWT)**.
-2. **M2M → AI agent:** The **Entra Service Account** invokes JWT-protected **Runtime** with an automated analysis request. The agent uses a **separately obtained, correctly audience-scoped Entra application token** to invoke its approved health-summary tool through **G1**. Runtime does not automatically forward an inbound token to G1.
-3. **M2M → tool directly:** The scheduled **AWS Service Account (using IAM Role)** Lambda knows which operation it needs and invokes the health-summary MCP tool on **G2 (IAM/SigV4)**, without Runtime or an AI prompt.
+1. **Human → AI agent:** Five people use the **Enterprise AI Application** to invoke **AgentCore Runtime**; the agent selects approved tools through **G1 (OAuth/JWT)**. *Example: James asks why a Melbourne router is failing, and the agent retrieves permitted diagnostics.*
+2. **M2M → AI agent:** The **Entra Service Account** invokes JWT-protected **Runtime** with an automated analysis request. The agent uses a **separately obtained, correctly audience-scoped Entra application token** to invoke its approved health-summary tool through **G1**. Runtime does not automatically forward an inbound token to G1. *Example: An overnight automation asks the agent to analyse the network health summary.*
+3. **M2M → tool directly:** The scheduled **AWS Service Account (using IAM Role)** Lambda knows which operation it needs and invokes the health-summary MCP tool on **G2 (IAM/SigV4)**, without Runtime or an AI prompt. *Example: A scheduled Lambda fetches the health summary for a routine report, with no AI analysis.*
 
 **Why keep direct M2M tool access?** For a predictable operation, AI reasoning adds no benefit. Gateway offers a reusable, governed MCP interface and can translate tool calls to REST, but a conventional application could also invoke the underlying API directly. We intentionally show both automated AI invocation and direct tool invocation. **Human requests must never borrow the Entra automation's application-only credentials.**
 
@@ -185,7 +185,15 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 **Why five downstream patterns?** An **endpoint** is an action exposed by an API; a **pattern** is how a caller proves its identity and gets permission to perform that action. The same OBO pattern covers the three human Network Operations API endpoints, while the fourth endpoint uses a service-account token. Our other patterns demonstrate shared RAG, an external vendor account and an existing IAM-protected API. **We are not creating a separate pattern for every endpoint.**
 
-The **endpoint-access diagram** in Section 2 is the quick reference. Here is the **reasoning behind each pattern**, starting with what someone is trying to do.
+**One-line examples of the five downstream access patterns:**
+
+1. **Shared RAG:** Emma asks for the approved outage procedure; the agent reads shared documents using its AWS role.
+2. **OAuth 2.0 OBO:** James requests router diagnostics; the Network Operations API receives a delegated token identifying James and restricts him to VIC.
+3. **OAuth 2.0 Client Credentials (M2M):** An approved service account obtains an application-only token to read endpoint **04**, the network health summary.
+4. **External vendor OAuth:** David separately authorizes NetworkMonitor so the agent can retrieve alerts permitted by his vendor account.
+5. **IAM-protected API:** Oliver requests Platform Health; Cedar permits the tool, then Gateway signs the API request using its AWS IAM role.
+
+The **endpoint-access diagram** in Section 2 is the quick reference. The sections below explain **why** each pattern is needed and where access is enforced.
 
 #### Pattern 1 — Shared Knowledge (RAG)
 
