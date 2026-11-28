@@ -10,7 +10,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **Why do we need different access patterns?** Because the end systems trust **different identities**: some need the signed-in person, some need an application identity, some require separate authorization from an external provider, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
 
-**How to read this guide:** Meet the **four end systems**, then see the **seven callers** and their exact permissions. Follow the **AWS architecture** and **five access patterns**, each with a concrete example. Detailed configuration, token flows, test cases and design decisions live in the [deep dives](docs/README.md).
+**How to read this guide:** Meet the **four end systems**, then see the **seven callers** and their exact permissions. Follow the **AWS architecture** and **five access patterns**, each with a concrete example. Detailed configuration, token flows and test cases are being developed in the [deep dives](docs/README.md); some guides are currently placeholders.
 
 **Key distinction:** Three **invocation methods** describe how people or service accounts reach AgentCore; five **access patterns** describe how downstream systems authorize access. Signing into the Enterprise AI Application **never** grants automatic access to every connected system.
 
@@ -41,7 +41,7 @@ For exact REST paths, denied-case tests and enforcement across Gateway, the Netw
 
 ![James's end-to-end sign-in, Runtime access token, two OBO token exchanges, G1 authorization and Network Operations API response](docs/diagrams/james-high-level-obo-flow.svg)
 
-**What the diagram shows:** During the initial **Authorization Code + PKCE** sign-in, Microsoft Entra ID issues **both tokens together** for this PoC: an **ID token** for James's application login and a separate **Runtime access token** whose audience is AgentCore Runtime. The application sends the **Runtime access token**, never the ID token, to Runtime. **OBO #1** exchanges it for a **G1 access token**; **OBO #2** exchanges the G1 access token for a **Network API access token**. Both OBO results represent James and are valid only for their intended receiving APIs. Then **OBO #1** obtains a token for G1 and **OBO #2** obtains a token for the Network Operations API, both representing James. Each receiving resource validates its own audience-specific token. **Cedar** can authorize the tool at G1; the API independently checks endpoint and data access. This two-OBO Entra integration is a **proposed PoC design**, not yet deployment-tested. [Why two OBO exchanges, and possible simpler alternatives](docs/architecture-qa.md) · [Application sign-in detail](docs/enterprise-ai-application-authentication.md).
+**What the diagram shows:** During the initial **Authorization Code + PKCE** sign-in, Microsoft Entra ID issues **both tokens together** for this PoC: an **ID token** for James's application login and a separate **Runtime access token** whose audience is AgentCore Runtime. The application sends the **Runtime access token**, never the ID token, to Runtime. **OBO #1** exchanges it for a **G1 access token**; **OBO #2** exchanges the G1 access token for a **Network Operations API access token**. Both OBO results represent James and are valid only for their intended receiving APIs. Each receiving resource validates its own audience-specific token. **Cedar** can authorize the tool at G1; the API independently checks endpoint and data access. This two-OBO Entra integration is a **proposed PoC design**, not yet deployment-tested. [Why two OBO exchanges, and possible simpler alternatives](docs/architecture-qa.md) · [Application sign-in detail](docs/enterprise-ai-application-authentication.md).
 
 ### Three invocation methods
 
@@ -75,7 +75,7 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 
 **Why this pattern?** All five human users share the same approved knowledge. RAG does not need each person's OAuth token at the knowledge-base boundary in this PoC; the AWS role authenticates the workload. This is shared access, **not user-level document security**.
 
-[Full Pattern 1 flow and implementation](docs/access-patterns/pattern-1-rag.md).
+[Pattern 1 deep dive (planned): flow and implementation](docs/access-patterns/pattern-1-rag.md).
 
 ### Pattern 2 — Human identity preserved with OAuth 2.0 OBO
 
@@ -91,7 +91,7 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 
 **Why this pattern?** There is **no human to impersonate**, so OBO is inappropriate. The **Entra Service Account** asks the AI agent to analyse the summary via **Runtime → G1**. The **AWS Service Account (using IAM Role)** invokes the known summary tool directly through **G2** without AI. Each route ultimately obtains a separate **Entra application-only token** for the Network Operations API, which verifies its application identity and **HealthSummary.Read** permission. IAM access to G2 alone does not authorize the OAuth-protected final API.
 
-[Full Pattern 3 flows, token boundaries and implementation](docs/access-patterns/pattern-3-service-accounts.md).
+[Pattern 3 deep dive (planned): flows, token boundaries and implementation](docs/access-patterns/pattern-3-service-accounts.md).
 
 ### Pattern 4 — Separate OAuth authorization at an external vendor
 
@@ -99,7 +99,7 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 
 **Why this pattern?** Signing in through corporate Entra ID **does not grant access to the vendor's account**. NetworkMonitor issues and validates its own OAuth token (Authorization Code with PKCE in the simulation). This is separate authorization, not Entra OBO to our Network Operations API.
 
-[Full Pattern 4 flow and implementation](docs/access-patterns/pattern-4-vendor-oauth.md).
+[Pattern 4 deep dive (planned): flow and implementation](docs/access-patterns/pattern-4-vendor-oauth.md).
 
 ### Pattern 5 — Existing IAM-protected Platform Health API
 
@@ -107,13 +107,14 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 
 **Why this pattern?** We reuse an existing IAM-protected REST API without changing it to OAuth. Because it sees a shared service identity, a **trusted upstream authorization check is essential**; Cedar is our chosen control. The native AgentCore API Gateway REST-stage target requires a public **endpoint type**, but API methods remain IAM-protected—it does **not** imply anonymous access.
 
-[Full Pattern 5 flow and implementation](docs/access-patterns/pattern-5-iam.md).
+[Pattern 5 deep dive (planned): flow and implementation](docs/access-patterns/pattern-5-iam.md).
 
 ### Where authorization is enforced
 
 | Control | Responsibility |
 |---|---|
-| **Entra ID / inbound JWT authorizer** | Issues tokens; the receiving Runtime or Gateway verifies applicable token claims. |
+| **Microsoft Entra ID** | Issues the ID and access tokens for their intended audiences. |
+| **AgentCore inbound JWT authorizer** | Runtime and G1 validate the incoming JWT and configured claims. |
 | **Cedar at G1** | Allows or denies approved MCP tool invocations for the verified principal. |
 | **Network Operations API** | Validates its API-audience OAuth token and enforces operation, user/application, region and field entitlements. |
 | **PostgreSQL RLS** | Applies trusted row restrictions supplied by the API; PostgreSQL does **not** interpret OAuth tokens. |
@@ -129,7 +130,7 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 
 ## Detailed documentation
 
-- [Five access-pattern deep dives](docs/README.md#access-pattern-implementation-guides) — end-to-end flows, token exchanges, authorization checks and implementation.
+- [Five access-pattern deep dives](docs/README.md#access-pattern-implementation-guides) — implementation material being developed; some guides are currently placeholders.
 - [Architecture Q&A](docs/architecture-qa.md) — two-OBO justification, alternatives and trade-offs.
 - [Identity and authorization](docs/identity-and-authorization-deep-dive.md) — Entra, Cedar, API authorization and RLS.
 - [AgentCore components and application authentication](docs/README.md#architecture).
