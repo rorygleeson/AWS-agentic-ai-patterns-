@@ -22,13 +22,13 @@ These are the **four systems** our AgentCore tools connect to. They have differe
 
 ![Four downstream systems: shared RAG, enterprise Network Operations API, external NetworkMonitor, and internal Platform Health API](docs/diagrams/four-end-systems-consistent.svg)
 
-The **Network Operations API** is one API with four operations: asset status, diagnostics, ticket creation and health summary. Its numbered endpoint key and each caller's permissions are shown together in Section 2. The API is backed by **Amazon API Gateway, Lambda and RDS PostgreSQL**; only the API accesses the database. [Database row-level security explained](docs/identity-and-authorization-deep-dive.md#how-oauth-connects-to-postgresql-rls).
+The **Network Operations API** is one API with four operations: asset status, diagnostics, ticket creation and health summary. Section 2 shows exactly which of these endpoints each authorized caller can access. The API is backed by **Amazon API Gateway, Lambda and RDS PostgreSQL**; only the API accesses the database. [Database row-level security explained](docs/identity-and-authorization-deep-dive.md#how-oauth-connects-to-postgresql-rls).
 
 ## 2. Users and their access
 
-**Five people and two service accounts (M2M)** use these systems with different permissions. This single diagram shows their roles, consistent caller icons and colours, permitted systems, and Network Operations API endpoints **01–04**.
+**Five people and two service accounts (M2M)** have different permissions. For **every caller**, the diagram shows all four downstream systems with a green tick for access or red X for no access. Whenever Network Operations API is allowed, the permitted **endpoint number and name appear directly underneath it**, along with restrictions.
 
-![Seven caller cards with consistent icons and colours, endpoint legend, permitted systems and region/operation restrictions](docs/diagrams/users-service-accounts-v8.svg)
+![Seven caller cards, each with green ticks or red crosses for all four downstream systems and inline numbered Network Operations API endpoint permissions](docs/diagrams/users-service-accounts-v8.svg)
 
 **Default deny:** Access not explicitly shown is denied. James is restricted to **VIC**, Emma can see only basic asset-status fields, and both service accounts can use **health summary (04)** only. A service account runs without a human signing in. The diagram defines **planned PoC permissions**, not yet-implemented controls.
 
