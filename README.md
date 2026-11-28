@@ -146,8 +146,6 @@ The AI journey is: **human or approved Entra automation → Runtime agent → G1
 
 **Why keep direct M2M tool access?** For a predictable operation, AI reasoning adds no benefit. Gateway offers a reusable, governed MCP interface and can translate tool calls to REST, but a conventional application could also invoke the underlying API directly. We intentionally show both automated AI invocation and direct tool invocation. **Human requests must never borrow the Entra automation's application-only credentials.**
 
-**What is an AgentCore Gateway?** It provides a controlled entry point for **agent and automated-client tool calls**. It authenticates the caller, applies configured tool-access controls and routes permitted requests to the appropriate integration. The downstream API still verifies its own authentication and permissions.
-
 **Why two gateways?** An AgentCore Gateway has **one configured inbound authorization type**. It cannot accept both **Entra OAuth/JWT** and **AWS IAM/SigV4** as inbound authorization methods on the same gateway. Because this PoC demonstrates both, we use **two separate gateways**:
 
 - **G1 — JWT Gateway:** Accepts Entra-issued tokens specifically intended for G1, from the approved human OAuth 2.0 OBO path or the **Entra Service Account** automation. Cedar restricts each verified principal's tools.
