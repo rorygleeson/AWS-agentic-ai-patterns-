@@ -87,7 +87,7 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 
 [Full Pattern 2 flow and implementation](docs/access-patterns/pattern-2-obo.md) · [Why two OBO exchanges?](docs/architecture-qa.md).
 
-### Pattern 3 — Application-only OAuth 2.0 Client Credentials (M2M)
+### Pattern 3 — Service Account (M2M) using OAuth 2.0 Client Credentials
 
 **Example:** Both service accounts may retrieve **Network Operations API endpoint 04 — health summary**, but no individual assets or diagnostics.
 
