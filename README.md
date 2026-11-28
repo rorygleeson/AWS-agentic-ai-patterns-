@@ -37,7 +37,7 @@ For exact REST paths, denied-case tests and enforcement across Gateway, the Netw
 
 ## 3. Architecture overview
 
-**Follow James's request:** James signs in to the **Enterprise AI Application** through Microsoft Entra ID and asks, “What's wrong with router R123 in Melbourne?” The application invokes **AgentCore Runtime** with a Runtime-audience access token. The agent uses **AgentCore Gateway (G1)** to call the diagnostics tool, and the **Network Operations API** enforces James's VIC-only permissions.
+**Follow James's request:** James signs in to the **Enterprise AI Application** through Microsoft Entra ID and asks, “What's wrong with router R123 in Melbourne?” The application calls the managed **AgentCore Runtime API** using an Entra-issued **Runtime access token**. **AgentCore Runtime** runs the **AI agent**, which invokes the diagnostics tool through **AgentCore Gateway (G1)**. The **Network Operations API** independently enforces James's VIC-only permissions.
 
 ![James's end-to-end sign-in, Runtime access token, two OBO token exchanges, G1 authorization and Network Operations API response](docs/diagrams/james-high-level-obo-flow.svg)
 
