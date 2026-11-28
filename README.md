@@ -120,12 +120,11 @@ This PoC focuses on **Runtime, Gateway and access control**. Memory and Registry
 
 ### AgentCore components in everyday language
 
-Before following the examples, here are the AWS parts:
+Before following the examples, here are the main components:
 
 | Term | Meaning in this PoC |
 |---|---|
-| **Enterprise AI Application** | Our application lets employees sign in, ask questions and receive AI-generated answers. It includes a backend that securely communicates with Amazon Bedrock AgentCore Runtime. |
-| **Chat API and Lambda** | The application backend receiving that question and passing the authenticated request to the agent. |
+| **Enterprise AI Application** | Our AI application has a **frontend** where employees sign in, ask questions and read answers, and a **backend** that securely sends their requests to AgentCore Runtime. The backend includes the Chat API (API Gateway + Lambda); it is part of the same application. |
 | **AgentCore Runtime** | Where our AI agent runs and decides which tool to request. |
 | **Amazon Bedrock AgentCore Gateway** | An authenticated entry point exposing approved MCP tools. In this PoC, two separate Gateways support JWT and IAM callers; their names and routes are explained immediately below. |
 | **MCP tool** | A named action an agent or approved automated client can invoke, such as `get_diagnostics` or `create_ticket`. |
