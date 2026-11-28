@@ -110,7 +110,7 @@ A **service account** is an automated application or workload that operates **wi
 5. **Network Operations API:** Validates a separate OAuth 2.0 On-Behalf-Of (OBO) token representing James, checks his VIC-only access and returns permitted diagnostics.
 6. **Response:** The agent explains the result in plain English, and the answer returns through the Chat API to James's screen.
 
-**What belongs to our application?** The user-facing **Enterprise AI Application** includes its **Chat API** backend. When this guide uses **AI Backend**, it means that same Chat API and its Entra-protected API registration (`enterprise-ai-backend`)—**not another application or downstream system**.
+**One application, two parts:** Our **Enterprise AI Application** has a **frontend** where James signs in, asks questions and sees answers, and a **backend** (the **Chat API**, built with Amazon API Gateway and Lambda) that validates requests and securely invokes AgentCore Runtime. The Chat API is **part of our application**, not a separate application or downstream system. We call this same component the **AI Backend** elsewhere. The detailed sign-in, token and identity handoff will be explained in the [frontend-to-Runtime authentication appendix](#appendix-enterprise-ai-application-authentication).
 
 **Where does AgentCore fit?** **Runtime** runs the AI agent; **Gateway** exposes approved tools that connect to the four downstream systems. Those tools use **MCP (Model Context Protocol)**, a standard way to discover and invoke tools—not an authentication method. AgentCore also offers **Memory** (to retain context) and **AWS Agent Registry** (to catalogue agents and tools).
 
@@ -759,6 +759,22 @@ AgentCore provides building blocks for deploying agents and connecting them to e
 **How they fit together here:** Human requests enter the **Enterprise AI Application**, then **Runtime** and **G1**. The **Entra Service Account** also invokes Runtime and G1 for automated AI analysis. The **AWS Service Account (using IAM Role)** calls a known tool on **G2** directly, without Runtime. Each final system applies its own permissions. **Memory and Registry are not required for these authentication flows.**
 
 **AWS references:** [AgentCore overview](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/what-is-bedrock-agentcore.html) · [Gateway and MCP](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-using.html) · [AWS Agent Registry](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/registry.html).
+
+### Appendix: Enterprise AI Application authentication
+
+*Implementation deep dive — to be completed when we focus on the frontend/backend authentication design.*
+
+The **Enterprise AI Application** consists of a web **frontend** and its **Chat API backend** (Amazon API Gateway + Lambda). A person signs in to the frontend through Microsoft Entra ID; the frontend calls the Chat API; the backend validates the request and securely invokes AgentCore Runtime. This is **one application**, not two.
+
+This appendix will document, with a worked James example:
+
+1. The frontend's Entra sign-in using OAuth 2.0 Authorization Code with PKCE, including ID tokens, access tokens and the browser session.
+2. The Chat API's token validation, its `enterprise-ai-backend` Entra registration and the `POST /ai/chat` endpoint.
+3. How the Chat API authenticates to AgentCore Runtime, and which verified user claims or tokens are preserved for later OBO.
+4. How Runtime and G1 validate the appropriate caller identity without treating one token as valid for every audience.
+5. How the Network Operations API receives an OBO token representing James and independently enforces his permissions.
+
+**Status:** The architectural boundaries are agreed; the precise token configuration and integration tests will be validated during implementation. This placeholder does not introduce a new application, gateway or authentication pattern.
 
 ## More detail (optional)
 
