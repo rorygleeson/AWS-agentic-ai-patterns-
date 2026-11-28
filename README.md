@@ -21,7 +21,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 | **Downstream access pattern** | How a connected system authenticates a caller and authorizes an operation | OAuth 2.0 OBO preserves James's identity at the Network Operations API. |
 | **Authentication method** | How a component verifies the caller's identity | An Entra-issued OAuth access token or AWS IAM/SigV4. |
 
-**The key distinction:** This PoC demonstrates **three AgentCore invocation patterns** (how callers use AgentCore) and **five downstream access patterns** (how connected systems are secured). These are two dimensions of the *same* architecture—not eight separate systems or eight different authentication protocols. One invocation pattern may use several downstream access patterns.
+**The key distinction:** This PoC demonstrates **three AgentCore invocation patterns** (how callers use AgentCore) and **five downstream access patterns** (how connected systems are secured). These are two complementary dimensions of the same architecture. One invocation pattern may use several downstream access patterns.
 
 **The key idea:** Successfully signing into our Enterprise AI Application does **not** automatically grant access to every connected system. Each final API must still authenticate the caller it receives and enforce the appropriate permissions.
 
@@ -190,11 +190,11 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 ## 4. How these requirements lead to downstream access patterns
 
-**Invocation patterns and downstream access patterns answer different questions.** Section 3 introduced **three AgentCore invocation patterns**—human → AI agent, service account → AI agent, and service account → MCP tool directly without AI. These describe **how the request travels**. The **five downstream access patterns** below describe **how the connected system authenticates callers and enforces permissions**. These are practical security arrangements, **not five different authentication protocols**; some share OAuth or IAM while applying different authorization rules. One invocation pattern can use several downstream access patterns: James uses the human-to-agent invocation pattern for both shared RAG (Pattern 1) and network diagnostics with OAuth 2.0 OBO (Pattern 2); Oliver uses that same invocation pattern for the IAM-protected Platform Health API (Pattern 5).
+**Invocation patterns and downstream access patterns answer different questions.** Section 3 introduced **three AgentCore invocation patterns**—human → AI agent, service account → AI agent, and service account → MCP tool directly without AI. These describe **how the request travels**. The **five downstream access patterns** below describe **how the connected system authenticates callers and enforces permissions**. Several patterns can use the same authentication technology while applying different authorization rules. One invocation pattern can use several downstream access patterns: James uses the human-to-agent invocation pattern for both shared RAG (Pattern 1) and network diagnostics with OAuth 2.0 OBO (Pattern 2); Oliver uses that same invocation pattern for the IAM-protected Platform Health API (Pattern 5).
 
 ### Five downstream access patterns
 
-**Why five downstream patterns?** An **endpoint** is an action exposed by an API; a **downstream access pattern** is a reusable arrangement of identity, authentication and authorization controls for accessing a connected system. The same OAuth 2.0 OBO pattern covers the three human Network Operations API endpoints, while its health-summary endpoint permits approved application identities. The other patterns show shared RAG, separate vendor authorization and an IAM-protected API. **These are not five distinct protocols, and we are not creating a new pattern for every endpoint.**
+**Why five downstream patterns?** An **endpoint** is an action exposed by an API; a **downstream access pattern** is a reusable arrangement of identity, authentication and authorization controls for accessing a connected system. The same OAuth 2.0 OBO pattern covers the three human Network Operations API endpoints, while its health-summary endpoint permits approved application identities. The other patterns show shared RAG, separate vendor authorization and an IAM-protected API. **We are not creating a new pattern for every endpoint.**
 
 **One-line examples of the five downstream access patterns:**
 
