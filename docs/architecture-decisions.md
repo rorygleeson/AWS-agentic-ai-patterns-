@@ -63,7 +63,7 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-018
 
-- **Decision:** Each OAuth API has its own audience; 2LO `roles` and OBO `scp` must be distinguished.
+- **Decision:** Each OAuth API has its own audience; Client Credentials `roles` and OBO `scp` must be distinguished.
 - **Why:** Prevents token substitution/confused deputy.
 - **Alternative considered:** one bearer token trusted everywhere.
 - **Consequence:** separate Entra API registrations/consents and strict audience checks.
@@ -111,14 +111,14 @@ An ADR is **not another use case or tool**. For example, James diagnosing a VIC 
 
 ### ADR-010
 
-- **Decision:** **Two distinct M2M callers** demonstrate different AgentCore ingress: AWS Service Account Lambda enters G2 using IAM/SigV4; a **separate Entra Service Account** enters G1 using an Entra Client Credentials JWT. Each obtains its own Network API-audience Client Credentials token with app-only `HealthSummary.Read`.
+- **Decision:** **Two distinct M2M callers** demonstrate different AgentCore ingress: AWS Service Account Lambda enters G2 using IAM/SigV4; a **separate Entra Service Account** invokes JWT-protected AgentCore Runtime for AI analysis, then obtains a separately audience-scoped Entra Client Credentials JWT to invoke G1. Each obtains its own Network API-audience Client Credentials token with app-only `HealthSummary.Read`.
 - **Why:** No end user is involved.
 - **Alternative considered:** OBO, invalid without real user assertion.
 - **Consequence:** two separately registered, least-privileged non-human Entra applications, isolated Gateway target credentials and independent application identities in API logs. Both call the **same** existing summary endpoint; G1 Cedar must authorize the Entra Service Account only for that tool.
 
 ### ADR-011
 
-- **Decision:** Vendor alerts use separate OAuth 3LO with Cognito as independent fictional vendor IdP.
+- **Decision:** Vendor alerts use separate OAuth 2.0 Authorization Code grant (with PKCE) using Cognito as independent fictional vendor IdP.
 - **Why:** Demonstrates user-specific third-party consent distinct from corporate Entra OBO.
 - **Alternative considered:** another Entra API duplicates existing pattern.
 - **Consequence:** callback/consent/token storage/revocation tests.
@@ -202,7 +202,7 @@ These statements connect the decisions without duplicating their rationale:
 - A user's identity comes from a **validated token**, never the prompt, HTTP JSON `userId`, or Lambda IAM role.
 - G1 accepts **Entra JWTs for five humans and the explicitly approved Entra Service Account application**; G2 accepts **machine IAM/SigV4** directly from the scheduled AWS Lambda execution role. Each Gateway has one inbound authorizer type. A target's outbound credentials are configured separately.
 - The **OpenAPI + OBO** REST path preserves James's delegated identity; the **native API Gateway REST stage + IAM** path deliberately uses the Gateway execution role after Cedar authorizes Oliver.
-- OAuth **2LO** is app-only; OAuth **3LO** is independent vendor-user consent; **OBO** preserves a corporate user's delegated identity. Do not collapse them.
+- OAuth **Client Credentials** is app-only; OAuth **Authorization Code** is independent vendor-user consent; **OBO** preserves a corporate user's delegated identity. Do not collapse them.
 - Downstream APIs re-authorize and RDS applies RLS; Cedar alone is insufficient.
 - The RAG corpus is shared and non-sensitive; region/field restrictions are demonstrated elsewhere.
 - Tests must include denial and bypass scenarios, not just successful agent replies.
@@ -225,7 +225,7 @@ When vendor documentation or implementation evidence makes a choice obsolete, ad
 
 - **Decision:** Remove `GET /tickets/{id}` from the PoC. Keep four Network Operations API endpoints: `GET /assets/{id}/status`, `GET /assets/{id}/diagnostics`, `POST /tickets`, and `GET /network/health-summary`.
 - **Why:** Ticket read duplicates the human OBO + region-restricted read path already demonstrated by diagnostics. Ticket **creation** remains because it demonstrates a materially different **state-changing action**, explicit human confirmation, idempotency and write-specific authorization.
-- **Impact:** The Network API still tests different tools and result filtering, regional RLS, human OBO, app-only OAuth, and authorized writes. One Network API target exposes four tools. The delegated scope for ticket creation is `tickets.write`; no ticket-read scope is needed.
+- **Impact:** The Network API still tests different tools and result filtering, regional RLS, human OBO, app-only OAuth, and authorized writes. The same four Network Operations API endpoints are exposed through three Gateway target configurations: human OBO on G1, Entra automation Client Credentials on G1, and AWS reporter Client Credentials on G2. The delegated scope for ticket creation is `tickets.write`; no ticket-read scope is needed.
 - **Supersedes in part:** The five-endpoint inventory in the earlier API consolidation ADR. That ADR's decision to keep **one API and one Entra API audience** remains unchanged.
 
 ## ADR — Distinguish human scopes from machine application roles at G1
