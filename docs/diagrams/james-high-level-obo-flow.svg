@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1050" viewBox="0 0 760 1050" role="img" aria-labelledby="title desc">
+<title id="title">James's end-to-end AgentCore diagnostics flow</title>
+<desc id="desc">James signs in through Entra ID, invokes AgentCore Runtime, exchanges his token via OBO for Gateway G1, passes Cedar tool authorization, uses another OBO token for Network Operations API, and receives a response.</desc>
+<rect width="760" height="1050" rx="24" fill="#f8fafc"/>
+<text x="380" y="48" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#17233a">James asks about router R123</text>
+<g font-family="Arial,sans-serif" text-anchor="middle">
+<rect x="105" y="78" width="550" height="100" rx="18" fill="#e8f1ff" stroke="#4d83d8" stroke-width="2"/>
+<text x="380" y="117" font-size="24" font-weight="700" fill="#163b78">Enterprise AI Application</text>
+<text x="380" y="151" font-size="19" fill="#334155">James signs in with Entra ID</text>
+<path d="M380 178 V222" stroke="#64748b" stroke-width="3" fill="none"/><path d="M371 211 L380 226 L389 211" fill="none" stroke="#64748b" stroke-width="3"/>
+<text x="487" y="208" font-size="17" fill="#475569">Runtime token</text>
+<rect x="105" y="230" width="550" height="100" rx="18" fill="#e4f6f1" stroke="#1a9a7c" stroke-width="2"/>
+<text x="380" y="269" font-size="24" font-weight="700" fill="#125748">AgentCore Runtime</text>
+<text x="380" y="303" font-size="19" fill="#334155">AI agent selects diagnostics tool</text>
+<path d="M380 330 V377" stroke="#64748b" stroke-width="3" fill="none"/><path d="M371 365 L380 380 L389 365" fill="none" stroke="#64748b" stroke-width="3"/>
+<rect x="65" y="386" width="630" height="90" rx="17" fill="#fff2d9" stroke="#d78a20" stroke-width="2"/>
+<text x="380" y="420" font-size="23" font-weight="700" fill="#92500b">OBO #1 — AgentCore Identity</text>
+<text x="380" y="451" font-size="18" fill="#674313">New G1-audience token representing James</text>
+<path d="M380 476 V521" stroke="#64748b" stroke-width="3" fill="none"/><path d="M371 509 L380 524 L389 509" fill="none" stroke="#64748b" stroke-width="3"/>
+<rect x="105" y="529" width="550" height="110" rx="18" fill="#e9edff" stroke="#7074cf" stroke-width="2"/>
+<text x="380" y="568" font-size="24" font-weight="700" fill="#3c408d">AgentCore Gateway (G1)</text>
+<text x="380" y="599" font-size="19" fill="#334155">Validates token; Cedar permits tool</text>
+<path d="M380 639 V684" stroke="#64748b" stroke-width="3" fill="none"/><path d="M371 672 L380 687 L389 672" fill="none" stroke="#64748b" stroke-width="3"/>
+<rect x="65" y="693" width="630" height="90" rx="17" fill="#fff2d9" stroke="#d78a20" stroke-width="2"/>
+<text x="380" y="728" font-size="23" font-weight="700" fill="#92500b">OBO #2 — Gateway outbound</text>
+<text x="380" y="758" font-size="18" fill="#674313">New API-audience token representing James</text>
+<path d="M380 783 V828" stroke="#64748b" stroke-width="3" fill="none"/><path d="M371 816 L380 831 L389 816" fill="none" stroke="#64748b" stroke-width="3"/>
+<rect x="105" y="837" width="550" height="109" rx="18" fill="#e6f5ff" stroke="#2785ba" stroke-width="2"/>
+<text x="380" y="877" font-size="24" font-weight="700" fill="#14577d">Network Operations API</text>
+<text x="380" y="908" font-size="19" fill="#334155">Validates token; enforces VIC-only access</text>
+<rect x="105" y="970" width="550" height="57" rx="15" fill="#dcfce7" stroke="#2d9b56" stroke-width="2"/>
+<text x="380" y="1006" font-size="20" font-weight="700" fill="#166534">Permitted result → agent → James</text>
+<path d="M380 946 V966" stroke="#2d9b56" stroke-width="3"/><path d="M372 956 L380 968 L388 956" fill="none" stroke="#2d9b56" stroke-width="3"/>
+</g></svg>
