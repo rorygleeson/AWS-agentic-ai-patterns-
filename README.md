@@ -124,7 +124,7 @@ Before following the examples, here are the AWS parts:
 
 | Term | Meaning in this PoC |
 |---|---|
-| **Enterprise AI Application** | Our user-facing enterprise AI system. Employees sign in and submit requests; its Chat API is the backend entry point. |
+| **Enterprise AI Application** | Our application lets employees sign in, ask questions and receive AI-generated answers. It includes a backend that securely communicates with Amazon Bedrock AgentCore Runtime. |
 | **Chat API and Lambda** | The application backend receiving that question and passing the authenticated request to the agent. |
 | **AgentCore Runtime** | Where our AI agent runs and decides which tool to request. |
 | **Amazon Bedrock AgentCore Gateway** | An authenticated entry point exposing approved MCP tools. In this PoC, two separate Gateways support JWT and IAM callers; their names and routes are explained immediately below. |
