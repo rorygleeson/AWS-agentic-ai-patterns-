@@ -41,7 +41,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 The four planned REST endpoints are exposed through **Amazon API Gateway**, with **AWS Lambda** handling the API requests and reading or writing data in **Amazon RDS PostgreSQL**. We introduce the endpoints here; the architecture section later explains what Lambda does and how the components communicate.
 
-![Four colour-coded Network Operations API endpoint cards showing purpose and generic access restrictions](docs/diagrams/network-api-four-endpoints-v2.svg)
+![Four colour-coded Network Operations API endpoint cards showing purpose and generic access restrictions](docs/diagrams/network-api-four-endpoints-v3.svg)
 
 **These are different permissions on the same API, not four separate APIs.** The API validates the caller's token and enforces endpoint and data restrictions. AgentCore Gateway can also use Cedar to deny an unauthorised tool invocation before it reaches the API. PostgreSQL row-level security (RLS) adds protection for database rows.
 
@@ -61,7 +61,7 @@ We have **five human users and two service accounts (M2M)**. The cards below sho
 
 **Endpoint labels 01–04 refer to the four operations in the [Network Operations API diagram](#network-operations-api--four-endpoints) above:** 01 = asset status, 02 = diagnostics, 03 = create ticket, 04 = health summary. They are identifiers for the same endpoints, not extra APIs.
 
-![Seven colour-coded caller cards with human or service-account icons, role, systems, restrictions and numbered endpoint permissions](docs/diagrams/users-service-accounts-v7.svg)
+![Seven colour-coded caller cards with human or service-account icons, role, systems, restrictions and numbered endpoint permissions](docs/diagrams/users-service-accounts-v8.svg)
 
 A **service account** is an automated application or workload that operates **without a human signing in**. The AWS Service Account (using IAM Role) is a scheduled Lambda using an IAM role; the Entra Service Account is an Entra application/service principal. Both have access only to endpoint **04**. The architecture section explains how their authentication methods differ.
 
@@ -74,7 +74,7 @@ A **service account** is an automated application or workload that operates **wi
 - <img src="docs/diagrams/endpoint-badge-03.svg" width="37" alt="03"> Create ticket — `POST /tickets`
 - <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> Health summary — `GET /network/health-summary`
 
-![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access-v3.svg)
+![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access-v4.svg)
 
 *Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or health-summary-only); red = denied. This shows planned PoC policy, not yet-implemented controls.*
 
