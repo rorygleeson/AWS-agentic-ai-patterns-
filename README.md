@@ -359,3 +359,5 @@ These are independent controls. A valid scope never overrides the Network Operat
 - [AgentCore components and Enterprise AI Application authentication](docs/README.md#architecture)
 
 [Browse all technical documentation](docs/README.md).
+
+**Where to find the complete flows:** This README is the high-level guide. For each of the five access patterns, follow its linked [pattern deep dive](docs/README.md#access-pattern-implementation-guides) for the end-to-end request flow, token exchanges, authorization decisions and implementation details. The [identity and authorization deep dive](docs/identity-and-authorization-deep-dive.md) explains the shared Entra, OBO, Cedar and API controls.
