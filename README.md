@@ -116,7 +116,9 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 The access rules discussed earlier lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** These patterns are **not all OAuth**:
 
-- **Network Operations API — OAuth 2.0:** Sarah, James and Emma use the **On-Behalf-Of (OBO)** flow, which obtains an API token representing the signed-in person. The two service accounts use **OAuth 2.0 Client Credentials**, obtaining application-only tokens.
+- **Human users → Network Operations API:** Sarah, James and Emma use **OAuth 2.0 On-Behalf-Of (OBO)** to obtain an API token representing the signed-in person.
+- **Entra Service Account → Network Operations API:** Uses **OAuth 2.0 Client Credentials** for application-only access, including authentication to G1.
+- **AWS Service Account (using IAM Role) → Network Operations API:** Uses **AWS IAM/SigV4 to authenticate to G2**, without OAuth at that gateway. Its Lambda then obtains a **separate Entra OAuth 2.0 Client Credentials token** to call the Network Operations API, because that downstream API requires OAuth. The IAM role itself is not an OAuth token.
 - **Platform Health API — AWS IAM, not OAuth:** An approved request is **signed with AWS Signature Version 4 (SigV4)** using an IAM role, and API Gateway checks the IAM permission. No OAuth access token is needed for this API.
 
 The authentication method at an **AgentCore Gateway** and the method used to call a **downstream API** are separate decisions. The examples below show why **the identity reaching the final system matters**.
