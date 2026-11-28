@@ -112,10 +112,6 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 ![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v4.svg)
 
-**Read the notes on the four downstream systems:** shared RAG uses AWS IAM; the Network Operations API uses Entra OAuth (human OBO or application-only); the external vendor requires its **own** OAuth authorization; and Platform Health accepts IAM-signed requests after the user's tool permission is checked.
-
-The detailed architecture diagram remains near the end for readers who want to see more of the individual AWS components.
-
 ## 3. How these requirements lead to authentication patterns
 
 The access rules above lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** One system can use more than one pattern: the **Network Operations API** uses OBO for Sarah, James and Emma, but **OAuth Client Credentials** for each independent automated application identity.
