@@ -116,7 +116,7 @@ This PoC focuses on **Runtime, Gateway and access control**; Memory and Registry
 
 Each gateway can expose approved tools for the downstream systems shown below. **Each system still applies its own authentication and authorization rules**; access to a gateway does not automatically grant access to every system or operation.
 
-![Simple AWS AgentCore architecture showing the Enterprise AI Application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v12.svg)
+![Simple AWS AgentCore architecture showing the Enterprise AI Application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v13.svg)
 
 ## 3. How these requirements lead to authentication patterns
 
