@@ -18,19 +18,19 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 ![Four downstream systems: shared RAG, enterprise Network Operations API, external NetworkMonitor, and internal Platform Health API, with their owners and purposes](docs/diagrams/four-end-systems.jpg)
 
-- **1. Knowledge Base (RAG)**
+- <img src="docs/diagrams/system-rag-icon.svg" width="28" height="28" alt="Knowledge Base icon"> **1. Knowledge Base (RAG)**
   - **Description:** Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases.
   - **High-level access rule:** **All human users who successfully sign in to the AI chat app** can search the same approved knowledge.
 
-- **2. Network Operations API**
+- <img src="docs/diagrams/system-network-api-icon.svg" width="28" height="28" alt="Network Operations API icon"> **2. Network Operations API**
   - **Description:** Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and aggregate health, and creates support tickets.
   - **High-level access rule:** **Only authorized callers.** Human permissions depend on region and operation; the two approved service accounts (M2M) have aggregate-only access.
 
-- **3. NetworkMonitor**
+- <img src="docs/diagrams/system-vendor-icon.svg" width="28" height="28" alt="NetworkMonitor icon"> **3. NetworkMonitor**
   - **Description:** Simulated monitoring service owned by **another company**, with its own user accounts, permissions and OAuth server (modelled using Amazon Cognito). Returns the vendor user's alerts.
   - **High-level access rule:** **Only users granted tool access who separately authorize their vendor account.** Each user sees only their permitted alerts.
 
-- **4. Platform Health API**
+- <img src="docs/diagrams/system-platform-icon.svg" width="28" height="28" alt="Platform Health API icon"> **4. Platform Health API**
   - **Description:** Existing internal monitoring REST API that returns operational health information about an enterprise platform or service. AWS workloads such as Lambda already call it through Amazon API Gateway using **IAM/SigV4**, not OAuth. **For the native AgentCore REST-stage target, the API has a public endpoint type but requires IAM/SigV4 authorization**; it is not an unauthenticated public API.
   - **High-level access rule:** **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role.
 
