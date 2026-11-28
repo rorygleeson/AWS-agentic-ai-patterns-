@@ -35,9 +35,19 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
   - **High-level access rule:** **Only users explicitly granted access to this tool.** Cedar checks the person; the API authenticates the Gateway's IAM role.
 
 
-### Network Operations API — four endpoints
+### Network Operations API — four endpoints, different access per caller
 
-These are the complete planned REST endpoints for our PoC. They all belong to **one Network Operations API** backed by RDS PostgreSQL:
+**The purpose of this part of the PoC is to demonstrate endpoint-level authorization.** Several users and service accounts can connect to the **same Network Operations API**, but that does **not** mean they can call every endpoint. We deliberately give callers different permissions, then demonstrate how the platform and API **allow or deny each operation** according to the authenticated identity.
+
+For example, Sarah can view diagnostics nationwide, James can view diagnostics only in VIC, Emma can view basic status but cannot view diagnostics, and the two service accounts can obtain only the aggregate health summary. David and Oliver have no access to this API. Even an allowed endpoint can return **restricted data** based on region or field permissions.
+
+![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access.svg)
+
+*Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or aggregate-only); red = denied. A permitted ticket request also requires user confirmation. The diagram shows intended PoC policy—not a claim that the controls are already implemented.*
+
+**How we enforce it:** Cedar authorizes the individual AgentCore tool invocation; the Network API independently validates its OAuth token and enforces the requested **HTTP method/path**, scope or app role, caller entitlement and regional/field rules. PostgreSQL row-level security provides a further data boundary. Both a permitted tool call **and** a permitted API request are required.
+
+These are the four planned REST endpoints, all on **one Network Operations API** backed by RDS PostgreSQL:
 
 - **`GET /assets/{id}/status`**
   - **What it returns or does:** Basic network asset status
