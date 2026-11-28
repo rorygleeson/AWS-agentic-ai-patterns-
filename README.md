@@ -103,14 +103,14 @@ The diagram shows the **whole PoC at a glance**. Employees use our AI chat app, 
 
 **What is an AgentCore Gateway?** It provides a controlled entry point for the agent's tool calls. It checks who may invoke a tool and routes an allowed request to the appropriate integration. The downstream API still verifies its own authentication and permissions.
 
-**Why two gateways?** This PoC deliberately demonstrates two ways of authenticating to an AgentCore Gateway:
+**Why two gateways?** An AgentCore Gateway has **one configured inbound authorization type**. It cannot accept both **Entra OAuth/JWT** and **AWS IAM/SigV4** as inbound authorization methods on the same gateway. Because this PoC demonstrates both, we use **two separate gateways**:
 
 - **G1 — OAuth/JWT gateway:** Accepts an Entra-issued access token. Used by the signed-in human flow and the **Entra Service Account**.
 - **G2 — AWS IAM gateway:** Accepts AWS IAM-signed requests. Used by the **AWS Service Account (using IAM Role)**, such as the scheduled Lambda.
 
-The two gateways demonstrate **different ways to authenticate tool calls**. Through their approved tools, the agent can reach the four downstream systems shown below. **Each system still applies its own authentication and authorization rules**; access to a gateway does not automatically grant access to every system or operation.
+Each gateway can expose approved tools for the downstream systems shown below. **Each system still applies its own authentication and authorization rules**; access to a gateway does not automatically grant access to every system or operation.
 
-![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v3.svg)
+![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v4.svg)
 
 **Read the notes on the four downstream systems:** shared RAG uses AWS IAM; the Network Operations API uses Entra OAuth (human OBO or application-only); the external vendor requires its **own** OAuth authorization; and Platform Health accepts IAM-signed requests after the user's tool permission is checked.
 
