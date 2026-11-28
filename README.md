@@ -103,7 +103,7 @@ The diagram shows the **whole PoC at a glance**. Employees use our **Enterprise 
 
 This PoC focuses on **Runtime, Gateway and access control**; Memory and Registry are optional platform capabilities, not additional authorization steps. [AgentCore components explained](#appendix-agentcore-components-in-context).
 
-![High-level view of Amazon Bedrock AgentCore: Enterprise AI Application, Runtime, Gateway, optional Memory and Registry, and four downstream systems](docs/diagrams/agentcore-platform-high-level-v2.svg)
+![High-level view of Amazon Bedrock AgentCore: Enterprise AI Application, Runtime, Gateway, optional Memory and Registry, and four downstream systems](docs/diagrams/agentcore-platform-high-level-v3.svg)
 
 *Simplified view: the detailed diagram below shows the separate G1/G2 gateways and direct service-account paths.*
 
