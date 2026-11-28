@@ -76,26 +76,7 @@ A **service account** is an automated application or workload that operates **wi
 
 ![Color-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access-v4.svg)
 
-*Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or health summary only); red = denied. This shows planned PoC policy, not yet-implemented controls.*
-
-**The Network Operations API has four endpoints, but no caller automatically gets all four.** Here is exactly what each human or automated application may invoke.
-
-| Caller | Allowed | Restrictions |
-|---|---|---|
-| **Sarah** | <img src="docs/diagrams/endpoint-badge-01.svg" width="37" alt="01"> <img src="docs/diagrams/endpoint-badge-02.svg" width="37" alt="02"> <img src="docs/diagrams/endpoint-badge-03.svg" width="37" alt="03"> | All regions |
-| **James** | <img src="docs/diagrams/endpoint-badge-01.svg" width="37" alt="01"> <img src="docs/diagrams/endpoint-badge-02.svg" width="37" alt="02"> <img src="docs/diagrams/endpoint-badge-03.svg" width="37" alt="03"> | VIC only |
-| **Emma** | <img src="docs/diagrams/endpoint-badge-01.svg" width="37" alt="01"> | Basic fields; all regions |
-| **David** | None | Uses NetworkMonitor |
-| **Oliver** | None | Uses Platform Health API |
-| **AWS Service Account (using IAM Role)** | <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> | Health summary only |
-| **Entra Service Account** | <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> | Health summary only |
-
-**Any endpoint not listed for that caller is denied.** In particular:
-
-- **Sarah and James cannot call** `GET /network/health-summary`; it is reserved for the two approved service accounts.
-- **Emma cannot call** the diagnostics, ticket-create or summary endpoints—even though she is successfully signed into the AI application.
-- **Neither service account can call** asset status, diagnostics or ticket endpoints. Each uses a **different app-only Network Operations API token** with health-summary endpoint rights.
-- **David and Oliver cannot call any Network Operations API endpoint.**
+*How to read this diagram: green = allowed, amber = allowed with restrictions, and red = denied. Every Network Operations API request is checked against the caller's endpoint permissions and, where relevant, region and field restrictions. These are planned PoC rules, not yet-implemented controls.*
 
 **Same endpoint, different result:** James can call `GET /assets/{id}/diagnostics` for an asset in **VIC**, but the **identical endpoint** must deny an asset in **NSW**. Emma can call `GET /assets/{id}/status` nationally but sees **basic fields only**, not sensitive diagnostic details.
 
