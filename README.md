@@ -38,13 +38,13 @@ The **Network Operations API** is one API with four operations: asset status, di
 
 | Caller | Why included |
 |---|---|
-| **Sarah — National Admin** | Broad Network Operations API access across all states; baseline for comparing restrictions. |
-| **James — VIC Engineer** | Same API endpoints as Sarah, but **VIC-only records** enforced using API authorization and PostgreSQL RLS. |
-| **Emma — Service Desk** | **Endpoint 01 only**, with basic fields; demonstrates endpoint-level and field-level restrictions. |
-| **David — External Analyst** | Uses **separate vendor OAuth** for NetworkMonitor, not corporate Entra authorization for that service. |
-| **Oliver — Platform Analyst** | Uses an **IAM-protected Platform Health API** through an upstream tool-permission check. |
-| **Entra Service Account (M2M)** | **Application-only identity** invokes the agent for automated health analysis; no human signs in. |
-| **AWS Service Account (using IAM Role, M2M)** | **IAM/SigV4** invokes the health-summary tool directly without an AI agent. |
+| <img src="docs/diagrams/icons/sarah.svg" width="26" height="26" alt="sarah icon"> **Sarah — National Admin** | Broad Network Operations API access across all states; baseline for comparing restrictions. |
+| <img src="docs/diagrams/icons/james.svg" width="26" height="26" alt="james icon"> **James — VIC Engineer** | Same API endpoints as Sarah, but **VIC-only records** enforced using API authorization and PostgreSQL RLS. |
+| <img src="docs/diagrams/icons/emma.svg" width="26" height="26" alt="emma icon"> **Emma — Service Desk** | **Endpoint 01 only**, with basic fields; demonstrates endpoint-level and field-level restrictions. |
+| <img src="docs/diagrams/icons/david.svg" width="26" height="26" alt="david icon"> **David — External Analyst** | Uses **separate vendor OAuth** for NetworkMonitor, not corporate Entra authorization for that service. |
+| <img src="docs/diagrams/icons/oliver.svg" width="26" height="26" alt="oliver icon"> **Oliver — Platform Analyst** | Uses an **IAM-protected Platform Health API** through an upstream tool-permission check. |
+| <img src="docs/diagrams/icons/entra-service-account.svg" width="26" height="26" alt="entra-service-account icon"> **Entra Service Account (M2M)** | **Application-only identity** invokes the agent for automated health analysis; no human signs in. |
+| <img src="docs/diagrams/icons/aws-service-account.svg" width="26" height="26" alt="aws-service-account icon"> **AWS Service Account (using IAM Role, M2M)** | **IAM/SigV4** invokes the health-summary tool directly without an AI agent. |
 
 **Default deny:** Access not explicitly shown is denied. James is restricted to **VIC**, Emma can see only basic asset-status fields, and both service accounts can use **health summary (04)** only. A service account runs without a human signing in. The diagram defines **planned PoC permissions**, not yet-implemented controls.
 
