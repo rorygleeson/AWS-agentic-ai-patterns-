@@ -92,7 +92,7 @@
 <text x="40" y="117" class="section">AI agent flow — humans and Entra automation use Runtime + G1</text>
 <g><rect x="38" y="145" width="190" height="82" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><circle cx="74" cy="185" r="23" fill="#e5eaf1" stroke="#8a9aae"/><text x="74" y="190" font-size="17" text-anchor="middle" fill="#39475f">ID</text><text x="106" y="176" class="label">Corporate users</text><text x="106" y="198" class="small">Sarah, James, Emma</text></g>
 <text x="44" y="241" class="small">David and Oliver</text>
-<g><rect x="260" y="145" width="190" height="82" rx="12" fill="#f5edff" stroke="#a7b8cc" stroke-width="1.5"/><circle cx="296" cy="185" r="23" fill="#e5eaf1" stroke="#8a9aae"/><text x="296" y="190" font-size="17" text-anchor="middle" fill="#39475f">ID</text><text x="328" y="176" class="label">Entra + chat</text><text x="328" y="198" class="small">SSO · PKCE · JWT</text></g>
+<g><rect x="260" y="145" width="190" height="82" rx="12" fill="#f5edff" stroke="#a7b8cc" stroke-width="1.5"/><circle cx="296" cy="185" r="23" fill="#e5eaf1" stroke="#8a9aae"/><text x="296" y="190" font-size="17" text-anchor="middle" fill="#39475f">ID</text><text x="328" y="176" class="label">Entra sign-in</text><text x="328" y="198" class="small">SSO · PKCE · JWT</text></g>
 <g><rect x="482" y="145" width="190" height="82" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="494" y="161" width="48" height="48"/><text x="550" y="176" class="label">API Gateway</text><text x="550" y="198" class="small">JWT validation</text></g>
 <g><rect x="704" y="145" width="190" height="82" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_lambda" x="716" y="161" width="48" height="48"/><text x="772" y="176" class="label">AWS Lambda</text><text x="772" y="198" class="small">audit · forward JWT</text></g>
 <g><rect x="926" y="145" width="190" height="82" rx="12" fill="#f9fbff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_agentcore" x="938" y="161" width="48" height="48"/><text x="994" y="176" class="label">Runtime</text><text x="994" y="198" class="small">JWT-protected agent</text></g>
@@ -104,11 +104,11 @@
 <path d="M1262 307 H713 V337" fill="none" stroke="#66809b" stroke-width="1.8" marker-end="url(#arrow)"/>
 <path d="M1262 307 H991 V337" fill="none" stroke="#66809b" stroke-width="1.8" marker-end="url(#arrow)"/>
 <path d="M1262,307 L1262,337" class="arrow"/>
-<g><rect x="40" y="337" width="236" height="90" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_bedrock" x="52" y="353" width="48" height="48"/><text x="108" y="368" class="label">Knowledge Base</text><text x="108" y="390" class="small">Shared RAG · IAM</text></g>
+<g><rect x="40" y="337" width="236" height="90" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_bedrock" x="52" y="353" width="48" height="48"/><text x="108" y="368" class="label">Shared Knowledge</text><text x="108" y="390" class="small">RAG · IAM</text></g>
 <g><rect x="317" y="337" width="514" height="90" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="331" y="353" width="48" height="48"/><text x="391" y="366" class="label">Network Operations API</text><text x="391" y="387" class="small">OpenAPI · Entra OBO</text><text x="391" y="409" class="small">Asset status · Diagnostics · Ticket create</text></g>
 
-<g><rect x="872" y="337" width="236" height="90" rx="12" fill="#f6f0ff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_cognito" x="884" y="353" width="48" height="48"/><text x="940" y="368" class="label">Vendor SaaS</text><text x="940" y="390" class="small">Cognito · 3LO</text></g>
-<g><rect x="1149" y="337" width="231" height="90" rx="12" fill="#fff8ea" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="1161" y="353" width="48" height="48"/><text x="1217" y="368" class="label">Platform Health</text><text x="1217" y="390" class="small">Native REST · IAM</text></g>
+<g><rect x="872" y="337" width="236" height="90" rx="12" fill="#f6f0ff" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_cognito" x="884" y="353" width="48" height="48"/><text x="940" y="368" class="label">NetworkMonitor</text><text x="940" y="390" class="small">Cognito · 3LO</text></g>
+<g><rect x="1149" y="337" width="231" height="90" rx="12" fill="#fff8ea" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_apigw" x="1161" y="353" width="48" height="48"/><text x="1217" y="368" class="label">Platform Health API</text><text x="1217" y="390" class="small">Native REST · IAM</text></g>
 <g><rect x="594" y="479" width="236" height="75" rx="12" fill="#f4fcf7" stroke="#a7b8cc" stroke-width="1.5"/><use href="#icon_rds" x="606" y="495" width="48" height="48"/><text x="662" y="510" class="label">RDS PostgreSQL</text><text x="662" y="532" class="small">RLS · behind APIs</text></g>
 <path d="M713 427 V479" class="arrow"/>
 <text x="44" y="473" class="desc">G1: Human OBO assets/tickets; app-only summary; vendor 3LO; platform IAM.</text>
@@ -125,7 +125,20 @@
 <text x="39" y="860" class="desc">James → OpenAPI → Entra OBO → Network API knows James → RLS enforces VIC only.</text>
 <text x="39" y="886" class="desc">Oliver → native API Gateway REST stage → IAM/SigV4 → Platform API knows Gateway execution role (Cedar checked Oliver first).</text>
 <rect x="20" y="923" width="1380" height="118" rx="13" fill="#eaf4ff" stroke="#94b8da"/>
-<text x="40" y="956" class="section">Entra Service Account — automated AI analysis using Runtime and G1</text>
-<text x="40" y="987" class="desc">Entra service principal → Runtime-audience JWT → AgentCore Runtime (AI prompt)</text>
-<text x="40" y="1017" class="desc">→ separate G1-audience JWT → Gateway G1 → new API-audience OAuth token → endpoint 04 and RDS</text>
+<text x="40" y="951" class="section">Entra Service Account — automated AI analysis, separate JWT audiences</text>
+<rect x="40" y="968" width="292" height="61" rx="9" fill="#fff" stroke="#94b8da"/>
+<text x="55" y="990" class="label">Entra Service Account</text>
+<text x="55" y="1011" class="small">Client Credentials · Runtime JWT</text>
+<rect x="367" y="968" width="292" height="61" rx="9" fill="#fff" stroke="#94b8da"/>
+<text x="382" y="990" class="label">AgentCore Runtime</text>
+<text x="382" y="1011" class="small">AI analysis prompt</text>
+<rect x="694" y="968" width="257" height="61" rx="9" fill="#fff" stroke="#94b8da"/>
+<text x="709" y="990" class="label">Gateway G1</text>
+<text x="709" y="1011" class="small">Separate G1-audience JWT</text>
+<rect x="986" y="968" width="392" height="61" rx="9" fill="#f4fcf7" stroke="#94b8da"/>
+<text x="1001" y="990" class="label">Network Operations API</text>
+<text x="1001" y="1011" class="small">API-audience OAuth token · health summary 04</text>
+<path d="M332 998H367" class="arrow"/>
+<path d="M659 998H694" class="arrow"/>
+<path d="M951 998H986" class="arrow"/>
 </svg>
