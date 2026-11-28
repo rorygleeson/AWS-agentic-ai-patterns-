@@ -107,14 +107,21 @@ This PoC focuses on **Runtime, Gateway and access control**; Memory and Registry
 
 *Simplified view: the detailed diagram below shows the separate G1/G2 gateways and direct service-account paths.*
 
-**What is an AgentCore Gateway?** It provides a controlled entry point for the agent's tool calls. It checks who may invoke a tool and routes an allowed request to the appropriate integration. The downstream API still verifies its own authentication and permissions.
+**Why do the service accounts bypass Runtime?** They perform **known, repeatable operations**: each requests the Network Operations API's health-summary tool. They already know which tool to call, so an AI agent would add no useful reasoning. This PoC deliberately demonstrates two ways to invoke enterprise tools:
+
+- **Human users → AI agent:** The **Enterprise AI Application** invokes the agent in **AgentCore Runtime**. The agent chooses tools through Gateway.
+- **Service accounts → tools directly:** The **Entra Service Account** invokes the approved tool through **G1 (OAuth/JWT)**; the **AWS Service Account (using IAM Role)** invokes it through **G2 (IAM/SigV4)**. Neither invokes Runtime or sends a prompt.
+
+**Is direct M2M tool access a normal pattern?** Yes. Automated systems commonly call known operations directly. **Using AgentCore Gateway for those calls is optional**—a conventional service could call the underlying API instead. We use Gateway here to demonstrate a shared, authenticated MCP tool interface with separate inbound identity methods and downstream authorization checks.
+
+**What is an AgentCore Gateway?** It provides a controlled entry point for **agent and automated-client tool calls**. It authenticates the caller, applies configured tool-access controls and routes permitted requests to the appropriate integration. The downstream API still verifies its own authentication and permissions.
 
 **Why two gateways?** An AgentCore Gateway has **one configured inbound authorization type**. It cannot accept both **Entra OAuth/JWT** and **AWS IAM/SigV4** as inbound authorization methods on the same gateway. Because this PoC demonstrates both, we use **two separate gateways**:
 
 - **G1 — OAuth/JWT gateway:** Accepts an Entra-issued access token. Used by the signed-in human flow and the **Entra Service Account**.
 - **G2 — AWS IAM gateway:** Accepts AWS IAM-signed requests. Used by the **AWS Service Account (using IAM Role)**, such as the scheduled Lambda.
 
-Each gateway can expose approved tools for the downstream systems shown below. **Each system still applies its own authentication and authorization rules**; access to a gateway does not automatically grant access to every system or operation.
+Each gateway can expose approved tools for the downstream systems shown below. **Gateway access does not grant automatic access to a downstream API or operation.**
 
 ![Simple AWS AgentCore architecture showing the Enterprise AI Application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v16.svg)
 
