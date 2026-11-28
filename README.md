@@ -103,6 +103,10 @@ The diagram shows the **whole PoC at a glance**. Employees use our **Enterprise 
 
 This PoC focuses on **Runtime, Gateway and access control**; Memory and Registry are optional platform capabilities, not additional authorization steps. [AgentCore components explained](#appendix-agentcore-components-in-context).
 
+![High-level view of Amazon Bedrock AgentCore: Enterprise AI Application, Runtime, Gateway, optional Memory and Registry, and four downstream systems](docs/diagrams/agentcore-platform-high-level.svg)
+
+*Simplified view: the detailed diagram below shows the separate G1/G2 gateways and direct service-account paths.*
+
 **What is an AgentCore Gateway?** It provides a controlled entry point for the agent's tool calls. It checks who may invoke a tool and routes an allowed request to the appropriate integration. The downstream API still verifies its own authentication and permissions.
 
 **Why two gateways?** An AgentCore Gateway has **one configured inbound authorization type**. It cannot accept both **Entra OAuth/JWT** and **AWS IAM/SigV4** as inbound authorization methods on the same gateway. Because this PoC demonstrates both, we use **two separate gateways**:
