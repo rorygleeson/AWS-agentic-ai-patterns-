@@ -138,7 +138,7 @@ The AI journey is: **human or approved Entra automation → Runtime agent → G1
 
 *Simplified platform view: the detailed diagrams below distinguish human AI requests, Entra automated AI requests, and direct AWS machine-to-machine tool calls.*
 
-**Three invocation patterns (different from authentication protocols):**
+**Three ways of invoking AgentCore:** These describe **how a request reaches and uses AgentCore**, not how the final system grants access. A person or service account can invoke an AI agent, while a service account with a known task can invoke a tool directly. **One invocation route can use more than one downstream access pattern.**
 
 1. **Human → AI agent:** Five people use the **Enterprise AI Application** to invoke **AgentCore Runtime**; the agent selects approved tools through **G1 (OAuth/JWT)**.
 2. **M2M → AI agent:** The **Entra Service Account** invokes JWT-protected **Runtime** with an automated analysis request. The agent uses a **separately obtained, correctly audience-scoped Entra application token** to invoke its approved health-summary tool through **G1**. Runtime does not automatically forward an inbound token to G1.
@@ -179,7 +179,7 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 ## 4. How these requirements lead to authentication patterns
 
-The access rules discussed earlier lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** Some paths use OAuth; others use AWS IAM. The five patterns below explain the reason for each choice.
+**Invocation routes and downstream access patterns answer different questions.** Section 3 showed **three ways of invoking AgentCore**—human → AI agent, service account → AI agent, and service account → tool directly. Those routes describe **how the request travels**. The **five downstream access patterns** below describe **how the connected system authenticates the caller and authorizes access**. One route can use several patterns: James uses the human-to-agent route for both shared RAG (Pattern 1) and network diagnostics with OAuth 2.0 OBO (Pattern 2); Oliver uses that same route for the IAM-protected Platform Health API (Pattern 5).
 
 ### Five downstream access patterns
 
