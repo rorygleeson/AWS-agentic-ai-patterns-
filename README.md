@@ -67,21 +67,28 @@ A **service account** is an automated application or workload that operates **wi
 
 ### Network API — exact endpoints for each caller
 
+**Endpoint key (Network Operations API):**
+
+- <img src="docs/diagrams/endpoint-badge-01.svg" width="37" alt="01"> Asset status — `GET /assets/{id}/status`
+- <img src="docs/diagrams/endpoint-badge-02.svg" width="37" alt="02"> Diagnostics — `GET /assets/{id}/diagnostics`
+- <img src="docs/diagrams/endpoint-badge-03.svg" width="37" alt="03"> Create ticket — `POST /tickets`
+- <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> Health summary — `GET /network/health-summary`
+
 ![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access-v2.svg)
 
 *Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or aggregate-only); red = denied. This shows planned PoC policy, not yet-implemented controls.*
 
 **The Network Operations API has four endpoints, but no caller automatically gets all four.** Here is exactly what each human or automated application may invoke.
 
-| Caller | Exact Network API endpoints they are allowed to call |
-|---|---|
-| **Sarah — National Admin** | `GET /assets/{id}/status` — all regions, full permitted status<br>`GET /assets/{id}/diagnostics` — all regions<br>`POST /tickets` — all regions |
-| **James — VIC Engineer** | `GET /assets/{id}/status` — **VIC only**<br>`GET /assets/{id}/diagnostics` — **VIC only**<br>`POST /tickets` — **VIC only** |
-| **Emma — Service Desk** | `GET /assets/{id}/status` — **all regions, basic fields only** |
-| **David — External Analyst** | **None.** David uses the separate NetworkMonitor vendor service. |
-| **Oliver — Platform Analyst** | **None.** Oliver uses the separate Platform Health API. |
-| **AWS Service Account (using IAM Role)** | `GET /network/health-summary` — aggregate summary only |
-| **Entra Service Account — OAuth service principal** | `GET /network/health-summary` — aggregate summary only |
+| Caller | Allowed | Restrictions |
+|---|---|---|
+| **Sarah** | <img src="docs/diagrams/endpoint-badge-01.svg" width="37" alt="01"> <img src="docs/diagrams/endpoint-badge-02.svg" width="37" alt="02"> <img src="docs/diagrams/endpoint-badge-03.svg" width="37" alt="03"> | All regions |
+| **James** | <img src="docs/diagrams/endpoint-badge-01.svg" width="37" alt="01"> <img src="docs/diagrams/endpoint-badge-02.svg" width="37" alt="02"> <img src="docs/diagrams/endpoint-badge-03.svg" width="37" alt="03"> | VIC only |
+| **Emma** | <img src="docs/diagrams/endpoint-badge-01.svg" width="37" alt="01"> | Basic fields; all regions |
+| **David** | None | Uses NetworkMonitor |
+| **Oliver** | None | Uses Platform Health API |
+| **AWS Service Account (using IAM Role)** | <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> | Aggregate only |
+| **Entra Service Account** | <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> | Aggregate only |
 
 **Any endpoint not listed for that caller is denied.** In particular:
 
