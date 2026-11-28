@@ -12,6 +12,17 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **How to read this guide:** First meet the four end systems, then the seven callers and exactly what each may access. Next, see the AWS architecture and understand **why each connection requires a different identity or authorization method**. For implementation-level teaching, follow the links to the **[Deep dives](#deep-dives--identity-and-authorization)** at the bottom. They cover Entra groups, app roles, scopes, OBO, IAM, Cedar and RLS.
 
+**Four terms used throughout this guide:**
+
+| Term | Meaning | Example |
+|---|---|---|
+| **Use case** | What someone wants to achieve | James wants to diagnose a router. |
+| **Invocation pattern** | How a person or service account uses AgentCore, with or without an AI agent | Human → AI agent → MCP tool. |
+| **Downstream access pattern** | How a connected system authenticates a caller and authorizes an operation | OAuth 2.0 OBO preserves James's identity at the Network Operations API. |
+| **Authentication method** | How a component verifies the caller's identity | An Entra-issued OAuth access token or AWS IAM/SigV4. |
+
+**The key distinction:** This PoC demonstrates **three AgentCore invocation patterns** and **five downstream access patterns**. They are two dimensions of the *same* architecture, not eight separate systems. One invocation pattern may use several downstream access patterns.
+
 **The key idea:** Successfully signing into our Enterprise AI Application does **not** automatically grant access to every connected system. Each final API must still authenticate the caller it receives and enforce the appropriate permissions.
 
 ## 1. End systems
@@ -138,7 +149,7 @@ The AI journey is: **human or approved Entra automation → Runtime agent → G1
 
 *Simplified platform view: the detailed diagrams below distinguish human AI requests, Entra automated AI requests, and direct AWS machine-to-machine tool calls.*
 
-**Three ways of invoking AgentCore:** These describe **how a request reaches and uses AgentCore**, not how the final system grants access. A person or service account can invoke an AI agent, while a service account with a known task can invoke a tool directly. **One invocation route can use more than one downstream access pattern.**
+**Three AgentCore invocation patterns (three ways of invoking AgentCore):** These describe **how a request reaches and uses AgentCore**, not how the final system grants access. A person or service account can invoke an AI agent, while a service account with a known task can invoke an MCP tool directly without AI. **One invocation pattern can use more than one downstream access pattern.**
 
 1. **Human → AI agent:** Five people use the **Enterprise AI Application** to invoke **AgentCore Runtime**; the agent selects approved tools through **G1 (OAuth/JWT)**. *Example: James asks why a Melbourne router is failing, and the agent retrieves permitted diagnostics.*
 2. **M2M → AI agent:** The **Entra Service Account** invokes JWT-protected **Runtime** with an automated analysis request. The agent uses a **separately obtained, correctly audience-scoped Entra application token** to invoke its approved health-summary tool through **G1**. Runtime does not automatically forward an inbound token to G1. *Example: An overnight automation asks the AI agent to analyse the network health summary, identify potential issues and recommend next steps.*
@@ -177,9 +188,9 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 <a id="3-how-these-requirements-lead-to-authentication-patterns"></a>
 
-## 4. How these requirements lead to authentication patterns
+## 4. How these requirements lead to downstream access patterns
 
-**Invocation routes and downstream access patterns answer different questions.** Section 3 showed **three ways of invoking AgentCore**—human → AI agent, service account → AI agent, and service account → tool directly. Those routes describe **how the request travels**. The **five downstream access patterns** below describe **how the connected system authenticates the caller and authorizes access**. One route can use several patterns: James uses the human-to-agent route for both shared RAG (Pattern 1) and network diagnostics with OAuth 2.0 OBO (Pattern 2); Oliver uses that same route for the IAM-protected Platform Health API (Pattern 5).
+**Invocation patterns and downstream access patterns answer different questions.** Section 3 introduced **three AgentCore invocation patterns**—human → AI agent, service account → AI agent, and service account → MCP tool directly without AI. These describe **how the request travels**. The **five downstream access patterns** below describe **how the connected system authenticates the caller and authorizes access**. One invocation pattern can use several downstream access patterns: James uses the human-to-agent invocation pattern for both shared RAG (Pattern 1) and network diagnostics with OAuth 2.0 OBO (Pattern 2); Oliver uses that same invocation pattern for the IAM-protected Platform Health API (Pattern 5).
 
 ### Five downstream access patterns
 
