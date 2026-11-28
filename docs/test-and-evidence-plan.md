@@ -8,7 +8,7 @@
 
 | Test | Caller | Request | Expected result | Boundary being proven |
 |---|---|---|---|---|
-| T01 | Sarah | Search shared operational guides | Cited synthetic RAG content | All-human RAG |
+| T01 | Sarah | Search shared operational guides | Cited approved RAG content | All-human RAG |
 | T02 | James | Search same guides | Same permitted corpus | Shared RAG |
 | T03 | Emma | Search same guides | Allowed | Shared RAG |
 | T04 | David | Search same guides | Allowed | Shared RAG |
@@ -24,28 +24,28 @@
 | T14 | David | Vendor alert request, no initial consent | Vendor auth/consent requested, no data leakage | 3LO first use |
 | T15 | David | Vendor alerts after consent | Only David's assigned alerts | Independent vendor user |
 | T16 | Sarah/James/Emma | David's vendor alert endpoint | **Denied** or require independent, individually granted vendor consent | No shared vendor token |
-| T17 | Oliver | Platform health | Synthetic status permitted | Native API GW stage + IAM |
+| T17 | Oliver | Platform health | Read-only platform health status permitted | Native API GW stage + IAM |
 | T18 | Any other human | Platform health | **Denied by G1 Cedar** | Tool allow-list |
 | T19 | Reporter M2M | Scheduled national aggregate health | Aggregate only | G2 IAM + 2LO |
 | T20 | Reporter M2M | Raw rows / diagnostics / ticket tool | **Denied** | App-only scope and G2 inventory |
 | T21 | Human | Direct G2 IAM tool call using JWT only | **Denied** | Separate inbound authorizer |
 | T22 | Automation | Direct G1 access with IAM only | **Denied** | Separate inbound authorizer |
-| T23 | Caller | Bypass API Gateway to invoke Runtime U | **Denied** unless explicitly authorized private route | Ingress policy |
+| T23 | Caller | Bypass API Gateway to invoke AgentCore Runtime | **Denied** unless explicitly authorized private route | Ingress policy |
 | T24 | Caller | Send token with wrong audience / expired / altered signature | **Denied** at corresponding API/runtime | JWT validation |
 | T25 | Any caller | Change JSON `userId` or agent instruction to "I am Sarah" | No elevation | Server-authenticated principal |
 | T26 | One human | Reuse another user's runtime session identifier | **Denied** | Session principal binding |
-| T27 | Runtime M | G2 tool invocation | Cloud logs record **Runtime M role** | Correct IAM caller |
+| T27 | AWS Service Account scheduled Lambda | Direct G2 tool invocation signed with Lambda execution role | Cloud logs record **the approved Lambda IAM role**; no Runtime is invoked | Correct IAM caller |
 | T28 | Oliver | Platform Health downstream invocation | Backend authorizes **Gateway execution IAM role**, not "Oliver" | Native target semantics |
 | T29 | James | Network API diagnostics | Downstream audit shows James `tid/oid` and proper Network audience | OBO end-to-end |
 | T30 | Reporter | Network API summary | Downstream audit shows app ID/`roles`, **not** employee `oid`/`scp` | 2LO subject |
 | T31 | David | Vendor revocation and retry | Vendor data access ceases | Token revocation |
 | T32 | Emma/James | SQL context attempted in tool args; pooled request after another user | No broadened rows; context isolated | RLS session safety |
-| T33 | Entra Service Account | Invoke G1 using AI-backend-audience Client Credentials JWT, request summary | Allowed; aggregate only | Non-human JWT inbound |
+| T33 | Entra Service Account | Invoke JWT-protected Runtime using AI Backend-audience token, run analysis, then invoke G1 using **separately obtained G1-audience JWT** | Allowed; summary only | Three separately protected token audiences |
 | T34 | Entra Service Account | Attempt human status/diagnostics/ticket/RAG/Platform tools | **Denied** at G1 | App-only Cedar permission |
-| T35 | Entra Service Account | Reuse its inbound AI JWT directly against Network API | **Denied** due to wrong audience | Separate JWTs for separate APIs |
+| T35 | Entra Service Account | Reuse Runtime JWT at G1, or reuse Runtime/G1 JWT at Network Operations API | **Denied** due to wrong audience | Three distinct automation token audiences |
 | T36 | AWS Service Account IAM identity | Attempt G1 invocation without a JWT | **Denied** | G1 JWT versus G2 IAM inbound |
 | T37 | Both automated callers | Request identical summary; inspect backend audit identities | Same aggregate only; two **different** app IDs and credentials | Two separate non-human callers |
-| T38 | Entra Service Account | AI Backend token has valid signature/audience but **no** assigned `Automation.Summary.Invoke` app role | **Denied** from summary tool | Backend machine app-role enforcement, not signature alone |
+| T38 | Entra Service Account | Runtime token missing `Automation.Runtime.Invoke`, or G1 token missing `Automation.Summary.Invoke` | **Denied** at corresponding boundary | Resource-specific machine app roles, not just valid signatures |
 | T39 | Unapproved Entra service principal | Obtain valid Entra v2 token with wrong `azp`, attempt G1 summary | **Denied** by exact `azp`/role Cedar checks | Do not mistake JWT `allowedClients`/`client_id` for Entra `azp` |
 | T40 | Human | Valid AI Backend JWT with missing `chat.invoke` delegated scope | **Denied** before human tool call | Chat API delegated-scope enforcement |
 | T41 | Unapproved caller | Direct call to G1 from outside approved Gateway VPC endpoint with an otherwise valid JWT | **Denied** by `aws:SourceVpce` restriction | Private Gateway boundary |
