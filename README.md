@@ -99,7 +99,9 @@ A **service account** is an automated application or workload that operates **wi
 
 ## Architecture overview
 
-The diagram shows the **whole PoC at a glance**. Employees use our Enterprise AI Application, and the AI agent uses **Amazon Bedrock AgentCore Gateway** to discover and call tools that connect to four downstream systems.
+The diagram shows the **whole PoC at a glance**. Employees use our **Enterprise AI Application** to interact with an agent hosted by **Amazon Bedrock AgentCore**. AgentCore is more than a gateway: **Runtime** runs the agent, **Memory** can retain context across interactions, **AWS Agent Registry** provides a searchable catalogue of agents and tools, and **Gateway** connects the agent to approved tools. **MCP (Model Context Protocol)** is the standard interface used to discover and invoke those tools—not an authentication method.
+
+This PoC focuses on **Runtime, Gateway and access control**; Memory and Registry are optional platform capabilities, not additional authorization steps. [AgentCore components explained](#appendix-agentcore-components-in-context).
 
 **What is an AgentCore Gateway?** It provides a controlled entry point for the agent's tool calls. It checks who may invoke a tool and routes an allowed request to the appropriate integration. The downstream API still verifies its own authentication and permissions.
 
@@ -834,6 +836,20 @@ Our PoC has **two service accounts (M2M) with different inbound authentication**
 | **Can a valid scope still be denied?** | **Yes.** Emma's business rights or James's regional restriction can deny the operation. |
 
 **Sources:** [Microsoft OBO](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow) · [Entra app roles and Entra ID groups](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps) · [Entra access token claims](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference) · [AWS AgentCore OBO](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/on-behalf-of-token-exchange.html) · [AWS Gateway outbound authentication](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html) · [API Gateway REST JWT authorizers](https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-jwt-authorizer.html).
+
+## Appendix: AgentCore components in context
+
+AgentCore provides building blocks for deploying agents and connecting them to enterprise systems. They serve different purposes:
+
+- **AgentCore Runtime:** Hosts and executes the AI agent. The agent decides which tool to request; Runtime does not replace the downstream system's permission checks.
+- **AgentCore Memory:** Can store and retrieve short-term conversation context and longer-term information across sessions. It must be configured and used by the agent; hosting an agent in Runtime does not automatically give it persistent memory.
+- **AWS Agent Registry:** A searchable catalogue in which teams can publish and discover agents, MCP servers, tools and related resources. A registry entry does not itself grant permission to invoke a tool.
+- **AgentCore Gateway:** Presents approved APIs, functions and services as agent-accessible tools, and provides an authenticated entry point. Its configured inbound authentication and tool permissions are separate from the downstream API's controls.
+- **MCP (Model Context Protocol):** The protocol through which an agent can discover tools and invoke them via Gateway. MCP standardises the tool interface; it does **not** replace OAuth, AWS IAM or business authorization.
+
+**How they fit together here:** The **Enterprise AI Application** sends a signed-in user's request to the agent in **Runtime**. The agent invokes an approved tool through **Gateway (G1 or G2)**, and the final system independently checks the caller's permissions. **Memory and Registry are not required for the authentication flows demonstrated in this PoC.**
+
+**AWS references:** [AgentCore overview](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/what-is-bedrock-agentcore.html) · [Gateway and MCP](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-using.html) · [AWS Agent Registry](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/registry.html).
 
 ## More detail (optional)
 
