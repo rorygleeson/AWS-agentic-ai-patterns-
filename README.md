@@ -99,7 +99,16 @@ A **service account** is an automated application or workload that operates **wi
 
 ## Architecture overview
 
-The diagram shows the **whole PoC at a glance**. Employees use our AI chat app; the agent uses AgentCore to reach four downstream systems. Each system has a different authentication requirement. The AWS Service Account (using IAM Role) enters IAM-protected G2, while a separate Entra Service Account enters JWT-protected G1. Neither involves a human.
+The diagram shows the **whole PoC at a glance**. Employees use our AI chat app, and the AI agent uses **Amazon Bedrock AgentCore Gateway** to discover and call tools that connect to four downstream systems.
+
+**What is an AgentCore Gateway?** It provides a controlled entry point for the agent's tool calls. It checks who may invoke a tool and routes an allowed request to the appropriate integration. The downstream API still verifies its own authentication and permissions.
+
+**Why two gateways?** This PoC deliberately demonstrates two ways of authenticating to an AgentCore Gateway:
+
+- **G1 — OAuth/JWT gateway:** Accepts an Entra-issued access token. Used by the signed-in human flow and the **Entra Service Account**.
+- **G2 — AWS IAM gateway:** Accepts AWS IAM-signed requests. Used by the **AWS Service Account (using IAM Role)**, such as the scheduled Lambda.
+
+Both gateways can expose approved tools for the **same Network Operations API**; they are not two copies of that API. The difference is **how the caller authenticates to the gateway**, while endpoint-specific permissions are enforced downstream.
 
 ![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview.svg)
 
