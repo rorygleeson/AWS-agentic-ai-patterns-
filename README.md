@@ -114,9 +114,12 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 ## 3. How these requirements lead to authentication patterns
 
-The access rules discussed earlier lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** One system can use more than one pattern: the **Network Operations API** uses OBO for Sarah, James and Emma, but **OAuth Client Credentials** for each independent automated application identity.
+The access rules discussed earlier lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** These patterns are **not all OAuth**:
 
-The examples below show why **the identity reaching the end system matters**.
+- **Network Operations API — OAuth 2.0:** Sarah, James and Emma use the **On-Behalf-Of (OBO)** flow, which obtains an API token representing the signed-in person. The two service accounts use **OAuth 2.0 Client Credentials**, obtaining application-only tokens.
+- **Platform Health API — AWS IAM, not OAuth:** An approved request is **signed with AWS Signature Version 4 (SigV4)** using an IAM role, and API Gateway checks the IAM permission. No OAuth access token is needed for this API.
+
+The authentication method at an **AgentCore Gateway** and the method used to call a **downstream API** are separate decisions. The examples below show why **the identity reaching the final system matters**.
 
 ### Authentication terms in plain English
 
