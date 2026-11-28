@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="720" height="1080" viewBox="0 0 720 1080" role="img" aria-labelledby="title desc">
 <title id="title">AgentCore at a glance</title>
-<desc id="desc">The Enterprise AI Application connects to an agent running in AgentCore Runtime. The agent invokes tools through AgentCore Gateway, using MCP, to reach four downstream systems. AgentCore Memory and AWS Agent Registry are shown as optional supporting capabilities, not required authorization steps. Service accounts can enter gateways directly as detailed later.</desc>
+<desc id="desc">The Enterprise AI Application connects to an agent running in AgentCore Runtime. The agent invokes tools through AgentCore Gateway, using MCP, to reach four downstream systems. AgentCore Memory and AWS Agent Registry are shown as optional supporting capabilities, not required authorization steps. The Entra service account invokes Runtime before G1, while the AWS service account calls G2 directly.</desc>
 <style>
 text{font-family:Arial,Helvetica,sans-serif;fill:#172334}
 .h1{font-size:33px;font-weight:700}.sub{font-size:20px;fill:#526273}.head{font-size:26px;font-weight:700}.body{font-size:21px}.small{font-size:18px;fill:#526273}.pill{font-size:19px;font-weight:700}
@@ -42,5 +42,5 @@ text{font-family:Arial,Helvetica,sans-serif;fill:#172334}
 <rect x="367" y="933" width="309" height="80" rx="14" fill="#eee9ff" stroke="#8c6ec7" stroke-width="2"/>
 <text x="521" y="968" text-anchor="middle" class="body" font-weight="700">Platform Health</text>
 <text x="521" y="996" text-anchor="middle" class="small">API</text>
-<text x="360" y="1051" text-anchor="middle" class="small">Simplified human path; M2M enters gateways directly.</text>
+<text x="360" y="1051" text-anchor="middle" class="small">Simplified AI path; Entra M2M uses Runtime, AWS M2M uses G2 directly.</text>
 </svg>
