@@ -10,7 +10,7 @@
 | P02 | Identity-preserving Lambda ingress | Original Entra JWT forwarded | Chat requests |
 | P03 | Entra on-behalf-of (OBO) | User delegated token for downstream audience | James, Sarah, Emma (permitted operations) |
 | P04 | OAuth Client Credentials for non-human callers | Separate application identities; no human | AWS Service Account and Entra Service Account |
-| P05 | OAuth 3-legged consent (3LO) | Vendor user consent and vendor token | David |
+| P05 | OAuth 2.0 Authorization Code (with PKCE) | Vendor user consent and vendor token | David |
 | P06 | Native API Gateway REST stage MCP target | Gateway IAM/SigV4 identity downstream | Oliver |
 | P07 | OpenAPI-defined REST MCP target | OAuth token downstream | Network API (including ticket operations) |
 | P08 | JWT-inbound Gateway with Cedar | Human **or machine** JWT claims, distinct allow-lists | G1 |
@@ -54,7 +54,7 @@ Ticket creation uses the **same Network API audience** but requires the delegate
 
 **Security invariant:** A shared Lambda/Gateway IAM role must not override the downstream delegated authorization decision.
 
-## P04 — M2M 2LO
+## P04 — OAuth 2.0 Client Credentials (M2M)
 
 **Situation:** A scheduled AWS Service Account needs national aggregate health, but no employee is present.
 
@@ -66,13 +66,13 @@ Entra issues an **app-only** Network API access token. The service's `roles` cla
 
 **Second, independent non-human caller — Entra Service Account:** Unlike the AWS Service Account, this separate registered Entra application enters **JWT-protected AgentCore Runtime** with an **AI Backend-audience Client Credentials JWT** carrying `Automation.Runtime.Invoke` and an analysis prompt. The agent explicitly obtains a **separate JWT for the `enterprise-agentcore-g1` audience**, carrying that resource's Applications-only app role `Automation.Summary.Invoke` (admin-consented). G1 Cedar verifies the approved automation application ID and this G1-scoped role before permitting only the **health-summary tool** on a separate OpenAPI target. That target obtains a **new, Network API-audience Client Credentials token** for the *same* Entra Service Account app, which holds `HealthSummary.Read`. None of the three audience-specific JWTs is a human token; the Runtime JWT cannot be substituted at G1 or the Network Operations API. The two machines use the **same downstream summary REST endpoint**, but G1 and G2 demonstrate **different inbound authentication**. No additional end system or endpoint.
 
-## P05 — Independent vendor 3LO
+## P05 — Independent vendor OAuth 2.0 Authorization Code
 
 **Situation:** David asks “Show my vendor alerts.” The external fictitious **NetworkMonitor SaaS** uses its own Cognito-backed OAuth authorization server and its own vendor user permissions. It is not the corporate Entra authorization server.
 
 First use: David is redirected to vendor authorization, signs in to vendor and consents to `alerts.read`; a confidential component completes authorization-code exchange and securely associates the vendor token with David's session (AgentCore Identity/outbound credentials as supported). Subsequent tool calls use **David's vendor delegated access token**. NetworkMonitor validates it and shows only alert resources assigned to that vendor account.
 
-This is not Entra OBO and not 2LO. Token isolation and revocation are per David; Sarah cannot borrow his vendor credential. This simulates user-specific access to external enterprise SaaS, using **a separate OAuth provider**, and therefore demonstrates a genuinely different pattern.
+This is not Entra OBO and not Client Credentials. Token isolation and revocation are per David; Sarah cannot borrow his vendor credential. This simulates user-specific access to external enterprise SaaS, using **a separate OAuth provider**, and therefore demonstrates a genuinely different pattern.
 
 ## P06 vs P07 — Two ways to represent REST endpoints as MCP tools
 
@@ -97,7 +97,7 @@ Each AgentCore Gateway selects **one** inbound `authorizerType` at creation, so 
 - **G1 Entra JWT:** `CUSTOM_JWT`; accepts validated **human or Entra Service Account application JWTs**. Cedar distinguishes their identities: humans receive assigned tools; the app can access only its **dedicated summary tool**.
 - **G2 IAM AWS Service Account:** `AWS_IAM`; accepts the approved scheduled Lambda execution role directly; Cedar restricts to `get_network_health_summary`. Exposes *no* duplicated human tools.
 
-Outbound credential providers are configured **per target**, independently of the inbound Gateway choice. This is why G1 can have RAG IAM, OpenAPI OBO, vendor 3LO, and native stage IAM targets together.
+Outbound credential providers are configured **per target**, independently of the inbound Gateway choice. This is why G1 can have RAG IAM, OpenAPI OBO, vendor OAuth 2.0 Authorization Code, and native stage IAM targets together.
 
 **Cedar is not copied blindly:** define common principles/templates once, but apply distinct policy sets to distinct principal types and tool inventories.
 
