@@ -6,7 +6,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 ![Same systems, different access: five people and two service accounts with distinct permissions for four downstream systems](docs/diagrams/agentcore-access-overview-clean-v7.svg)
 
-*At a glance: five people use the AI agent and two service accounts use different machine-to-machine (M2M) paths to the same enterprise tools, with different access to four systems. A caller listed under a system has some access—not permission for every operation. The detailed AWS service diagram appears later.*
+*At a glance: five people use the agent and two service accounts use different machine-to-machine (M2M) paths to the same enterprise tools, with different access to four systems. A caller listed under a system has some access—not permission for every operation. The detailed AWS service diagram appears later.*
 
 **Why do we need different access patterns?** Because the end systems trust **different identities**: some need the signed-in person, some need a service account, some require separate authorization from an external provider, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
 
@@ -37,7 +37,7 @@ For exact REST paths, denied-case tests and enforcement across Gateway, the Netw
 
 ## 3. Architecture overview
 
-**Follow James's request:** James signs in to the **Enterprise AI Application** through Microsoft Entra ID and asks, “What's wrong with router R123 in Melbourne?” The application calls the managed **AgentCore Runtime API** using an Entra-issued **Runtime access token**. **AgentCore Runtime** runs the **AI agent**, which invokes the diagnostics tool through **AgentCore Gateway (G1)**. The **Network Operations API** independently enforces James's VIC-only permissions.
+**Follow James's request:** James signs in to the **Enterprise AI Application** through Microsoft Entra ID and asks, “What's wrong with router R123 in Melbourne?” The application calls the managed **AgentCore Runtime API** using an Entra-issued **Runtime access token**. **AgentCore Runtime** runs the **agent**, which invokes the diagnostics tool through **AgentCore Gateway (G1)**. The **Network Operations API** independently enforces James's VIC-only permissions.
 
 ![James's end-to-end sign-in, Runtime access token, two OBO token exchanges, G1 authorization and Network Operations API response](docs/diagrams/james-high-level-obo-flow.svg)
 
@@ -49,8 +49,8 @@ These describe **how callers use AgentCore**. They are distinct from the five do
 
 | Method | Caller and route | Example |
 |---|---|---|
-| **Human → AI agent** | Five signed-in people → Enterprise AI Application → Runtime → **G1 (JWT)** | James asks for VIC router diagnostics. |
-| **M2M → AI agent** | **Entra Service Account** → Runtime → **G1 (JWT)** with separate application tokens | Overnight AI analysis of the health summary. |
+| **Human → agent** | Five signed-in people → Enterprise AI Application → Runtime → **G1 (JWT)** | James asks for VIC router diagnostics. |
+| **M2M → agent** | **Entra Service Account** → Runtime → **G1 (JWT)** with separate application tokens | Overnight AI analysis of the health summary. |
 | **M2M → tool directly** | **AWS Service Account (using IAM Role)** → **G2 (IAM/SigV4)**; no Runtime | Scheduled Lambda fetches the health summary without AI. |
 
 A **service account (M2M)** acts without a signed-in human. Automated application tokens must **never** be used as if they represented a human. An invocation method may use more than one access pattern.
@@ -63,7 +63,7 @@ A **service account (M2M)** acts without a signed-in human. Automated applicatio
 
 [Open the full-width AWS service-icon architecture](docs/diagrams/aws-agentcore-architecture.svg).
 
-**Component names used throughout:** **AgentCore Runtime** runs the AI agent; **AgentCore Gateway** publishes approved **MCP tools**; a **Gateway target** configures the connection from a tool to its backend (it is not an additional API); **AgentCore Identity** brokers supported OAuth credentials/token exchanges; **Cedar** expresses Gateway tool-authorization rules. MCP is a tool protocol, **not** an authentication mechanism. Optional **Memory** and **Agent Registry** are explained in the [component deep dive](docs/agentcore-components.md).
+**Component names used throughout:** **AgentCore Runtime** runs the agent; **AgentCore Gateway** publishes approved **MCP tools**; a **Gateway target** configures the connection from a tool to its backend (it is not an additional API); **AgentCore Identity** brokers supported OAuth credentials/token exchanges; **Cedar** expresses Gateway tool-authorization rules. MCP is a tool protocol, **not** an authentication mechanism. Optional **Memory** and **Agent Registry** are explained in the [component deep dive](docs/agentcore-components.md).
 
 ## 4. Five access patterns for connected systems
 
@@ -89,7 +89,7 @@ An **invocation method** is how a request reaches Runtime or Gateway. An **acces
 
 **Example:** Both service accounts may retrieve **Network Operations API endpoint 04 — health summary**, but no individual assets or diagnostics.
 
-**Why this pattern?** There is **no human to impersonate**, so OBO is inappropriate. The **Entra Service Account** asks the AI agent to analyse the summary via **Runtime → G1**. The **AWS Service Account (using IAM Role)** invokes the known summary tool directly through **G2** without AI. Each route ultimately obtains a separate **Entra application-only token** for the Network Operations API, which verifies its application identity and **HealthSummary.Read** permission. IAM access to G2 alone does not authorize the OAuth-protected final API.
+**Why this pattern?** There is **no human to impersonate**, so OBO is inappropriate. The **Entra Service Account** asks the agent to analyse the summary via **Runtime → G1**. The **AWS Service Account (using IAM Role)** invokes the known summary tool directly through **G2** without AI. Each route ultimately obtains a separate **Entra application-only token** for the Network Operations API, which verifies its application identity and **HealthSummary.Read** permission. IAM access to G2 alone does not authorize the OAuth-protected final API.
 
 [Pattern 3 deep dive (planned): flows, token boundaries and implementation](docs/access-patterns/pattern-3-service-accounts.md).
 
