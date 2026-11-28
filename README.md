@@ -8,7 +8,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 *At a glance: five people use the AI agent and two service accounts use different machine-to-machine (M2M) paths to the same enterprise tools, with different access to four systems. A caller listed under a system has some access—not permission for every operation. The detailed AWS service diagram appears later.*
 
-**Why do we need different access patterns?** Because the end systems trust **different identities**: some need the signed-in person, some need an application identity, some require separate authorization from an external provider, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
+**Why do we need different access patterns?** Because the end systems trust **different identities**: some need the signed-in person, some need a service account, some require separate authorization from an external provider, and some accept an AWS IAM role. One token or service account cannot safely satisfy all of those requirements.
 
 **How to read this guide:** Meet the **four end systems**, then see the **seven callers** and their exact permissions. Follow the **AWS architecture** and **five access patterns**, each with a concrete example. Detailed configuration, token flows and test cases are being developed in the [deep dives](docs/README.md); some guides are currently placeholders.
 
