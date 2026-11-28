@@ -74,7 +74,7 @@ A **service account** is an automated application or workload that operates **wi
 - <img src="docs/diagrams/endpoint-badge-03.svg" width="37" alt="03"> Create ticket — `POST /tickets`
 - <img src="docs/diagrams/endpoint-badge-04.svg" width="37" alt="04"> Health summary — `GET /network/health-summary`
 
-![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access-v2.svg)
+![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access-v3.svg)
 
 *Green = allowed; amber = allowed with restrictions (such as VIC-only, basic fields or aggregate-only); red = denied. This shows planned PoC policy, not yet-implemented controls.*
 
