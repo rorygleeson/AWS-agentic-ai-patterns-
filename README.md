@@ -37,9 +37,9 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 ### Network Operations API — four endpoints, different access per caller
 
-**The purpose of this part of the PoC is to demonstrate endpoint-level authorization.** Several users and service accounts can connect to the **same Network Operations API**, but that does **not** mean they can call every endpoint. We deliberately give callers different permissions, then demonstrate how the platform and API **allow or deny each operation** according to the authenticated identity.
+**Why does this PoC have four endpoints?** We deliberately expose different operations through **one Network Operations API** so we can demonstrate how authentication and authorization work for different callers. Human users and service accounts can authenticate in different ways, and each is granted access only to the endpoints and data they are permitted to use.
 
-For example, Sarah can view diagnostics nationwide, James can view diagnostics only in VIC, Emma can view basic status but cannot view diagnostics, and the two service accounts can obtain only the aggregate health summary. David and Oliver have no access to this API. Even an allowed endpoint can return **restricted data** based on region or field permissions.
+This lets us show **who can call which endpoint, who is denied, and why**—including different user roles, regional restrictions, read versus write permissions, and machine-to-machine (M2M) access. The diagram below summarises those differences before we explain the technical controls.
 
 ![Colour-coded access diagram with locks: seven callers and exactly which of the four Network Operations API endpoints they can use](docs/diagrams/network-api-endpoint-access.svg)
 
