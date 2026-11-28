@@ -4,7 +4,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **The objective of this project is to identify, explain and standardise these common authentication and authorization approaches into reusable AgentCore architecture patterns.** We use one fictional enterprise application, four end systems and seven callers to show when each pattern applies—and how to prevent unauthorized access.
 
-![Same AI, different access: five people and two service accounts with distinct permissions for four downstream systems](docs/diagrams/agentcore-access-overview-clean-v6.svg)
+![Same AI, different access: five people and two service accounts with distinct permissions for four downstream systems](docs/diagrams/agentcore-access-overview-clean-v7.svg)
 
 *At a glance: five people and two service accounts (M2M) use the same AI platform but have different access to four systems. A caller listed under a system has some access—not permission for every operation. The detailed AWS service diagram appears later.*
 
@@ -12,7 +12,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 **How to read this guide:** First meet the four end systems, then the seven callers and exactly what each may access. Next, see the AWS architecture and understand **why each connection requires a different identity or authorization method**. For implementation-level teaching, follow the links to the **[Deep dives](#deep-dives--identity-and-authorization)** at the bottom. They cover Entra groups, app roles, scopes, OBO, IAM, Cedar and RLS.
 
-**The key idea:** Successfully signing into our AI chat application does **not** automatically grant access to every connected system. Each final API must still authenticate the caller it receives and enforce the appropriate permissions.
+**The key idea:** Successfully signing into our Enterprise AI Application does **not** automatically grant access to every connected system. Each final API must still authenticate the caller it receives and enforce the appropriate permissions.
 
 ## 1. End systems
 
@@ -20,7 +20,7 @@ Agentic AI introduces a difficult enterprise architecture challenge: **an agent 
 
 - <img src="docs/diagrams/system-rag-icon.svg" width="28" height="28" alt="Knowledge Base icon"> **1. Knowledge Base (RAG)**
   - **Description:** Uses retrieval-augmented generation (**RAG**) to answer questions from shared troubleshooting documents in Amazon Bedrock Knowledge Bases.
-  - **High-level access rule:** **All human users who successfully sign in to the AI chat app** can search the same approved knowledge.
+  - **High-level access rule:** **All human users who successfully sign in to the Enterprise AI Application** can search the same approved knowledge.
 
 - <img src="docs/diagrams/system-network-api-icon.svg" width="28" height="28" alt="Network Operations API icon"> **2. Network Operations API**
   - **Description:** Read/write enterprise REST API backed by **Amazon RDS PostgreSQL**. Returns asset status, diagnostics and a health summary, and creates support tickets.
@@ -94,12 +94,12 @@ A **service account** is an automated application or workload that operates **wi
 | <img src="docs/diagrams/caller-aws-service-icon.svg" width="26" height="26" alt=""> **AWS Service Account (using IAM Role)** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
 | <img src="docs/diagrams/caller-entra-service-icon.svg" width="26" height="26" alt=""> **Entra Service Account** | RAG, individual asset records, diagnostics, ticket actions, NetworkMonitor, Platform Health and human impersonation. |
 
-**Default rule:** A successful sign-in allows a human to use the AI chat app and shared RAG. Every other system requires its own authorization. If access is not explicitly listed above, it is denied.
+**Default rule:** A successful sign-in allows a human to use the Enterprise AI Application and shared RAG. Every other system requires its own authorization. If access is not explicitly listed above, it is denied.
 
 
 ## Architecture overview
 
-The diagram shows the **whole PoC at a glance**. Employees use our AI chat app, and the AI agent uses **Amazon Bedrock AgentCore Gateway** to discover and call tools that connect to four downstream systems.
+The diagram shows the **whole PoC at a glance**. Employees use our Enterprise AI Application, and the AI agent uses **Amazon Bedrock AgentCore Gateway** to discover and call tools that connect to four downstream systems.
 
 **What is an AgentCore Gateway?** It provides a controlled entry point for the agent's tool calls. It checks who may invoke a tool and routes an allowed request to the appropriate integration. The downstream API still verifies its own authentication and permissions.
 
@@ -110,7 +110,7 @@ The diagram shows the **whole PoC at a glance**. Employees use our AI chat app, 
 
 Each gateway can expose approved tools for the downstream systems shown below. **Each system still applies its own authentication and authorization rules**; access to a gateway does not automatically grant access to every system or operation.
 
-![Simple AWS AgentCore architecture showing the AI chat application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v9.svg)
+![Simple AWS AgentCore architecture showing the Enterprise AI Application and four downstream systems with their authentication requirements](docs/diagrams/aws-agentcore-overview-mobile-v10.svg)
 
 ## 3. How these requirements lead to authentication patterns
 
@@ -146,7 +146,7 @@ Before following the examples, here are the AWS parts:
 
 | Term | Meaning in this PoC |
 |---|---|
-| **AI chat application** | The web page where a person signs in and types a question. |
+| **Enterprise AI Application** | The web page where a person signs in and types a question. |
 | **Chat API and Lambda** | The application backend receiving that question and passing the authenticated request to the agent. |
 | **AgentCore Runtime** | Where our AI agent runs and decides which tool to request. |
 | **Amazon Bedrock AgentCore Gateway** | The controlled entry point for invoking agent tools. **G1** accepts Entra JWTs from signed-in humans **and the separately authorized Entra Service Account**; **G2** accepts IAM/SigV4 from the AWS Service Account (using IAM Role). |
@@ -224,9 +224,9 @@ The comparison table above is the quick reference. Here is the **reasoning behin
 
 #### Pattern 1 — Shared knowledge (RAG)
 
-**Why does an enterprise need this?** Imagine an operations organisation with hundreds of approved troubleshooting guides, network procedures and internal FAQs. Engineers and service-desk staff repeatedly ask the same questions. Instead of relying only on the language model's general training, our AI chat application searches this **shared RAG knowledge base** and uses relevant passages to ground its answers.
+**Why does an enterprise need this?** Imagine an operations organisation with hundreds of approved troubleshooting guides, network procedures and internal FAQs. Engineers and service-desk staff repeatedly ask the same questions. Instead of relying only on the language model's general training, our Enterprise AI Application searches this **shared RAG knowledge base** and uses relevant passages to ground its answers.
 
-- **What does the user want?** Any of our five human users signs in to our AI chat application and asks a question such as “What is the approved process for investigating a network outage?” The agent searches the same approved documents for everyone.
+- **What does the user want?** Any of our five human users signs in to our Enterprise AI Application and asks a question such as “What is the approved process for investigating a network outage?” The agent searches the same approved documents for everyone.
 - **Why isn't signing in enough on its own?** Entra sign-in authenticates the person to **our chat application**. It does not give the person's browser credentials to query Amazon Bedrock Knowledge Bases directly. The backend agent still needs an authenticated AWS identity to retrieve passages.
 - **Why not use the Network Operations API's OBO pattern?** The documents in this particular knowledge base are **deliberately shared with every signed-in human**. There are no different document permissions for Sarah versus Emma, and the AWS retrieval operation uses the application's service role. Exchanging each person's Entra token for a downstream user token would add no access distinction for this resource.
 - **What solves it?** Our application checks that the person is signed in. The backend agent then retrieves relevant approved passages using its **authorized AWS service role**. The knowledge base is not public, and no end-user AWS credentials are exposed to the browser.
@@ -268,7 +268,7 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 
 **Why does an enterprise need this?** An organisation may subscribe to a monitoring SaaS provider, while individual employees have separate accounts and alert permissions **at that vendor**. The AI assistant should be able to retrieve an employee's permitted alerts, just as other assistants connect to a separately authorized SaaS account. Corporate sign-in alone cannot make that vendor trust the request.
 
-- **What does the user want?** David asks our AI chat application to retrieve his alerts from **NetworkMonitor**, a simulated service owned by another company.
+- **What does the user want?** David asks our Enterprise AI Application to retrieve his alerts from **NetworkMonitor**, a simulated service owned by another company.
 - **Why isn't his corporate sign-in enough?** Entra authenticates David to **our** application, but it cannot independently grant access to his account and alerts in **NetworkMonitor's** identity system. An Entra OBO token for our Network Operations API is not a NetworkMonitor token.
 - **What solves it?** After David is authorized to use the vendor tool, he separately completes **NetworkMonitor's OAuth 2.0 Authorization Code grant (with PKCE)**. AgentCore's vendor OAuth credential provider obtains and associates a vendor-issued token with the authenticated David, then uses it to call `GET /alerts`. NetworkMonitor validates that token and returns only data permitted to that vendor account.
 
@@ -280,7 +280,7 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 
 - **What does the user want?** Oliver now asks our **new AI application**: “Is our internal platform healthy?” We want to reuse that existing Platform Health API **without rebuilding its authentication**.
 - **Why can't we just send Oliver's token?** His Entra token is an **OAuth** token, while this existing API expects **IAM/SigV4**. The API doesn't know who Oliver is; it recognizes the **AWS role** signing the request. If everyone could invoke the agent's Platform Health tool, the same role could retrieve results for users who should not have access.
-- **What solves it?** Oliver signs in to our AI application. Before any API call, **G1 uses Cedar to check that Oliver is allowed to invoke the tool**. Only then does AgentCore Gateway use its **IAM service role** to sign the request to the native API Gateway REST-stage target. The Platform Health API validates the IAM signature and role permissions. Sarah, James, Emma and David are denied **at the tool boundary**, before Gateway can use that role for their request.
+- **What solves it?** Oliver signs in to our Enterprise AI Application. Before any API call, **G1 uses Cedar to check that Oliver is allowed to invoke the tool**. Only then does AgentCore Gateway use its **IAM service role** to sign the request to the native API Gateway REST-stage target. The Platform Health API validates the IAM signature and role permissions. Sarah, James, Emma and David are denied **at the tool boundary**, before Gateway can use that role for their request.
 
 **A public endpoint type does not mean anonymous access:** AWS's native AgentCore API Gateway REST-stage target currently requires a **public endpoint type** (not API Gateway's private endpoint type). Our Platform Health API still requires **AWS IAM authorization** for every exposed method. The API can have private integrations behind its front door. This constraint applies to the **native stage target**, not to every API Gateway API or OpenAPI target.
 
@@ -362,7 +362,7 @@ These are independent controls. A valid scope never overrides the Network Operat
 
 **RLS does not read an OAuth token. The Network Operations API connects the user's OAuth identity to the database rules.**
 
-Imagine James asks our AI application: **“Show me diagnostics for asset 123.”** That asset is in NSW, but James is a VIC engineer.
+Imagine James asks our Enterprise AI Application: **“Show me diagnostics for asset 123.”** That asset is in NSW, but James is a VIC engineer.
 
 1. **James signs in** using Microsoft Entra ID.
 2. **OBO obtains a new OAuth access token for the Network Operations API**, still representing James. It is not a generic token for the AI agent.
@@ -394,7 +394,7 @@ This is a deliberate additional security boundary. An AI agent asking for NSW da
 
 ### Why can't James use his first token for the Network Operations API?
 
-James signs in **once** to the web chat. The browser obtains **Token A for the Chat API (`POST /ai/chat`)**. James then asks: “Show me VIC diagnostics.”
+James signs in **once** to the Enterprise AI Application. The browser obtains **Token A for the Chat API (`POST /ai/chat`)**. James then asks: “Show me VIC diagnostics.”
 
 The Network Operations API is a **different API**. His first token is meant for the **Chat API**, **not** the Network Operations API. The Network Operations API should reject it. Otherwise, a token issued for one system could be reused to enter another.
 
@@ -558,7 +558,7 @@ The main tutorial introduces the four systems, seven callers and AgentCore patte
 
 #### 1. Start with the business problem
 
-James and Emma both sign in to **our AI chat application**. James is a VIC engineer; Emma works on the Service Desk. Both may have an OAuth token that includes `diagnostics.read`, yet **James may retrieve VIC diagnostics and Emma may not retrieve any diagnostics**.
+James and Emma both sign in to **our Enterprise AI Application**. James is a VIC engineer; Emma works on the Service Desk. Both may have an OAuth token that includes `diagnostics.read`, yet **James may retrieve VIC diagnostics and Emma may not retrieve any diagnostics**.
 
 That is not contradictory. The token's scope is **only one check**:
 
@@ -704,7 +704,7 @@ A person signs in **once**, but each protected API expects a token intended for 
 
 **OBO is not a feature switched on for particular Entra ID groups.** Entra ID is the **token issuer**. Our **confidential AI backend**, through its configured **AgentCore Identity OAuth credential provider**, is the **requesting client**.
 
-1. **James signs in** to our AI chat application using Entra (authorization code with PKCE), and the browser receives **Token A**, intended for the AI Backend.
+1. **James signs in** to our Enterprise AI Application using Entra (authorization code with PKCE), and the browser receives **Token A**, intended for the AI Backend.
 2. The chat backend and AgentCore JWT ingress **validate Token A**. AgentCore G1 Cedar examines James's assigned AI app role when he requests the diagnostics tool.
 3. **AgentCore Identity's Microsoft Entra OBO provider** uses James's incoming Token A, the confidential backend's client ID and credential, and the configured delegated Network Operations API permission to request a new access token from **Entra's token endpoint**.
 4. Entra verifies the middle-tier identity, Token A audience and the relevant **delegated permission/consent**. If these conditions are not met, **no Token B is issued**.
