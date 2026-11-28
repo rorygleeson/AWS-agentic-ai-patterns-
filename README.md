@@ -59,7 +59,7 @@ We have **five human users and two service accounts (M2M)**. The cards below sho
 
 **Endpoint labels 01–04 refer to the four operations in the [Network Operations API diagram](#network-operations-api--four-endpoints) above:** 01 = asset status, 02 = diagnostics, 03 = create ticket, 04 = aggregate health summary. They are identifiers for the same endpoints, not extra APIs.
 
-![Seven colour-coded caller cards with human or service-account icons, role, systems, restrictions and numbered endpoint permissions](docs/diagrams/users-service-accounts-v2.svg)
+![Seven colour-coded caller cards with human or service-account icons, role, systems, restrictions and numbered endpoint permissions](docs/diagrams/users-service-accounts-v3.svg)
 
 A **service account** is an automated application or workload that operates **without a human signing in**. The AWS Service Account (using IAM Role) is a scheduled Lambda using an IAM role; the Entra Service Account is an Entra application/service principal. Both have access only to endpoint **04**. The architecture section explains how their authentication methods differ.
 
