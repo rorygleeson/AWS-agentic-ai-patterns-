@@ -114,7 +114,7 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 ## 3. How these requirements lead to authentication patterns
 
-The access rules above lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** One system can use more than one pattern: the **Network Operations API** uses OBO for Sarah, James and Emma, but **OAuth Client Credentials** for each independent automated application identity.
+The access rules discussed earlier lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** One system can use more than one pattern: the **Network Operations API** uses OBO for Sarah, James and Emma, but **OAuth Client Credentials** for each independent automated application identity.
 
 The examples below show why **the identity reaching the end system matters**.
 
