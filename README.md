@@ -135,8 +135,6 @@ Before following the examples, here are the main components:
 
 The AI journey is: **human or approved Entra automation → Runtime agent → G1 tool → downstream authorization**. The direct-tool journey is: **AWS Lambda → G2 tool → downstream authorization**, without an AI agent. The final API checks an appropriately authenticated downstream identity in either case.
 
-**Two different AWS services have “Gateway” in their names:** **Amazon API Gateway** protects our downstream REST APIs, including the Network Operations API and Platform Health API. **AgentCore Gateway** provides authenticated access to MCP tools. The Enterprise AI Application invokes **AgentCore Runtime**, not a custom application API Gateway.
-
 
 *Simplified platform view: the detailed diagrams below distinguish human AI requests, Entra automated AI requests, and direct AWS machine-to-machine tool calls.*
 
