@@ -112,6 +112,10 @@ A **service account** is an automated application or workload that operates **wi
 5. **Network Operations API:** G1 uses a further OBO exchange to obtain an API-audience token representing James. The API validates it, enforces his VIC-only permission and returns permitted diagnostics.
 6. **Response:** The agent explains the result in plain English, and the Enterprise AI Application displays it to James.
 
+![James's high-level flow through Entra ID, Runtime, two OAuth OBO exchanges, Gateway G1, Cedar and Network Operations API](docs/diagrams/james-high-level-obo-flow.svg)
+
+*Two OBO exchanges preserve James's identity while issuing a token for each receiving service. G1 authorizes the tool; the Network Operations API independently enforces his VIC-only access.*
+
 **Enterprise AI Application and Runtime:** People sign in to our **Enterprise AI Application**, ask questions and read answers. The application calls the managed **AgentCore Runtime API** using an Entra-issued access token; Runtime authenticates the request and runs our agent. Access to tools and downstream systems is authorized separately. The browser and token configuration is covered in the [authentication appendix](docs/enterprise-ai-application-authentication.md).
 
 **Where does AgentCore fit?** **Runtime** runs the AI agent; **Gateway** exposes approved tools that connect to the four downstream systems. Those tools use **MCP (Model Context Protocol)**, a standard way to discover and invoke tools—not an authentication method. AgentCore also offers **Memory** (to retain context) and **AWS Agent Registry** (to catalogue agents and tools).
