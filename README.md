@@ -150,7 +150,7 @@ The AI journey is: **human or approved Entra automation → Runtime agent → G1
 
 **Why two gateways?** An AgentCore Gateway has **one configured inbound authorization type**. It cannot accept both **Entra OAuth/JWT** and **AWS IAM/SigV4** as inbound authorization methods on the same gateway. Because this PoC demonstrates both, we use **two separate gateways**:
 
-- **G1 — JWT Gateway:** Accepts Entra-issued tokens specifically intended for G1, from the approved human OBO path or the **Entra Service Account** automation. Cedar restricts each verified principal's tools.
+- **G1 — JWT Gateway:** Accepts Entra-issued tokens specifically intended for G1, from the approved human OAuth 2.0 OBO path or the **Entra Service Account** automation. Cedar restricts each verified principal's tools.
 - **G2 — IAM Gateway:** Accepts AWS IAM-signed requests. Used by the **AWS Service Account (using IAM Role)**, such as the scheduled Lambda.
 
 Each gateway can expose approved tools for the downstream systems shown below. **Gateway access does not grant automatic access to a downstream API or operation.**
@@ -200,9 +200,9 @@ The **endpoint-access diagram** in Section 2 is the quick reference. Here is the
 
 **Why keep this as a separate pattern?** It is the baseline **shared knowledge-access pattern**: users must be authenticated to the application, but the downstream knowledge service authenticates the **agent's AWS identity** and returns shared material. This is **not a separate OAuth protocol**. It contrasts with later patterns where the end system must know the specific person, application or vendor account. RAG can reduce hallucinations by grounding an answer in approved material, but does not guarantee correctness.
 
-#### Pattern 2 — Human identity preserved with Entra OBO
+#### Pattern 2 — Human identity preserved with OAuth 2.0 OBO (Entra ID)
 
-*Implementation deep dive (planned): [Pattern 2 — human identity and OBO](#appendix-pattern-2-human-obo).*
+*Implementation deep dive (planned): [Pattern 2 — OAuth 2.0 OBO](#appendix-pattern-2-human-obo).*
 
 **Why does an enterprise need this?** A single network database contains records for multiple regions and sensitivity levels. Employees can use the same AI interface, but an engineer responsible for VIC must not obtain NSW diagnostic records, and a service-desk employee must not see sensitive diagnostics at all.
 
@@ -218,13 +218,13 @@ The **endpoint-access diagram** in Section 2 is the quick reference. Here is the
 - `GET /assets/{id}/diagnostics` — **read restricted information**. Sarah and James can call it, with their regional limits; Emma cannot.
 - `POST /tickets` — **make a change**. Only Sarah and James can create a ticket, for an allowed region. Emma cannot create tickets.
 
-All three use **human OBO**, not three new OAuth methods. The point of separate endpoints is to show that **one authenticated person does not automatically have permission for every operation**, and that a write can require tighter approval than a read.
+All three use **OAuth 2.0 OBO**, not three new OAuth methods. The point of separate endpoints is to show that **one authenticated person does not automatically have permission for every operation**, and that a write can require tighter approval than a read.
 
 #### Pattern 3 — Application-only (M2M) API access: AI and direct-tool invocation
 
 *Implementation deep dive (planned): [Pattern 3 — service accounts (M2M)](#appendix-pattern-3-service-accounts).*
 
-**Why does an enterprise need this?** Automated work has no signed-in person, so **human OAuth OBO does not apply**. We deliberately demonstrate two valid approaches to the **same** Network Operations API health-summary endpoint **04**:
+**Why does an enterprise need this?** Automated work has no signed-in person, so **OAuth 2.0 OBO does not apply**. We deliberately demonstrate two valid approaches to the **same** Network Operations API health-summary endpoint **04**:
 
 | Service account | What it does | AgentCore route | Final API permission |
 |---|---|---|---|
@@ -251,7 +251,7 @@ These are **three audience-specific tokens**, not three copies of the Network Op
 **Why does an enterprise need this?** An organisation may subscribe to a monitoring SaaS provider, while individual employees have separate accounts and alert permissions **at that vendor**. The AI assistant should be able to retrieve an employee's permitted alerts, just as other assistants connect to a separately authorized SaaS account. Corporate sign-in alone cannot make that vendor trust the request.
 
 - **What does the user want?** David asks our Enterprise AI Application to retrieve his alerts from **NetworkMonitor**, a simulated service owned by another company.
-- **Why isn't his corporate sign-in enough?** Entra authenticates David to **our** application, but it cannot independently grant access to his account and alerts in **NetworkMonitor's** identity system. An Entra OBO token for our Network Operations API is not a NetworkMonitor token.
+- **Why isn't his corporate sign-in enough?** Entra authenticates David to **our** application, but it cannot independently grant access to his account and alerts in **NetworkMonitor's** identity system. An OAuth 2.0 OBO token issued by Entra for our Network Operations API is not a NetworkMonitor token.
 - **What solves it?** After David is authorized to use the vendor tool, he separately completes **NetworkMonitor's OAuth 2.0 Authorization Code grant (with PKCE)**. AgentCore's vendor OAuth credential provider obtains and associates a vendor-issued token with the authenticated David, then uses it to call `GET /alerts`. NetworkMonitor validates that token and returns only data permitted to that vendor account.
 
 **Why a distinct pattern?** The vendor controls **its own accounts and authorization**. This is the same broad arrangement used when an enterprise AI assistant connects to an independently protected SaaS account. Our Cognito simulation supports the Authorization Code flow and custom API scopes, demonstrating the separate OAuth boundary. Cognito's managed login does not itself provide every vendor-style consent-screen experience.
@@ -503,7 +503,7 @@ A person signs in **once**, but each protected API expects a token intended for 
 
 1. **James signs in** to our Enterprise AI Application using Entra (authorization code with PKCE), and the browser receives **Token A**, intended for the AI Backend.
 2. The chat backend and AgentCore JWT ingress **validate Token A**. AgentCore G1 Cedar examines James's assigned AI app role when he requests the diagnostics tool.
-3. **AgentCore Identity's Microsoft Entra OBO provider** uses James's incoming Token A, the confidential backend's client ID and credential, and the configured delegated Network Operations API permission to request a new access token from **Entra's token endpoint**.
+3. **AgentCore Identity's Microsoft Entra OAuth 2.0 OBO provider** uses James's incoming Token A, the confidential backend's client ID and credential, and the configured delegated Network Operations API permission to request a new access token from **Entra's token endpoint**.
 4. Entra verifies the middle-tier identity, Token A audience and the relevant **delegated permission/consent**. If these conditions are not met, **no Token B is issued**.
 5. Entra issues **Token B** for the Network Operations API, **still identifying James** and containing the granted Network Operations API delegated scope.
 6. AgentCore's **OpenAPI target** calls the Network REST endpoint with **Token B**; the Network Operations API validates it and enforces James's business rights.
@@ -773,7 +773,7 @@ Planned detail: Bedrock Knowledge Bases configuration, the agent's IAM service r
 
 <a id="appendix-pattern-2-human-obo"></a>
 
-### Pattern 2 — Human identity and Entra OBO: implementation deep dive
+### Pattern 2 — Human identity and OAuth 2.0 OBO (Entra ID): implementation deep dive
 
 *Placeholder — not yet written or integration-tested.*
 
