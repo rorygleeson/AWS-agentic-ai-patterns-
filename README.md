@@ -117,8 +117,8 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 The access rules discussed earlier lead to different technical patterns. **A use case is what someone wants to do; an authentication pattern is how the system grants and checks access.** These patterns are **not all OAuth**:
 
 - **Human users → Network Operations API:** Sarah, James and Emma use **OAuth 2.0 On-Behalf-Of (OBO)** to obtain an API token representing the signed-in person.
-- **Entra Service Account → Network Operations API:** Uses **OAuth 2.0 Client Credentials** for application-only access, including authentication to G1.
-- **AWS Service Account (using IAM Role) → Network Operations API:** Uses **AWS IAM/SigV4 to authenticate to G2**, without OAuth at that gateway. Its Lambda then obtains a **separate Entra OAuth 2.0 Client Credentials token** to call the Network Operations API, because that downstream API requires OAuth. The IAM role itself is not an OAuth token.
+- **Entra Service Account → Network Operations API:** Uses **OAuth 2.0 Client Credentials grant** for application-only access, including authentication to G1.
+- **AWS Service Account (using IAM Role) → Network Operations API:** Uses **AWS IAM/SigV4 to authenticate to G2**, without OAuth at that gateway. Its Lambda then obtains a **separate Entra OAuth 2.0 Client Credentials access token** to call the Network Operations API, because that downstream API requires OAuth. The IAM role itself is not an OAuth token.
 - **Platform Health API — AWS IAM, not OAuth:** An approved request is **signed with AWS Signature Version 4 (SigV4)** using an IAM role, and API Gateway checks the IAM permission. No OAuth access token is needed for this API.
 
 ### Design decision: Why the AWS workload uses IAM and OAuth
@@ -126,7 +126,7 @@ The access rules discussed earlier lead to different technical patterns. **A use
 **This extra step is intentional, not a Lambda limitation.** Lambda can obtain and use an Entra OAuth token directly. We have chosen a different route to demonstrate a realistic integration between two enterprise identity systems:
 
 1. **AWS workload → G2 (IAM):** The scheduled Lambda already has temporary AWS IAM credentials. It uses SigV4 to authenticate to the IAM-protected AgentCore Gateway G2.
-2. **Integration → Network Operations API (OAuth):** The Network Operations API accepts **Entra OAuth tokens only**. An IAM signature cannot authenticate to it, so the integration obtains a separate **application-only Entra access token** using OAuth Client Credentials.
+2. **Integration → Network Operations API (OAuth):** The Network Operations API accepts **Entra OAuth tokens only**. An IAM signature cannot authenticate to it, so the integration obtains a separate **application-only Entra access token** using the OAuth 2.0 Client Credentials grant.
 3. **Why retain both:** We want to demonstrate IAM-based gateway access **without modifying the API's established Entra security model** for one AWS caller. The gateway and API enforce separate permissions.
 
 **The simpler alternative:** Configure Lambda to obtain an Entra token and use **G1 directly**. That is valid and may be preferable for a workload that only needs Entra-protected resources. We deliberately retain **G2** in this PoC to teach IAM-based gateway authentication and cross-identity integration—not because IAM-to-OAuth is always better.
@@ -135,10 +135,10 @@ The access rules discussed earlier lead to different technical patterns. **A use
 
 ### Authentication terms in plain English
 
-- **OAuth OBO (On-Behalf-Of):** The backend obtains a new API-specific token **representing the signed-in user**.
-- **OAuth Client Credentials:** An **application** gets a token for itself, without a human.
-- **OAuth Authorization Code:** A **person authorizes an application** to access an account, such as an external vendor account.
-- **AWS IAM:** An **AWS role** authenticates a request to an AWS-protected service.
+- **OAuth 2.0 On-Behalf-Of (OBO) flow:** The backend obtains a new API-specific token **representing the signed-in user**.
+- **OAuth 2.0 Client Credentials grant:** An **application** gets a token for itself, without a human.
+- **OAuth 2.0 Authorization Code grant (with PKCE):** A person signs in with an authorization provider. The application receives a short-lived authorization code, then exchanges it for an access token. PKCE protects this exchange.
+- **AWS IAM/SigV4 authentication:** An AWS role supplies temporary credentials used to sign a request to an IAM-protected service.
 
 ### AgentCore components in everyday language
 
@@ -196,19 +196,19 @@ An application identity cannot replace an individual user. Some systems need to 
   - **What the downstream system knows:** The AWS service identity, not individual document permissions.
 
 - **Network Operations API:** Sarah, James and Emma have different region and action permissions. The API **must know which person** called.
-  - **Authentication approach:** **OAuth On-Behalf-Of (OBO)** with Microsoft Entra ID.
+  - **Authentication approach:** **OAuth 2.0 On-Behalf-Of (OBO) flow** with Microsoft Entra ID.
   - **What the downstream system knows:** The human caller. The API enforces permissions and sensitive fields; PostgreSQL RLS restricts database rows.
 
 - **AWS Service Account (using IAM Role):** Lambda/Runtime enters G2 via IAM/SigV4, without a human.
-  - **Authentication approach:** **IAM inbound → Entra Client Credentials outbound** to Network Operations API.
+  - **Authentication approach:** **IAM inbound → OAuth 2.0 Client Credentials outbound** to Network Operations API.
   - **What the downstream system knows:** The AWS Service Account (using IAM Role)'s Entra app identity, health-summary endpoint only.
 
 - **Entra Service Account:** Another application enters G1 with a JWT, without a human.
-  - **Authentication approach:** **Entra Client Credentials JWT inbound → new Entra Client Credentials token outbound** to Network Operations API.
+  - **Authentication approach:** **Entra OAuth 2.0 Client Credentials JWT inbound → new API-specific OAuth access token outbound** to Network Operations API.
   - **What the downstream system knows:** The separate Entra Service Account Entra app identity, health-summary endpoint only.
 
 - **Third-party service:** David's vendor account belongs to **another company**. Our Entra login cannot authorize access to that account.
-  - **Authentication approach:** **OAuth Authorization Code** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor OAuth sign-in/authorization, and the resulting vendor credential is bound to his authenticated session.
+  - **Authentication approach:** **OAuth 2.0 Authorization Code grant (with PKCE)** with the vendor's OAuth provider (simulated using Cognito). David completes a separate vendor OAuth sign-in/authorization, and the resulting vendor credential is bound to his authenticated session.
   - **What the downstream system knows:** Which vendor user authorized our application and what alerts they can access.
 
 - **Platform Health:** The downstream API accepts **AWS IAM-signed requests**, not a human's OAuth token. Oliver must be checked **before** Gateway calls it.
@@ -270,7 +270,7 @@ All three use **human OBO**, not three new OAuth methods. The point of separate 
 
 - **What does the user want?** David asks our AI chat application to retrieve his alerts from **NetworkMonitor**, a simulated service owned by another company.
 - **Why isn't his corporate sign-in enough?** Entra authenticates David to **our** application, but it cannot independently grant access to his account and alerts in **NetworkMonitor's** identity system. An Entra OBO token for our Network Operations API is not a NetworkMonitor token.
-- **What solves it?** After David is authorized to use the vendor tool, he separately completes **NetworkMonitor's OAuth Authorization Code flow**. AgentCore's vendor OAuth credential provider obtains and associates a vendor-issued token with the authenticated David, then uses it to call `GET /alerts`. NetworkMonitor validates that token and returns only data permitted to that vendor account.
+- **What solves it?** After David is authorized to use the vendor tool, he separately completes **NetworkMonitor's OAuth 2.0 Authorization Code grant (with PKCE)**. AgentCore's vendor OAuth credential provider obtains and associates a vendor-issued token with the authenticated David, then uses it to call `GET /alerts`. NetworkMonitor validates that token and returns only data permitted to that vendor account.
 
 **Why a distinct pattern?** The vendor controls **its own accounts and authorization**. This is the same broad arrangement used when an enterprise AI assistant connects to an independently protected SaaS account. Our Cognito simulation supports the Authorization Code flow and custom API scopes, demonstrating the separate OAuth boundary. Cognito's managed login does not itself provide every vendor-style consent-screen experience.
 
@@ -426,7 +426,7 @@ We also agreed on two separate AgentCore entry paths. **G1 is not a public alter
 
 **Why is G2 necessary in *our chosen design*?** The AWS Service Account (using IAM Role) is a scheduled AWS workload. Its Lambda and AgentCore Runtime use **AWS IAM roles**, and we deliberately want the AWS Service Account (using IAM Role) to authenticate **into AgentCore Gateway using IAM/SigV4**—without pretending to be a human or obtaining an Entra JWT just to enter Gateway. G1 accepts **Entra OAuth JWTs**, from authorized humans and the separately registered Entra Service Account. AgentCore Gateway has **one inbound authorizer type per Gateway**; therefore **these two chosen inbound methods cannot share a single Gateway**. G2 is required *because we chose IAM inbound for this AWS workload*, not because all service accounts require their own Gateway.
 
-**The useful cross-boundary lesson:** AWS Service Account (using IAM Role)'s Lambda / Runtime M → **G2 (IAM/SigV4 inbound)** → a restricted health-summary OpenAPI target → **Network Operations API (Entra OAuth Client Credentials outbound)** → RDS. The final Network Operations API does not accept the AWS Service Account (using IAM Role)'s AWS role as an OAuth token. G2 uses the AWS Service Account (using IAM Role)'s Entra application identity to obtain a separate Network Operations API token; the API authorizes **health summary only**.
+**The useful cross-boundary lesson:** AWS Service Account (using IAM Role)'s Lambda / Runtime M → **G2 (IAM/SigV4 inbound)** → a restricted health-summary OpenAPI target → **Network Operations API (Entra OAuth 2.0 Client Credentials outbound)** → RDS. The final Network Operations API does not accept the AWS Service Account (using IAM Role)'s AWS role as an OAuth token. G2 uses the AWS Service Account (using IAM Role)'s Entra application identity to obtain a separate Network Operations API token; the API authorizes **health summary only**.
 
 #### Exactly what we configure in AWS and Entra
 
@@ -488,7 +488,7 @@ We also agreed on two separate AgentCore entry paths. **G1 is not a public alter
 
 **AWS references:** [AgentCore Gateway outbound authentication](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html), [OAuth credential providers and Secrets Manager references](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/resource-providers.html), and [AgentCore Identity token-vault encryption](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-data-encryption.html).
 
-**Could we remove G2? Yes, but it would change what we demonstrate.** We could configure the AWS Service Account (using IAM Role) to obtain an **Entra Client Credentials JWT for G1** and use one JWT-inbound Gateway. We explicitly retain G2 to teach **AWS IAM inbound → enterprise OAuth outbound**. It is **not** needed just because downstream APIs use different authentication: **one AgentCore Gateway can contain multiple targets, each with its own outbound authentication**.
+**Could we remove G2? Yes, but it would change what we demonstrate.** We could configure the AWS Service Account (using IAM Role) to obtain an **Entra OAuth 2.0 Client Credentials access token for G1** and use one JWT-inbound Gateway. We explicitly retain G2 to teach **AWS IAM inbound → enterprise OAuth outbound**. It is **not** needed just because downstream APIs use different authentication: **one AgentCore Gateway can contain multiple targets, each with its own outbound authentication**.
 
 ### Two ways to connect REST APIs to AgentCore tools
 
