@@ -1,6 +1,6 @@
 # Architecture patterns catalogue
 
-> Design baseline, not implementation evidence. These are reusable **technical patterns**, distinct from user stories. A single user journey composes several patterns.
+> Design baseline, not implementation evidence. The README presents **five downstream access patterns** and **three invocation paths**. This catalogue separately indexes **14 reusable technical building blocks (P01–P14)**, which can be combined in those paths. They are not 14 additional downstream systems or authentication protocols.
 
 ## Pattern map
 
@@ -14,16 +14,16 @@
 | P06 | Native API Gateway REST stage MCP target | Gateway IAM/SigV4 identity downstream | Oliver |
 | P07 | OpenAPI-defined REST MCP target | OAuth token downstream | Network API (including ticket operations) |
 | P08 | JWT-inbound Gateway with Cedar | Human **or machine** JWT claims, distinct allow-lists | G1 |
-| P09 | IAM-inbound Gateway with Cedar | Runtime M IAM role | G2 |
+| P09 | IAM-inbound Gateway with Cedar | Scheduled Lambda IAM execution role | G2 |
 | P10 | Downstream API authorization and PostgreSQL RLS | Validated Entra human/app claims | Network API |
 | P11 | Shared managed knowledge retrieval | Gateway/connector service identity | All human users |
-| P12 | Secured, separate AgentCore Runtime ingress | JWT on U; IAM on M | Chat and reporter |
+| P12 | Secured AgentCore Runtime ingress for AI callers | JWT-protected Runtime for humans and Entra automation | AI requests only |
 | P13 | Confirmed, idempotent writes | Delegated user identity | Ticket creation |
 | P14 | Correlated audit and least privilege | Actor and execution identity both logged | All journeys |
 
 ## P01 — Corporate SSO and JWT
 
-**Situation:** A human opens the fictional Network Operations AI web app.
+**Situation:** A human opens our Enterprise AI Application.
 
 **Flow:** Browser signs in with Entra ID using authorization code + PKCE. The registered web client requests the AI backend's delegated `chat.invoke` scope. The browser submits a chat request and access token to AWS API Gateway. API Gateway validates issuer, signature, audience, expiry and configured authorization constraints. Authentication does not itself authorize all MCP tools.
 
@@ -33,11 +33,11 @@
 
 **Situation:** Preserve James's user identity while keeping Lambda for real functions.
 
-**Flow:** API Gateway → private Lambda → AgentCore Runtime U over PrivateLink. Lambda validates request shape and session association, produces correlation/audit records, and forwards the original permitted Entra JWT in an authorization header. AgentCore validates it independently. Lambda's IAM execution role grants invocation rights but **must not replace the user principal as the authorization basis**.
+**Flow:** API Gateway → private Lambda → AgentCore AgentCore Runtime over PrivateLink. Lambda validates request shape and session association, produces correlation/audit records, and forwards the original permitted Entra JWT in an authorization header. AgentCore validates it independently. Lambda's IAM execution role grants invocation rights but **must not replace the user principal as the authorization basis**.
 
 **Benefit:** Central ingress checks, audit, rate/size handling, session correlation and a VPC boundary. **Not** an excuse to trust `user=James` in JSON.
 
-**Enforcement:** Runtime U is JWT-only and a resource policy restricts eligible ingress; IAM-only invocation cannot be an alternate route for human tools.
+**Enforcement:** AgentCore Runtime is JWT-only and a resource policy restricts eligible ingress; IAM-only invocation cannot be an alternate route for human tools.
 
 ## P03 — Entra delegated OBO
 
@@ -58,13 +58,13 @@ Ticket creation uses the **same Network API audience** but requires the delegate
 
 **Situation:** A scheduled AWS Service Account needs national aggregate health, but no employee is present.
 
-`EventBridge Scheduler → Reporter Lambda (IAM) → Runtime M (IAM) → G2 (IAM) → OpenAPI target → Entra client-credentials OAuth → Network API → aggregate RDS`
+`EventBridge Scheduler → Reporter Lambda (IAM role) → G2 (IAM/SigV4) → OpenAPI target → Entra OAuth 2.0 Client Credentials → Network Operations API → health summary`
 
 Entra issues an **app-only** Network API access token. The service's `roles` claim, e.g. `HealthSummary.Read`, is distinct from a person's delegated `scp` claim. API checks app identity/assignment and offers only aggregate data. No OBO, no fabricated employee `oid`, no user claim.
 
-**Important distinction:** G2's IAM caller is **Runtime M execution role**, because it is the runtime—not the upstream Reporter Lambda—calling the Gateway.
+**Important distinction:** G2's IAM caller is the **scheduled Lambda execution role**, because Lambda invokes the known MCP tool directly. There is no second Runtime and no AI prompt for this path.
 
-**Second, independent non-human caller — Entra Service Account:** Unlike the AWS Service Account, this separate registered Entra application is assigned the **AI Backend API application role `Automation.Summary.Invoke`** (allowed member type: Applications; admin-consented). It obtains an **AI-backend-audience application JWT** via Client Credentials with that permission in `roles` (not human `scp`) and enters **Runtime U → G1** with that JWT. Runtime U/G1 validate the AI Backend audience and approved client; G1 Cedar checks both **`Automation.Summary.Invoke` and the exact application identity** before permitting only the **health-summary tool** on a separate OpenAPI target. That target obtains a **new, Network API-audience Client Credentials token** for the *same* Entra Service Account app, which holds `HealthSummary.Read`. Neither JWT is a human token, and the AI-backend JWT cannot be substituted for the Network API token. The two machines use the **same downstream summary REST endpoint**, but G1 and G2 demonstrate **different inbound authentication**. No additional end system or endpoint.
+**Second, independent non-human caller — Entra Service Account:** Unlike the AWS Service Account, this separate registered Entra application enters **JWT-protected AgentCore Runtime** with an **AI Backend-audience Client Credentials JWT** carrying `Automation.Runtime.Invoke` and an analysis prompt. The agent explicitly obtains a **separate JWT for the `enterprise-agentcore-g1` audience**, carrying that resource's Applications-only app role `Automation.Summary.Invoke` (admin-consented). G1 Cedar verifies the approved automation application ID and this G1-scoped role before permitting only the **health-summary tool** on a separate OpenAPI target. That target obtains a **new, Network API-audience Client Credentials token** for the *same* Entra Service Account app, which holds `HealthSummary.Read`. None of the three audience-specific JWTs is a human token; the Runtime JWT cannot be substituted at G1 or the Network Operations API. The two machines use the **same downstream summary REST endpoint**, but G1 and G2 demonstrate **different inbound authentication**. No additional end system or endpoint.
 
 ## P05 — Independent vendor 3LO
 
@@ -95,13 +95,13 @@ The native stage target's supported outbound modes do **not** include OAuth. An 
 Each AgentCore Gateway selects **one** inbound `authorizerType` at creation, so do not assume mixed JWT and IAM on one Gateway.
 
 - **G1 Entra JWT:** `CUSTOM_JWT`; accepts validated **human or Entra Service Account application JWTs**. Cedar distinguishes their identities: humans receive assigned tools; the app can access only its **dedicated summary tool**.
-- **G2 IAM AWS Service Account:** `AWS_IAM`; accepts Runtime M role; Cedar restricts to `get_network_health_summary`. Exposes *no* duplicated human tools.
+- **G2 IAM AWS Service Account:** `AWS_IAM`; accepts the approved scheduled Lambda execution role directly; Cedar restricts to `get_network_health_summary`. Exposes *no* duplicated human tools.
 
 Outbound credential providers are configured **per target**, independently of the inbound Gateway choice. This is why G1 can have RAG IAM, OpenAPI OBO, vendor 3LO, and native stage IAM targets together.
 
 **Cedar is not copied blindly:** define common principles/templates once, but apply distinct policy sets to distinct principal types and tool inventories.
 
-**One JWT boundary, two caller types:** G1 serves delegated human JWTs and the approved Entra Service Account app-only JWT. Do not require human `chat.invoke` as a gateway-wide JWT `allowedScopes` rule, because an app-only token has an application `roles` claim rather than a human `scp` claim. Constrain issuer/audience at Runtime U and G1, and the trusted Runtime ingress to approved paths. For **Entra v2** tokens, the client ID is **`azp`**, whereas AgentCore's `allowedClients` expects **`client_id`**, so do not configure an apparent Entra client allow-list using that unsupported claim mapping. **G1 Cedar** checks exact `azp` IDs and the required verified human role or automation application role; the Chat API checks human `chat.invoke` before Runtime ingress. Assign the automation app the backend role explicitly and deny role-less app-only tokens. The downstream Network API independently checks `HealthSummary.Read` on its own audience token. See [AWS inbound JWT configuration](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html) and [Microsoft app-only permission enforcement](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow).
+**One JWT inbound type, two explicitly approved audiences at G1:** G1 serves human AI Backend-audience Token A and the approved Entra Service Account's **separately issued G1-audience** app-only token. A JWT inbound type does **not** require every caller to share one resource audience. The automation Runtime JWT is not passed unchanged to G1. Do not require human `chat.invoke` as a gateway-wide `allowedScopes` rule, because the app-only G1 token has an application `roles` claim rather than human `scp`. Constrain issuer and each permitted audience at Runtime/G1, and trusted Runtime ingress to approved paths. For **Entra v2** tokens, the client ID is **`azp`**, whereas AgentCore's `allowedClients` expects **`client_id`**, so do not configure an apparent Entra client allow-list using that unsupported claim mapping. **G1 Cedar** checks exact `azp` IDs and the required verified human role or automation application role; the Chat API checks human `chat.invoke` before Runtime ingress. Assign the automation `Automation.Runtime.Invoke` on the backend resource and `Automation.Summary.Invoke` on the G1 resource; deny unapproved or role-less app-only tokens. The downstream Network API independently checks `HealthSummary.Read` on its own audience token. See [AWS inbound JWT configuration](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html) and [Microsoft app-only permission enforcement](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow).
 
 ## P10 — API enforcement and RDS row-level security
 
@@ -120,9 +120,9 @@ Do not mistake OAuth itself for SQL RLS: the API bridges validated OAuth identit
 
 Every human may search the same non-sensitive reference corpus (S3-managed knowledge content indexed into Bedrock Knowledge Bases/S3 Vectors as chosen). G1's managed Knowledge Base target retrieves under its configured AWS service permissions. The tool returns cited passages, never database entitlements. No per-user document filtering is claimed or required in this PoC.
 
-## P12 — Runtime ingress as a security boundary
+## P12 — AI Runtime ingress as a security boundary
 
-Runtime U (Entra JWT-only, accepting humans and the approved Entra Service Account app) is separate from Runtime M (AWS Service Account IAM-only). Lambda and scheduler clients reach their respective runtime; a narrow resource policy and private path guard access. **G1 must also be restricted to Runtime U's approved Gateway PrivateLink endpoint** using a resource/organization policy with `aws:SourceVpce`; JWT validity and Cedar permissions by themselves do not guarantee the approved chat path was followed. Distinguish AWS **invocation permission** from the application **end-user authentication and authorization** context.
+The **AgentCore Runtime** is JWT-protected for two AI invocation paths: the Enterprise AI Application's human requests and the approved Entra Service Account's automated AI analysis. The scheduled AWS Service Account Lambda instead signs a **direct G2 MCP tool call using IAM/SigV4**. Runtime ingress has its own narrow resource policy and private path; G2 independently allows only the scheduled Lambda role. **G1 must also be restricted to AgentCore Runtime's approved Gateway PrivateLink endpoint** using a resource/organization policy with `aws:SourceVpce`; JWT validity and Cedar permissions by themselves do not guarantee the approved chat path was followed. Distinguish AWS **invocation permission** from the application **end-user authentication and authorization** context.
 
 ## P13 — Safe ticket write
 
@@ -130,7 +130,7 @@ Runtime U (Entra JWT-only, accepting humans and the approved Entra Service Accou
 
 ## P14 — End-to-end audit
 
-Link ingress request ID → Runtime session → Gateway tool invocation → API request → RDS transaction, without logging bearer tokens or secrets. Log authenticated `tid/oid` or service app ID, Gateway execution principal, decision, target, outcome, latency, region and ticket ID. An IAM role's presence alone must never be presented as proof that James was authorized.
+For AI invocation, link ingress request ID → Runtime session → Gateway tool invocation → API request → RDS transaction. For direct AWS M2M, link the Lambda invocation and G2 tool call directly; do not invent a Runtime session. Never log bearer tokens or secrets. Log authenticated `tid/oid` or service app ID, Gateway execution principal, decision, target, outcome, latency, region and ticket ID. An IAM role's presence alone must never be presented as proof that James was authorized.
 
 ## Q&A
 
