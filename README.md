@@ -189,6 +189,8 @@ The **endpoint-access diagram** in Section 2 is the quick reference. Here is the
 
 #### Pattern 1 — Shared Knowledge (RAG)
 
+*Implementation deep dive (planned): [Pattern 1 — shared knowledge (RAG)](#appendix-pattern-1-shared-rag).*
+
 **Why does an enterprise need this?** Imagine an operations organisation with hundreds of approved troubleshooting guides, network procedures and internal FAQs. Engineers and service-desk staff repeatedly ask the same questions. Instead of relying only on the language model's general training, our Enterprise AI Application searches this **shared RAG knowledge base** and uses relevant passages to ground its answers.
 
 - **What does the user want?** Any of our five human users signs in to our Enterprise AI Application and asks a question such as “What is the approved process for investigating a network outage?” The agent searches the same approved documents for everyone.
@@ -199,6 +201,8 @@ The **endpoint-access diagram** in Section 2 is the quick reference. Here is the
 **Why keep this as a separate pattern?** It is the baseline **shared knowledge-access pattern**: users must be authenticated to the application, but the downstream knowledge service authenticates the **agent's AWS identity** and returns shared material. This is **not a separate OAuth protocol**. It contrasts with later patterns where the end system must know the specific person, application or vendor account. RAG can reduce hallucinations by grounding an answer in approved material, but does not guarantee correctness.
 
 #### Pattern 2 — Human identity preserved with Entra OBO
+
+*Implementation deep dive (planned): [Pattern 2 — human identity and OBO](#appendix-pattern-2-human-obo).*
 
 **Why does an enterprise need this?** A single network database contains records for multiple regions and sensitivity levels. Employees can use the same AI interface, but an engineer responsible for VIC must not obtain NSW diagnostic records, and a service-desk employee must not see sensitive diagnostics at all.
 
@@ -217,6 +221,8 @@ The **endpoint-access diagram** in Section 2 is the quick reference. Here is the
 All three use **human OBO**, not three new OAuth methods. The point of separate endpoints is to show that **one authenticated person does not automatically have permission for every operation**, and that a write can require tighter approval than a read.
 
 #### Pattern 3 — Application-only (M2M) API access: AI and direct-tool invocation
+
+*Implementation deep dive (planned): [Pattern 3 — service accounts (M2M)](#appendix-pattern-3-service-accounts).*
 
 **Why does an enterprise need this?** Automated work has no signed-in person, so **human OAuth OBO does not apply**. We deliberately demonstrate two valid approaches to the **same** Network Operations API health-summary endpoint **04**:
 
@@ -240,6 +246,8 @@ These are **three audience-specific tokens**, not three copies of the Network Op
 
 #### Pattern 4 — Independent authorization at an external vendor
 
+*Implementation deep dive (planned): [Pattern 4 — external vendor OAuth](#appendix-pattern-4-vendor-oauth).*
+
 **Why does an enterprise need this?** An organisation may subscribe to a monitoring SaaS provider, while individual employees have separate accounts and alert permissions **at that vendor**. The AI assistant should be able to retrieve an employee's permitted alerts, just as other assistants connect to a separately authorized SaaS account. Corporate sign-in alone cannot make that vendor trust the request.
 
 - **What does the user want?** David asks our Enterprise AI Application to retrieve his alerts from **NetworkMonitor**, a simulated service owned by another company.
@@ -249,6 +257,8 @@ These are **three audience-specific tokens**, not three copies of the Network Op
 **Why a distinct pattern?** The vendor controls **its own accounts and authorization**. This is the same broad arrangement used when an enterprise AI assistant connects to an independently protected SaaS account. Our Cognito simulation supports the Authorization Code flow and custom API scopes, demonstrating the separate OAuth boundary. Cognito's managed login does not itself provide every vendor-style consent-screen experience.
 
 #### Pattern 5 — Reusing an existing IAM-protected enterprise API
+
+*Implementation deep dive (planned): [Pattern 5 — IAM-protected API](#appendix-pattern-5-iam-api).*
 
 **Why does this API use IAM in the first place?** Imagine the Platform Health API was built years ago for internal AWS workloads. A Lambda function checks platform health by calling an AWS API Gateway REST endpoint using its IAM execution role. That is a normal AWS service-to-service design: the API trusts approved **AWS roles**, not interactive employees. It has no reason to integrate with Entra just to serve those existing workloads. API Gateway can support other authentication methods; **IAM is a deliberate choice for this example**, not a limitation of REST.
 
@@ -748,6 +758,50 @@ The native API Gateway stage target **cannot perform step 2 using OAuth outbound
 
 These are our **core integration/authentication patterns**. Detailed session handling, Cedar policies, database controls, logging and implementation decisions belong in the supporting architecture documents—not in the introductory access tables.
 
+
+## Appendix: Pattern implementation deep dives (placeholders)
+
+The main README explains **why** each pattern exists, who uses it and how authorization works at a high level. The five sections below reserve space for **implementation-level** detail. They are **placeholders, not deployment instructions**. We may move each into its own linked Markdown page later; until then, the links from the main patterns land here.
+
+<a id="appendix-pattern-1-shared-rag"></a>
+
+### Pattern 1 — Shared knowledge (RAG): implementation deep dive
+
+*Placeholder — not yet written.*
+
+Planned detail: Bedrock Knowledge Bases configuration, the agent's IAM service role, retrieval tool wiring and why all authenticated human users share the same approved documents.
+
+<a id="appendix-pattern-2-human-obo"></a>
+
+### Pattern 2 — Human identity and Entra OBO: implementation deep dive
+
+*Placeholder — not yet written or integration-tested.*
+
+Planned detail: frontend Entra sign-in, direct Runtime JWT invocation, confidential AgentCore Identity credential providers, Runtime → G1 → Network Operations API audience-specific OBO exchanges, delegated scopes and negative authorization tests.
+
+<a id="appendix-pattern-3-service-accounts"></a>
+
+### Pattern 3 — Service accounts (M2M): implementation deep dive
+
+*Placeholder — not yet written or integration-tested.*
+
+Planned detail: **Entra Service Account → Runtime → G1** for automated AI analysis; **AWS Service Account (using IAM Role) → G2 directly** for scheduled tool invocation; OAuth Client Credentials to the Network Operations API; distinct workload identities and endpoint 04 enforcement.
+
+<a id="appendix-pattern-4-vendor-oauth"></a>
+
+### Pattern 4 — External NetworkMonitor OAuth: implementation deep dive
+
+*Placeholder — not yet written.*
+
+Planned detail: the vendor's separate authorization server, OAuth 2.0 Authorization Code with PKCE, secure credential storage and user-to-vendor-account binding, token renewal and denial tests.
+
+<a id="appendix-pattern-5-iam-api"></a>
+
+### Pattern 5 — IAM-protected Platform Health API: implementation deep dive
+
+*Placeholder — not yet written.*
+
+Planned detail: AgentCore G1 Cedar tool policy for Oliver, the Gateway's IAM role, SigV4 signing, API Gateway REST-stage integration and tests demonstrating that other human users cannot invoke this tool.
 
 ## Appendix: AgentCore components in context
 
