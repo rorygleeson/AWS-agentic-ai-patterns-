@@ -121,6 +121,10 @@ The access rules discussed earlier lead to different technical patterns. **A use
 - **AWS Service Account (using IAM Role) → Network Operations API:** Uses **AWS IAM/SigV4 to authenticate to G2**, without OAuth at that gateway. Its Lambda then obtains a **separate Entra OAuth 2.0 Client Credentials token** to call the Network Operations API, because that downstream API requires OAuth. The IAM role itself is not an OAuth token.
 - **Platform Health API — AWS IAM, not OAuth:** An approved request is **signed with AWS Signature Version 4 (SigV4)** using an IAM role, and API Gateway checks the IAM permission. No OAuth access token is needed for this API.
 
+**Why does the AWS workload need a second token?** G2 trusts the Lambda's **AWS IAM role**, but the Network Operations API trusts **Entra-issued OAuth tokens**. They are separate security boundaries: passing G2 does not grant access to the API. The integration therefore obtains an application-only Entra token before calling that API.
+
+**Why keep this extra step?** In a real enterprise where the Network Operations API already standardises on Entra OAuth, retaining its existing authentication, application permissions and audit model is generally preferable to adding a special IAM authentication path solely for one AWS caller. Production implementations should manage the OAuth credential securely (ideally using federation or a managed credential provider). This is a **context-dependent preference**, not a rule: an API designed for AWS IAM can and should use IAM directly without OAuth.
+
 The authentication method at an **AgentCore Gateway** and the method used to call a **downstream API** are separate decisions. The examples below show why **the identity reaching the final system matters**.
 
 ### Authentication terms in plain English
