@@ -159,6 +159,8 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 
 ### Architecture Q&A — Why two OBO exchanges?
 
+**First, is the MCP tool the same as the API?** The tool (for example, `get_diagnostics`) is a Gateway-exposed operation mapped to the existing REST endpoint (`GET /assets/{id}/diagnostics`). **It is not a second backend API.** Nevertheless, invoking the tool at **G1** and calling the **Network Operations API** are two independently authenticated requests, with different authorization responsibilities.
+
 **Q: Why are there two OAuth 2.0 On-Behalf-Of (OBO) exchanges?**  
 **A:** Our design crosses three independently protected resources: **AgentCore Runtime → G1 → Network Operations API**. James first has a token intended for Runtime. AgentCore Identity obtains a **G1-audience** token for the agent's tool call; then G1 obtains a **Network Operations API-audience** token for the final API call. G1 checks tool authorization using Cedar, and the API independently enforces James's regional and endpoint permissions. James still **signs in only once**.
 
@@ -178,6 +180,12 @@ Each gateway can expose approved tools for the downstream systems shown below. *
 Source: [AWS AgentCore Gateway — outbound authorization support by target type](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html).
 
 If we use **only Runtime → G1 OBO**, G1 would need to forward its token to the API rather than exchange it; that shortcut is not supported by our target type and would blur resource audiences. If we use **only Runtime → API OBO**, we must change or bypass the separately authenticated **G1/Cedar** boundary. **One OBO is possible in other architectures, but it does not preserve all the requirements of this one.**
+
+**Q: Couldn't Cedar replace the second OBO exchange?**  
+**A: Cedar can authorize a tool call, but it cannot replace a delegated OAuth token.** A simpler alternative would let G1 verify James with Cedar and call the Network Operations API using **application-only credentials**. That API would then authenticate the application, **not James**. It could no longer enforce James's VIC-only entitlement from a verified delegated identity unless we built another trusted user-context propagation and authorization mechanism. That is a valid architecture for some use cases—similar to our Platform Health pattern—but **not our requirement for user-specific Network Operations API and PostgreSQL row-level restrictions**.
+
+**Q: What tradeoff are we accepting?**  
+**A:** We acknowledge that **one exchange or application-only access could be simpler**. We intentionally accept the extra Entra client and token-exchange configuration so **Cedar can restrict tool use at G1 while the final API still knows which human is calling and independently enforces that person's data permissions**. We are not adding a second OBO just because an MCP tool has its own name.
 
 **Q: Is the extra complexity justified by AWS and Microsoft guidance?**  
 **A:** **For our chosen trust boundaries, yes—although neither vendor prescribes exactly two OBO exchanges.** We trade additional token-exchange configuration for distinct resource audiences and independent authorization at G1 and the API. [AWS recommends OBO instead of token passthrough for production Gateway integrations](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-inbound-auth.html). [Microsoft Entra requires each OBO assertion to be intended for the confidential client redeeming it](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow), and [AgentCore Identity documents Microsoft-specific OBO support](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/on-behalf-of-token-exchange.html). Our design follows those documented principles; the precise Entra client registrations, delegated permissions and audience mappings will be specified in the technical appendix.
