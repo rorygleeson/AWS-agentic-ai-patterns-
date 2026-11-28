@@ -102,9 +102,9 @@ A **service account (M2M)** acts without a signed-in human. Automated applicatio
 
 [Pattern 4 deep dive (planned): flow and implementation](docs/access-patterns/pattern-4-vendor-oauth.md).
 
-### Pattern 5 — Existing IAM-protected Platform Health API
+### Pattern 5 — Service Account using AWS IAM Role (SigV4)
 
-**Example:** Oliver asks, “Is our platform healthy?” **Cedar at G1** confirms he may invoke the Platform Health tool, then Gateway signs the request to the **Platform Health API** with its AWS IAM role. The API authenticates that role, **not Oliver's Entra identity**.
+**Example:** Oliver asks, “Is our platform healthy?” **Cedar at G1** confirms he may invoke the Platform Health tool. Gateway then calls the **Platform Health API** using its **service identity (AWS IAM role)** and a **SigV4-signed request**. The API authenticates the IAM role, **not Oliver's Entra identity**.
 
 **Why this pattern?** We reuse an existing IAM-protected REST API without changing it to OAuth. Because it sees a shared service identity, a **trusted upstream authorization check is essential**; Cedar is our chosen control. The native AgentCore API Gateway REST-stage target requires a public **endpoint type**, but API methods remain IAM-protected—it does **not** imply anonymous access.
 
