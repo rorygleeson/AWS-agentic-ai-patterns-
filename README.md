@@ -30,7 +30,7 @@ The **Network Operations API** is one API with four operations: asset status, di
 
 ![Network Operations API endpoint key using exactly the same teal, blue, orange and violet colours as the permissions diagram](docs/diagrams/network-api-endpoint-key.svg)
 
-**Access is caller-specific:** Being allowed to use the Network Operations API does **not** mean access to all four endpoints. Each user or service account can invoke only the numbered operations shown on their card, subject to any region and data restrictions.
+**Access is caller-specific:** Being allowed to use the Network Operations API does **not** mean access to all four endpoints. Each user or service account can invoke only the numbered operations shown on their card. The API also enforces data restrictions: for example, James is limited to Victoria (VIC), with PostgreSQL row-level security (RLS) helping restrict database records by state.
 
 ![Seven caller cards, each with green ticks or red crosses for all four downstream systems and inline numbered Network Operations API endpoint permissions](docs/diagrams/users-service-accounts-v8.svg)
 
