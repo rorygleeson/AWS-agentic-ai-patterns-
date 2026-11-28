@@ -39,3 +39,25 @@ If we use **only Runtime → G1 OBO**, G1 would need to forward its token to the
 **A: No.** OBO represents a signed-in **human**. Our **Entra Service Account** uses OAuth 2.0 Client Credentials for application-only tokens, while the **AWS Service Account (using IAM Role)** invokes G2 using IAM/SigV4 and obtains a separate application token for the Network Operations API. Their configuration details belong in the [authentication appendix](#appendix-enterprise-ai-application-authentication).
 
 *The three invocation paths are shown in the mobile-readable architecture below. For the seven named callers and their G1/G2 connections, see the [caller-to-Gateway overview](docs/diagrams/aws-agentcore-overview-mobile-v16.svg).*
+
+
+## Alternative — VPC PrivateLink and a Gateway with no inbound authentication
+
+**Q: Does AgentCore Gateway have to use OAuth/JWT or IAM authentication?**  
+**A: No.** AgentCore Gateway supports inbound authorizer type `NONE`, which performs **no authentication or authorization at the Gateway boundary**. This is supported by AWS, but **not selected for our enterprise PoC**: our design retains **G1 = Entra JWT** and **G2 = IAM/SigV4**, with Cedar tool authorization where appropriate.
+
+**Q: Could a `NONE` Gateway still be limited to approved VPCs?**  
+**A: Yes.** AWS PrivateLink provides an **interface VPC endpoint** for AgentCore Gateway. An **AWS Organizations Resource Control Policy (RCP)** can deny `bedrock-agentcore:InvokeGateway` when `aws:SourceVpc` or `aws:SourceVpce` is not approved. AWS explicitly says these RCPs apply to **all Gateway inbound types, including `NONE`**. The RCP is attached at the organization root, OU or account—not directly to the Gateway—and **sets a deny perimeter; it never grants access**. A resource-based policy can also be attached to an individual supported AgentCore resource. A VPC endpoint policy and endpoint security groups add further restrictions.
+
+**Q: Does an approved VPC make an unauthenticated Gateway secure for sensitive tools?**  
+**A: Not by itself.** Network location is **not a caller identity**. A workload that can reach the approved endpoint may still be able to invoke exposed tools when Gateway inbound authorization is `NONE`. Downstream authorization, a trusted authentication layer/interceptor and tool-level policy may be needed. Do not treat an endpoint policy's wildcard principal as proof of a human identity. For OAuth-based requests, VPC endpoint policies also require `Principal: "*"`; they cannot filter individual OAuth users as IAM principals.
+
+**Important implementation consideration:** A strict VPC-only RCP will also block an AgentCore Runtime agent that invokes Gateway **outside the approved VPC path**. Runtime must be configured to reach Gateway through an approved interface VPC endpoint, or the perimeter design must explicitly account for that route. Test AWS-service/forward-access-session exceptions and CloudTrail data-event visibility before enforcing an RCP broadly.
+
+**Decision for this PoC:** Recognise **PrivateLink + RCP network restriction** as an optional additional enterprise control. Recognise **`NONE` + restricted network access** as a technically supported alternative, **not** a sixth access pattern and **not** a replacement for G1/G2 authentication in our chosen design.
+
+**AWS references:**
+- [Gateway inbound authorization, including `NONE` and its security considerations](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-inbound-auth.html)
+- [Resource control policies for AgentCore — VPC restriction and `NONE` applicability](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/resource-control-policies.html)
+- [AgentCore PrivateLink interface VPC endpoints and endpoint policies](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/vpc-interface-endpoints.html)
+- [AgentCore resource-based policies](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/resource-based-policies.html)
